@@ -1,0 +1,25 @@
+name: Scaffold validation
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1
+        with:
+          node-version: "24.20.0"
+          cache: true
+      - run: vp install --frozen-lockfile
+      - run: vp check
+      - run: vp run typecheck
+      - run: vp test --run
+      - run: vp run test:runner
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: vp run test:browser
+      - run: vp build
+      - run: vp pack

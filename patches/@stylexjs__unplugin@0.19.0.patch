@@ -1,0 +1,70 @@
+diff --git a/lib/es/vite.mjs b/lib/es/vite.mjs
+index 0da6294e82f05d5a858f8b3740ecdfd8b2dd239c..841857d3dd03d0d07f5d2b126b37960089efcf55 100644
+--- a/lib/es/vite.mjs
++++ b/lib/es/vite.mjs
+@@ -13,6 +13,7 @@ function attachViteHooks(plugin) {
+   let viteServer = null;
+   let viteOutDir = null;
+   let cssInjectedInGenerateBundle = false;
++  let cssUpdateInterval;
+   return {
+     ...plugin,
+     config(config) {
+@@ -38,6 +39,7 @@ function attachViteHooks(plugin) {
+       } catch {}
+     },
+     configureServer(server) {
++      clearInterval(cssUpdateInterval);
+       viteServer = server;
+       if (devMode === 'full') {
+         server.middlewares.use(devInjectMiddleware);
+@@ -68,9 +70,14 @@ function attachViteHooks(plugin) {
+             } catch {}
+           }
+         }, 150);
++        cssUpdateInterval = interval;
+         server.httpServer?.once('close', () => clearInterval(interval));
+       }
+     },
++    closeBundle() {
++      clearInterval(cssUpdateInterval);
++      cssUpdateInterval = undefined;
++    },
+     resolveId(id) {
+       if (devMode === 'full' && id.includes('virtual:stylex:runtime')) return id;
+       if (devMode === 'css-only' && id.includes('virtual:stylex:css-only')) return id;
+diff --git a/lib/vite.js b/lib/vite.js
+index bf3df4c8b81574dafae3f626767706455f03854d..a7591a62ba6870d3c147a31d93bc23b00b4a903d 100644
+--- a/lib/vite.js
++++ b/lib/vite.js
+@@ -20,6 +20,7 @@ function attachViteHooks(plugin) {
+   let viteServer = null;
+   let viteOutDir = null;
+   let cssInjectedInGenerateBundle = false;
++  let cssUpdateInterval;
+   return {
+     ...plugin,
+     config(config) {
+@@ -45,6 +46,7 @@ function attachViteHooks(plugin) {
+       } catch {}
+     },
+     configureServer(server) {
++      clearInterval(cssUpdateInterval);
+       viteServer = server;
+       if (devMode === 'full') {
+         server.middlewares.use(_devInjectMiddleware.devInjectMiddleware);
+@@ -75,9 +77,14 @@ function attachViteHooks(plugin) {
+             } catch {}
+           }
+         }, 150);
++        cssUpdateInterval = interval;
+         server.httpServer?.once('close', () => clearInterval(interval));
+       }
+     },
++    closeBundle() {
++      clearInterval(cssUpdateInterval);
++      cssUpdateInterval = undefined;
++    },
+     resolveId(id) {
+       if (devMode === 'full' && id.includes('virtual:stylex:runtime')) return id;
+       if (devMode === 'css-only' && id.includes('virtual:stylex:css-only')) return id;
