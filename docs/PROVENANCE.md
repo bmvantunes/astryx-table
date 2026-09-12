@@ -18,8 +18,8 @@ CSS/data attributes, persistence keys, documentation links and historical proven
 Do not blindly rewrite upstream package names or historical URLs. Explicitly decide
 whether persisted preferences need a migration; a new package name does not settle it.
 
-Astryx is consumed from npm at 0.5.4, corresponding to release commit
-`b92b07613fbf941392a2138bd22b42c71e2707f0` in facebook/astryx. Its published license is
+Astryx is consumed from npm at 0.6.0, corresponding to release commit
+`1e63a5144bdf4777081edee472089277aceb5d75` in facebook/astryx. Its published license is
 MIT. No upstream component implementation is copied into this scaffold.
 
 The original research report is retained with its dated findings. Subsequent user

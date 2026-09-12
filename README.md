@@ -29,6 +29,10 @@ vp build
 vp pack
 ```
 
+On Linux, use `vp exec playwright install --with-deps chromium` instead of the
+browser-only install above. This also installs Chromium's system dependencies,
+matching the Ubuntu CI setup; installing system packages may require sudo.
+
 `vp build` builds the workbench; `vp pack` checks the library packaging baseline.
 The empty package build is not proof of grid CSS distribution or consumer parity.
 Browser smoke tests verify pointer/keyboard activation and compiled StyleX in an

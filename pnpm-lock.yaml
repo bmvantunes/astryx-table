@@ -21,11 +21,11 @@ importers:
   .:
     dependencies:
       '@astryxdesign/core':
-        specifier: 0.5.4
-        version: 0.5.4(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 0.6.0
+        version: 0.6.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@astryxdesign/theme-neutral':
-        specifier: 0.5.4
-        version: 0.5.4(@astryxdesign/core@0.5.4(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+        specifier: 0.6.0
+        version: 0.6.0(@astryxdesign/core@0.6.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
       '@stylexjs/stylex':
         specifier: ^0.19.0
         version: 0.19.0
@@ -80,17 +80,17 @@ importers:
 
 packages:
 
-  '@astryxdesign/core@0.5.4':
-    resolution: {integrity: sha512-Om3YCXGKd6d93UJwxUMbCiKyNlNweXOqYw4zYUoT4zqxiIfG4EXt2DRd809B7goBQGZWF13U8gud58jWb5z/fQ==}
+  '@astryxdesign/core@0.6.0':
+    resolution: {integrity: sha512-6zGMQZgHXofBYYIdQlx/pyoALYUUsBw8Z9Xc+8YSsXRNddHyu9T6NVMsrz7mc2m5/XRaU3XvIBEBnk4O3f5vVw==}
     peerDependencies:
       '@stylexjs/stylex': ^0.19.0
       react: '>=19.0.0'
       react-dom: '>=19.0.0'
 
-  '@astryxdesign/theme-neutral@0.5.4':
-    resolution: {integrity: sha512-rLoxjTyajKPTIBQCKfKk4fNv5Z77p3t+KtKCOfpPajZlPgVYIdJGxWiClJ0cEFuboEZx9PCw59WOfpi1jx20Qw==}
+  '@astryxdesign/theme-neutral@0.6.0':
+    resolution: {integrity: sha512-p9hYJEcwX+Yx0+9JJyqDgZO6ul3kE72G2zHHqcBiCkLKtNg0nmn5agaAzwPqRSorSVowkF41XrcSpJIwWd4tnA==}
     peerDependencies:
-      '@astryxdesign/core': 0.5.4
+      '@astryxdesign/core': 0.6.0
       react: '>=19'
 
   '@babel/code-frame@7.29.7':
@@ -1581,16 +1581,16 @@ packages:
 
 snapshots:
 
-  '@astryxdesign/core@0.5.4(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@astryxdesign/core@0.6.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@stylexjs/stylex': 0.19.0
       intl-messageformat: 11.2.14
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
 
-  '@astryxdesign/theme-neutral@0.5.4(@astryxdesign/core@0.5.4(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
+  '@astryxdesign/theme-neutral@0.6.0(@astryxdesign/core@0.6.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@astryxdesign/core': 0.5.4(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@astryxdesign/core': 0.6.0(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       lucide-react: 1.42.0(react@19.2.8)
       react: 19.2.8
 
