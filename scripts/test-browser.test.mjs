@@ -96,8 +96,23 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     { skip: process.platform === "win32" },
     async (context) => {
       const source = `
+      import assert from 'node:assert/strict';
       import {runBrowserValidation} from ${JSON.stringify(new URL("./test-browser.mjs", import.meta.url).href)};
-      process.exitCode = await runBrowserValidation(process.execPath, ['-e', 'console.log(process.pid); setInterval(() => {}, 1000)']);
+      const write = process.stdout.write.bind(process.stdout);
+      let childPid;
+      process.stdout.write = (chunk, ...args) => {
+        childPid = Number(chunk.toString().trim());
+        return write(chunk, ...args);
+      };
+      const result = await runBrowserValidation(process.execPath, ['-e', 'console.log(process.pid); setInterval(() => {}, 1000)']);
+      assert.ok(Number.isSafeInteger(childPid) && childPid > 0);
+      try {
+        process.kill(childPid, 0);
+        process.exitCode = 2;
+      } catch (error) {
+        assert.equal(error.code, 'ESRCH');
+        process.exitCode = result;
+      }
     `;
       const wrapper = spawn(process.execPath, ["--input-type=module", "-e", source], {
         stdio: ["ignore", "pipe", "pipe"],
@@ -119,7 +134,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
       const exited = once(wrapper, "exit");
       wrapper.kill(signal);
       const [code] = await exited;
-      assert.notEqual(code, 0);
+      assert.equal(code, 1, "validation settled before its direct child was reaped");
       const deadline = performance.now() + 1500;
       let alive = true;
       while (alive && performance.now() < deadline) {

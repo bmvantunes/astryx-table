@@ -33,10 +33,16 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
       resolve(code);
     };
     let shutdownWarning = false;
+    let aborting = false;
     const abort = () => {
-      if (settled) return;
-      // Fail immediately, not only after descendants release their pipe handles.
-      finish(1);
+      if (settled || aborting) return;
+      aborting = true;
+      clearTimeout(deadline);
+      releaseOutput();
+      // Reap the direct child before settling, but do not wait for descendants
+      // to release inherited pipes. Those pipes are destroyed below.
+      const awaitingExit = child.pid && child.exitCode === null && child.signalCode === null;
+      if (awaitingExit) child.once("exit", () => finish(1));
       if (child.pid) {
         if (process.platform === "win32") {
           const cleanup = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
@@ -54,7 +60,7 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
       }
       child.stdout.destroy();
       child.stderr.destroy();
-      child.unref();
+      if (!awaitingExit) finish(1);
     };
     const cancel = () => {
       console.error("Browser validation was cancelled.");
@@ -106,7 +112,7 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
     });
     child.on("close", (code) => {
       if (settled) return;
-      const failed = code !== 0 || shutdownWarning;
+      const failed = aborting || code !== 0 || shutdownWarning;
       if (failed) console.error("Browser validation failed, including runner shutdown.");
       finish(failed ? 1 : 0);
     });

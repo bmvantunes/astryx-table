@@ -38,9 +38,12 @@ Eight command-boundary tests cover a clean exit, a zero exit with a shutdown war
 a descendant retaining inherited pipes, a slow shared output sink, split/interleaved
 and long warning lines, an output sink that never drains, and SIGINT/SIGTERM cancellation. Warning recognition
 retains only a short suffix and line state per stream, not the complete output.
-Both child streams pause while the shared sink is blocked. Deadline failure is
-immediate and cleans up the owned process group/tree rather than only the launcher.
-Cancellation uses the same cleanup; signal listeners are removed when the run ends.
+Both child streams pause while the shared sink is blocked. Deadline failure cleans
+up the owned process group/tree rather than only the launcher. Cancellation uses
+the same cleanup: destroy inherited pipes and reap the direct child before settling,
+without waiting for descendants to release their pipe handles. Signal listeners
+are removed when the run ends. The strengthened cancellation regressions prove the
+direct child is already absent when validation settles, not merely gone later.
 The two cancellation regressions failed before this change and now pass. All eight
 scaffold validation commands passed after the cancellation fix, including five Node
 tests, eight runner tests and two Chromium tests. Independent review must be repeated
