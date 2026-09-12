@@ -23,10 +23,13 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
       waitingForDrain = false;
     };
     let settled = false;
+    let cleanupDeadline;
+    let cleanupProcess;
     const finish = (code) => {
       if (settled) return;
       settled = true;
       clearTimeout(deadline);
+      clearTimeout(cleanupDeadline);
       releaseOutput();
       process.removeListener("SIGINT", cancel);
       process.removeListener("SIGTERM", cancel);
@@ -34,33 +37,82 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
     };
     let shutdownWarning = false;
     let aborting = false;
+    let cleanupComplete = false;
+    const finishAbort = () => {
+      if (cleanupComplete && (!child.pid || child.exitCode !== null || child.signalCode !== null)) {
+        finish(1);
+      }
+    };
+    const killDirectChild = () => {
+      try {
+        child.kill("SIGKILL");
+      } catch (error) {
+        console.error(error);
+      }
+    };
     const abort = () => {
       if (settled || aborting) return;
       aborting = true;
       clearTimeout(deadline);
       releaseOutput();
+      cleanupDeadline = setTimeout(() => {
+        console.error(
+          "Browser cleanup exceeded its deadline; process-tree cleanup is unconfirmed.",
+        );
+        killDirectChild();
+        if (cleanupProcess) {
+          try {
+            cleanupProcess.kill("SIGKILL");
+          } catch (error) {
+            console.error(error);
+          }
+          cleanupProcess.unref();
+        }
+        // An OS refusal must fail the command rather than hang the runner.
+        // Normal cleanup remains referenced until the direct child is reaped.
+        child.unref();
+        finish(1);
+      }, 5000);
       // Reap the direct child before settling, but do not wait for descendants
       // to release inherited pipes. Those pipes are destroyed below.
       const awaitingExit = child.pid && child.exitCode === null && child.signalCode === null;
-      if (awaitingExit) child.once("exit", () => finish(1));
+      if (awaitingExit) child.once("exit", finishAbort);
       if (child.pid) {
         if (process.platform === "win32") {
           const cleanup = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
             stdio: "ignore",
           });
-          cleanup.on("error", () => child.kill("SIGKILL"));
-          cleanup.unref();
+          cleanupProcess = cleanup;
+          let fallbackStarted = false;
+          const fallback = () => {
+            if (fallbackStarted) return;
+            fallbackStarted = true;
+            console.error("Browser process-tree cleanup failed; attempting direct-child cleanup.");
+            killDirectChild();
+          };
+          cleanup.on("error", fallback);
+          cleanup.once("close", (code) => {
+            if (code !== 0) fallback();
+            cleanupComplete = true;
+            finishAbort();
+          });
         } else {
           try {
             process.kill(-child.pid, "SIGKILL");
           } catch (error) {
-            if (error.code !== "ESRCH") console.error(error);
+            if (error.code !== "ESRCH") {
+              console.error(error);
+              killDirectChild();
+            }
           }
+          cleanupComplete = true;
         }
+      } else {
+        cleanupComplete = true;
       }
       child.stdout.destroy();
       child.stderr.destroy();
-      if (!awaitingExit) finish(1);
+      finishAbort();
     };
     const cancel = () => {
       console.error("Browser validation was cancelled.");
@@ -108,10 +160,14 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
     }
     child.on("error", (error) => {
       console.error(error);
-      finish(1);
+      if (!aborting) finish(1);
     });
     child.on("close", (code) => {
       if (settled) return;
+      if (aborting) {
+        finishAbort();
+        return;
+      }
       const failed = aborting || code !== 0 || shutdownWarning;
       if (failed) console.error("Browser validation failed, including runner shutdown.");
       finish(failed ? 1 : 0);

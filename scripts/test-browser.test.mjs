@@ -19,6 +19,113 @@ test("a successful child exits cleanly", async () => {
   assert.equal(await runBrowserValidation(process.execPath, ["-e", "process.exit(0)"]), 0);
 });
 
+test("Windows cancellation waits for tree cleanup after the direct child exits", () => {
+  const fixture = `
+    import assert from 'node:assert/strict';
+    import childProcess from 'node:child_process';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {EventEmitter} from 'node:events';
+    import {PassThrough} from 'node:stream';
+    Object.defineProperty(process, 'platform', {value: 'win32'});
+    const child = new EventEmitter();
+    Object.assign(child, {pid: 123, exitCode: null, signalCode: null,
+      stdout: new PassThrough(), stderr: new PassThrough()});
+    const cleanup = new EventEmitter();
+    cleanup.unref = () => {};
+    let cleaned = false;
+    childProcess.spawn = command => {
+      if (command !== 'taskkill') return child;
+      setTimeout(() => {
+        child.signalCode = 'SIGKILL';
+        child.emit('exit', null, 'SIGKILL');
+        child.emit('close', null, 'SIGKILL');
+        setTimeout(() => { cleaned = true; cleanup.emit('close', 0); }, 40);
+      }, 0);
+      return cleanup;
+    };
+    syncBuiltinESMExports();
+    const {runBrowserValidation} = await import(${JSON.stringify(new URL("./test-browser.mjs", import.meta.url).href)});
+    assert.equal(await runBrowserValidation('browser', [], 20), 1);
+    assert.equal(cleaned, true, 'runner settled before tree cleanup completed');
+  `;
+  execFileSync(process.execPath, ["--input-type=module", "-e", fixture], { timeout: 3000 });
+});
+
+for (const failure of ["nonzero", "spawn-error"]) {
+  test(`Windows cleanup ${failure} falls back to reaping the direct child`, () => {
+    const fixture = `
+      import assert from 'node:assert/strict';
+      import childProcess from 'node:child_process';
+      import {syncBuiltinESMExports} from 'node:module';
+      import {EventEmitter} from 'node:events';
+      import {PassThrough} from 'node:stream';
+      Object.defineProperty(process, 'platform', {value: 'win32'});
+      const child = new EventEmitter();
+      Object.assign(child, {pid: 123, exitCode: null, signalCode: null,
+        stdout: new PassThrough(), stderr: new PassThrough()});
+      let reaped = false;
+      child.kill = () => {
+        setTimeout(() => {
+          reaped = true;
+          child.signalCode = 'SIGKILL';
+          child.emit('exit', null, 'SIGKILL');
+          child.emit('close', null, 'SIGKILL');
+        }, 20);
+        return true;
+      };
+      childProcess.spawn = command => {
+        if (command !== 'taskkill') return child;
+        const cleanup = new EventEmitter();
+        setTimeout(() => {
+          if (${JSON.stringify(failure)} === 'spawn-error') cleanup.emit('error', new Error('unavailable'));
+          cleanup.emit('close', 1);
+        }, 0);
+        return cleanup;
+      };
+      syncBuiltinESMExports();
+      const {runBrowserValidation} = await import(${JSON.stringify(new URL("./test-browser.mjs", import.meta.url).href)});
+      assert.equal(await runBrowserValidation('browser', [], 20), 1);
+      assert.equal(reaped, true);
+    `;
+    execFileSync(process.execPath, ["--input-type=module", "-e", fixture], { timeout: 3000 });
+  });
+}
+
+for (const platform of ["linux", "win32"]) {
+  test(`${platform} cleanup has a bounded failure when no exit arrives`, () => {
+    const fixture = `
+    import assert from 'node:assert/strict';
+    import childProcess from 'node:child_process';
+    import {syncBuiltinESMExports} from 'node:module';
+    import {EventEmitter} from 'node:events';
+    import {PassThrough} from 'node:stream';
+    Object.defineProperty(process, 'platform', {value: ${JSON.stringify(platform)}});
+    const child = new EventEmitter();
+    let released = false;
+    let fallbackAttempted = false;
+    Object.assign(child, {pid: 123, exitCode: null, signalCode: null,
+      stdout: new PassThrough(), stderr: new PassThrough(),
+      kill: () => { fallbackAttempted = true; return false; },
+      unref: () => { released = true; }});
+    let cleanupReleased = false;
+    const cleanup = new EventEmitter();
+    cleanup.kill = () => false;
+    cleanup.unref = () => { cleanupReleased = true; };
+    childProcess.spawn = command => command === 'taskkill' ? cleanup : child;
+    process.kill = () => { throw Object.assign(new Error('denied'), {code: 'EPERM'}); };
+    syncBuiltinESMExports();
+    const {runBrowserValidation} = await import(${JSON.stringify(new URL("./test-browser.mjs", import.meta.url).href)});
+    const started = performance.now();
+    assert.equal(await runBrowserValidation('browser', [], 20), 1);
+    assert.equal(fallbackAttempted, true);
+    assert.equal(released, true);
+    if (process.platform === 'win32') assert.equal(cleanupReleased, true);
+    assert.ok(performance.now() - started < 6500);
+  `;
+    execFileSync(process.execPath, ["--input-type=module", "-e", fixture], { timeout: 8000 });
+  });
+}
+
 test("both child streams respect a slow shared output destination", () => {
   // Isolate the process-level output boundary from the Node test reporter.
   const fixture = `

@@ -16,7 +16,7 @@ Verified locally:
 
 This snapshot supersedes the September 8 validation against Astryx 0.5.4.
 The 0.6.0 snapshot includes the frozen install, `vp check`, `vp run typecheck`,
-`vp test --run`, all eight `vp run test:runner` cases, `vp run test:browser`,
+`vp test --run`, all thirteen `vp run test:runner` cases, `vp run test:browser`,
 `vp build`, and `vp pack`. It is bootstrap evidence only; the separate migration
 worktree's component probes and incomplete grid implementation are not covered.
 
@@ -34,20 +34,25 @@ shutdown timeout; the command-level regression rejected that result.
 Green: the same Browser command and assertions completed without the warning.
 The wrapper treats nonzero exit, process error, a 120-second deadline, or a shutdown
 warning as failure. It never converts a timeout into success.
-Eight command-boundary tests cover a clean exit, a zero exit with a shutdown warning,
+Thirteen command-boundary tests cover a clean exit, a zero exit with a shutdown warning,
 a descendant retaining inherited pipes, a slow shared output sink, split/interleaved
 and long warning lines, an output sink that never drains, and SIGINT/SIGTERM cancellation. Warning recognition
 retains only a short suffix and line state per stream, not the complete output.
-Both child streams pause while the shared sink is blocked. Deadline failure cleans
-up the owned process group/tree rather than only the launcher. Cancellation uses
-the same cleanup: destroy inherited pipes and reap the direct child before settling,
+Both child streams pause while the shared sink is blocked. Deadline failure attempts
+cleanup of the owned process group/tree rather than only the launcher. Cancellation uses
+the same cleanup: destroy inherited pipes and normally reap the direct child before settling,
 without waiting for descendants to release their pipe handles. Signal listeners
 are removed when the run ends. The strengthened cancellation regressions prove the
 direct child is already absent when validation settles, not merely gone later.
-The two cancellation regressions failed before this change and now pass. All eight
-scaffold validation commands passed after the cancellation fix, including five Node
-tests, eight runner tests and two Chromium tests. Independent review must be repeated
-for this updated diff before publication.
+The two cancellation regressions failed before the reaping fix and now pass.
+Windows cleanup also waits for `taskkill` completion, handles both startup and
+nonzero-exit failures, and attempts direct-child termination when tree cleanup fails.
+A separate five-second cleanup deadline reports unconfirmed cleanup and fails
+without leaving the runner indefinitely referenced if the OS refuses termination.
+Isolated OS-boundary fixtures cover these Windows events and POSIX kill failure;
+they are not evidence of a real Windows host run. The existing real-process
+cancellation and inherited-pipe tests remain in place. Independent review must be
+repeated for this updated diff before publication.
 
 Remove the dependency patch after an upstream version passes the same regression
 unpatched. Do not disable StyleX transformation or lower assertions to remove it.
