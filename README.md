@@ -17,7 +17,7 @@ does not reserve or publish a package.
 Use Node 24.20.0 and pnpm 11.18.0 through Vite+:
 
 ```sh
-vp install
+vp install --frozen-lockfile
 vp exec playwright install chromium
 vp dev
 vp check

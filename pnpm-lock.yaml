@@ -37,7 +37,7 @@ importers:
         version: 19.2.8(react@19.2.8)
     devDependencies:
       '@stylexjs/unplugin':
-        specifier: ^0.19.0
+        specifier: 0.19.0
         version: 0.19.0(patch_hash=ea9bf1145f5a1c82a82d958088629fdf1515e45d74a928432e39b4750649b70c)(unplugin@2.3.11)
       '@types/node':
         specifier: ^26.1.1
