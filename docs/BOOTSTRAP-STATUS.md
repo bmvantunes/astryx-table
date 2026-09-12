@@ -1,4 +1,4 @@
-# Bootstrap validation — 2026-09-08
+# Bootstrap validation — 2026-09-12
 
 This is a scaffold, not the grid implementation or an npm release. The user has
 approved the specification, ticket dependencies and test boundaries, plus the
@@ -6,13 +6,19 @@ narrow StyleX lifecycle fix.
 
 Verified locally:
 
-- Locked install: Astryx 0.5.4, StyleX 0.19.0, Vite+ 0.2.8, bundled Vitest/Browser
+- Locked install: Astryx Core and neutral theme 0.6.0, StyleX 0.19.0, Vite+ 0.2.8, bundled Vitest/Browser
   provider 4.1.10, Playwright 1.60.0 and React 19.2.8.
 - Static formatting/lint and strict TypeScript.
-- One Node contract test and two real Chromium tests: pointer/keyboard activation
+- Five Node contract tests and two real Chromium tests: pointer/keyboard activation
   and compiled StyleX. These smoke tests do not prove grid accessibility or parity.
 - Workbench application build and empty private library declarations/JavaScript.
   The empty library build does not prove StyleX library CSS distribution.
+
+This snapshot supersedes the September 8 validation against Astryx 0.5.4.
+The 0.6.0 snapshot includes the frozen install, `vp check`, `vp run typecheck`,
+`vp test --run`, all three `vp run test:runner` cases, `vp run test:browser`,
+`vp build`, and `vp pack`. It is bootstrap evidence only; the separate migration
+worktree's component probes and incomplete grid implementation are not covered.
 
 ## Approved lifecycle patch
 
