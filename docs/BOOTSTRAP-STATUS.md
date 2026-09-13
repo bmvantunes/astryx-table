@@ -1,0 +1,83 @@
+# Bootstrap validation — 2026-09-13
+
+## Current platform and validation snapshot
+
+The user approved macOS/Linux-only development and test tooling on September 13.
+The Browser runner now rejects unsupported platforms before child launch or signal
+registration. Windows taskkill handling has been removed; no operating-system
+restriction was added to the consumer library package.
+
+The frozen install, static checks, strict types, five Node tests, twelve runner
+tests, two real Chromium tests, workbench build and empty private library build
+pass. Runner coverage includes unsupported-platform admission, supported-platform
+bounded cleanup failure, real-process cancellation/reaping, inherited pipes,
+backpressure and shutdown-warning detection. This remains scaffold-only evidence.
+
+## Historical September 12 snapshot
+
+The following records the earlier implementation and validation. Its thirteen-test
+count and Windows cleanup description are historical and superseded by the current
+snapshot above; the approved StyleX lifecycle patch remains in use.
+
+This is a scaffold, not the grid implementation or an npm release. The user has
+approved the specification, ticket dependencies and test boundaries, plus the
+narrow StyleX lifecycle fix.
+
+Verified locally:
+
+- Locked install: Astryx Core and neutral theme 0.6.0, StyleX 0.19.0, Vite+ 0.2.8, bundled Vitest/Browser
+  provider 4.1.10, Playwright 1.60.0 and React 19.2.8.
+- Static formatting/lint and strict TypeScript.
+- Five Node contract tests and two real Chromium tests: pointer/keyboard activation
+  and compiled StyleX. These smoke tests do not prove grid accessibility or parity.
+- Workbench application build and empty private library declarations/JavaScript.
+  The empty library build does not prove StyleX library CSS distribution.
+
+This snapshot supersedes the September 8 validation against Astryx 0.5.4.
+The 0.6.0 snapshot includes the frozen install, `vp check`, `vp run typecheck`,
+`vp test --run`, all thirteen `vp run test:runner` cases, `vp run test:browser`,
+`vp build`, and `vp pack`. It is bootstrap evidence only; the separate migration
+worktree's component probes and incomplete grid implementation are not covered.
+
+## Approved lifecycle patch
+
+`@stylexjs/unplugin@0.19.0` starts a CSS-update interval in `configureServer` but
+originally clears it only on HTTP-server close. Vitest's middleware-mode server
+can have no HTTP server. The pinned pnpm patch clears the plugin-owned interval
+in `closeBundle`, also clearing a previous interval before server reconfiguration.
+Both published ESM and CommonJS Vite adapters receive the same small change.
+No global timers are patched, and style transformation/injection is unchanged.
+
+Red: the real Browser command passed two assertions but reported a 10-second
+shutdown timeout; the command-level regression rejected that result.
+Green: the same Browser command and assertions completed without the warning.
+The wrapper treats nonzero exit, process error, a 120-second deadline, or a shutdown
+warning as failure. It never converts a timeout into success.
+Thirteen command-boundary tests cover a clean exit, a zero exit with a shutdown warning,
+a descendant retaining inherited pipes, a slow shared output sink, split/interleaved
+and long warning lines, an output sink that never drains, and SIGINT/SIGTERM cancellation. Warning recognition
+retains only a short suffix and line state per stream, not the complete output.
+Both child streams pause while the shared sink is blocked. Deadline failure attempts
+cleanup of the owned process group/tree rather than only the launcher. Cancellation uses
+the same cleanup: destroy inherited pipes and normally reap the direct child before settling,
+without waiting for descendants to release their pipe handles. Signal listeners
+are removed when the run ends. The strengthened cancellation regressions prove the
+direct child is already absent when validation settles, not merely gone later.
+The two cancellation regressions failed before the reaping fix and now pass.
+Windows cleanup also waits for `taskkill` completion, handles both startup and
+nonzero-exit failures, and attempts direct-child termination when tree cleanup fails.
+A separate five-second cleanup deadline reports unconfirmed cleanup and fails
+without leaving the runner indefinitely referenced if the OS refuses termination.
+Isolated OS-boundary fixtures cover these Windows events and POSIX kill failure;
+they are not evidence of a real Windows host run. The existing real-process
+cancellation and inherited-pipe tests remain in place. Independent review must be
+repeated for this updated diff before publication.
+
+Remove the dependency patch after an upstream version passes the same regression
+unpatched. Do not disable StyleX transformation or lower assertions to remove it.
+
+## Remaining migration work
+
+Audited core import/rename, the real renderer and all feature/performance parity
+remain the linked migration tickets. No core source was silently copied from the
+old dirty worktree or its unmerged follow-up. The old repository remains untouched.

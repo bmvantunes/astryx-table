@@ -1,0 +1,20 @@
+packages:
+  - packages/*
+
+# The upstream script only prints an agent-setup reminder; no build is required.
+allowBuilds:
+  "@astryxdesign/core": false
+
+catalog:
+  vite: npm:@voidzero-dev/vite-plus-core@0.2.8
+  vite-plus: 0.2.8
+
+overrides:
+  vite: "catalog:"
+
+patchedDependencies:
+  "@stylexjs/unplugin@0.19.0": patches/@stylexjs__unplugin@0.19.0.patch
+
+peerDependencyRules:
+  allowedVersions:
+    vite: "*"

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.vitest/
+.vitest-attachments/
+__screenshots__/
+test-results/
+playwright-report/
+.env
+.env.*
+!.env.example
+.DS_Store
