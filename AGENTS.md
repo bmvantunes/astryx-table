@@ -37,6 +37,10 @@ Preserve unrelated user work. Do not publish npm packages without authorization.
 
 ## Validation
 
+Development/test tooling targets macOS and Linux only (user-approved September 13,
+2026). Reject unsupported platforms before Browser subprocess launch; do not add
+a Windows process-tree cleanup fallback. This is not a consumer-library OS restriction.
+
 Run `vp install --frozen-lockfile`, `vp check`, `vp run typecheck`, `vp test --run`,
 `vp run test:runner`, `vp run test:browser`, `vp build` and `vp pack` for the scaffold. Migrated features
 must add retained source/emitted type tests, public Browser regression tests,

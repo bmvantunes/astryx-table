@@ -1,4 +1,23 @@
-# Bootstrap validation — 2026-09-12
+# Bootstrap validation — 2026-09-13
+
+## Current platform and validation snapshot
+
+The user approved macOS/Linux-only development and test tooling on September 13.
+The Browser runner now rejects unsupported platforms before child launch or signal
+registration. Windows taskkill handling has been removed; no operating-system
+restriction was added to the consumer library package.
+
+The frozen install, static checks, strict types, five Node tests, twelve runner
+tests, two real Chromium tests, workbench build and empty private library build
+pass. Runner coverage includes unsupported-platform admission, supported-platform
+bounded cleanup failure, real-process cancellation/reaping, inherited pipes,
+backpressure and shutdown-warning detection. This remains scaffold-only evidence.
+
+## Historical September 12 snapshot
+
+The following records the earlier implementation and validation. Its thirteen-test
+count and Windows cleanup description are historical and superseded by the current
+snapshot above; the approved StyleX lifecycle patch remains in use.
 
 This is a scaffold, not the grid implementation or an npm release. The user has
 approved the specification, ticket dependencies and test boundaries, plus the

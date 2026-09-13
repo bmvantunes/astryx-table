@@ -4,9 +4,13 @@ import { pathToFileURL } from "node:url";
 
 // Command boundary: a zero exit with a shutdown warning is still a failed run.
 export function runBrowserValidation(command, args, timeoutMs = 120_000) {
+  if (process.platform !== "darwin" && process.platform !== "linux") {
+    console.error("Browser validation tooling supports macOS and Linux only.");
+    return Promise.resolve(1);
+  }
   return new Promise((resolve) => {
     const child = spawn(command, args, {
-      detached: process.platform !== "win32",
+      detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
     const streams = [child.stdout, child.stderr];
@@ -24,7 +28,6 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
     };
     let settled = false;
     let cleanupDeadline;
-    let cleanupProcess;
     const finish = (code) => {
       if (settled) return;
       settled = true;
@@ -60,14 +63,6 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
           "Browser cleanup exceeded its deadline; process-tree cleanup is unconfirmed.",
         );
         killDirectChild();
-        if (cleanupProcess) {
-          try {
-            cleanupProcess.kill("SIGKILL");
-          } catch (error) {
-            console.error(error);
-          }
-          cleanupProcess.unref();
-        }
         // An OS refusal must fail the command rather than hang the runner.
         // Normal cleanup remains referenced until the direct child is reaped.
         child.unref();
@@ -78,35 +73,15 @@ export function runBrowserValidation(command, args, timeoutMs = 120_000) {
       const awaitingExit = child.pid && child.exitCode === null && child.signalCode === null;
       if (awaitingExit) child.once("exit", finishAbort);
       if (child.pid) {
-        if (process.platform === "win32") {
-          const cleanup = spawn("taskkill", ["/pid", String(child.pid), "/T", "/F"], {
-            stdio: "ignore",
-          });
-          cleanupProcess = cleanup;
-          let fallbackStarted = false;
-          const fallback = () => {
-            if (fallbackStarted) return;
-            fallbackStarted = true;
-            console.error("Browser process-tree cleanup failed; attempting direct-child cleanup.");
+        try {
+          process.kill(-child.pid, "SIGKILL");
+        } catch (error) {
+          if (error.code !== "ESRCH") {
+            console.error(error);
             killDirectChild();
-          };
-          cleanup.on("error", fallback);
-          cleanup.once("close", (code) => {
-            if (code !== 0) fallback();
-            cleanupComplete = true;
-            finishAbort();
-          });
-        } else {
-          try {
-            process.kill(-child.pid, "SIGKILL");
-          } catch (error) {
-            if (error.code !== "ESRCH") {
-              console.error(error);
-              killDirectChild();
-            }
           }
-          cleanupComplete = true;
         }
+        cleanupComplete = true;
       } else {
         cleanupComplete = true;
       }

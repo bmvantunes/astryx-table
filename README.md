@@ -14,6 +14,10 @@ does not reserve or publish a package.
 
 ## Develop
 
+Development and test tooling supports macOS and Linux. The Browser validation
+runner rejects other platforms before launching processes. This tooling policy
+does not restrict the operating systems of consumers of the future React library.
+
 Use Node 24.20.0 and pnpm 11.18.0 through Vite+:
 
 ```sh
