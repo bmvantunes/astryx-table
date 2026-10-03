@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+# AGENTS.md exempts verified unchanged imports and mechanical renames from
+# repeated review. CI verifies every archived byte against the pinned source.
+# The manifest, verifier, controls, dependency patches and future renderer remain
+# reviewable. Do not put new or behaviorally changed implementation in this archive.
+reviews:
+  profile: assertive
+  path_filters:
+    - "!migration/table/**"
+    - "!migration/reference/**"
+  path_instructions:
+    - path: "migration/manifest.json"
+      instructions: >-
+        Review source identity, completeness, transformation rules and dispositions.
+        The archived tree has the user-approved mechanical-import exemption;
+        scripts/verify-import.mjs and CI must independently prove it matches the
+        pinned Git source. Semantic changes belong outside the frozen archive
+        and require full review.

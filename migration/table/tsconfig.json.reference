@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "paths": {
+      "@bruno/table": ["./src/index.ts"],
+      "@bruno/table/effect": ["./src/effect.ts"]
+    },
+    "types": ["node", "react"]
+  },
+  "include": ["src", "vite.config.ts"]
+}

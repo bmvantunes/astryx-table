@@ -7,9 +7,8 @@ import "./styles.css";
 test("the published Astryx button works in real Chromium with compiled StyleX", async () => {
   await render(<App />);
   await expect.element(page.getByRole("heading", { name: "AstryxTable" })).toBeVisible();
-  const main = document.querySelector("main");
-  expect(main).not.toBeNull();
-  expect(getComputedStyle(main!).paddingTop).toBe("32px");
+  // StyleX publishes development CSS asynchronously across Browser test modules.
+  await expect.element(page.getByRole("main")).toHaveStyle({ paddingTop: "32px" });
   await page.getByRole("button", { name: "Verify Astryx interaction" }).click();
   await expect
     .element(page.getByRole("status", { name: "Workbench status" }))

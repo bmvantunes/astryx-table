@@ -1,0 +1,563 @@
+diff --git a/src/Dialog/Dialog.tsx b/src/Dialog/Dialog.tsx
+--- a/src/Dialog/Dialog.tsx
++++ b/src/Dialog/Dialog.tsx
+@@ -34,6 +34,7 @@
+ import type {BaseProps} from '../BaseProps';
+ import * as stylex from '@stylexjs/stylex';
+ import {useScrollLock} from '../hooks/useScrollLock';
++import {useFocusTrap} from '../hooks/useFocusTrap';
+ import {layerTextReset} from '../Layer/layerTextReset.stylex';
+ import {LayerContentBoundary} from '../Layer/layerScopedContext';
+ import {LayerDepthProvider} from '../Layer/LayerDepthContext';
+@@ -471,7 +472,9 @@
+   const hasConsumerName =
+     props['aria-label'] != null || props['aria-labelledby'] != null;
+ 
+-  const dialogRef = useRef<HTMLDialogElement>(null);
++  const {containerRef: dialogRef} = useFocusTrap<HTMLDialogElement>({
++    isActive: isOpen && !isInline,
++  });
+ 
+   // Callback ref on the <dialog>: sync the default aria-labelledby from the
+   // DialogHeader title (if one rendered) in the same commit, with no second
+@@ -516,11 +519,12 @@
+     if (isOpen) {
+       // Capture the currently focused element as the trigger — used for
+       // directional animation origin and focus restoration on close.
+-      triggerElementRef.current = document.activeElement as HTMLElement | null;
++      triggerElementRef.current = dialog.ownerDocument
++        .activeElement as HTMLElement | null;
+ 
+       // Set directional CSS custom properties before opening
+       const trigger = triggerElementRef.current;
+-      if (trigger && trigger !== document.body) {
++      if (trigger && trigger !== dialog.ownerDocument.body) {
+         const dir = getDialogDirection(trigger);
+         dialog.style.setProperty('--dialog-dir-x', `${dir.x}px`);
+         dialog.style.setProperty('--dialog-dir-y', `${dir.y}px`);
+diff --git a/src/Selector/useSelectorPresentation.ts b/src/Selector/useSelectorPresentation.ts
+--- a/src/Selector/useSelectorPresentation.ts
++++ b/src/Selector/useSelectorPresentation.ts
+@@ -77,10 +77,23 @@
+   onHideRef.current = onHide;
+   onShowRef.current = onShow;
+ 
++  const popoverRef = useRef<UsePopoverReturn | null>(null);
+   const handlePopoverHide = useCallback(() => {
+-    prepareFocusReturn();
++    const trigger = triggerRef.current;
++    const owner = trigger?.ownerDocument;
++    const active = owner?.activeElement;
++    const shouldRestore =
++      owner?.hasFocus() &&
++      (active == null ||
++        active === owner.body ||
++        active === owner.documentElement ||
++        active === trigger ||
++        popoverRef.current?.contentRef.current?.contains(active));
+     onHideRef.current();
+-    triggerRef.current?.focus();
++    if (shouldRestore) {
++      prepareFocusReturn();
++      trigger?.focus();
++    }
+   }, [prepareFocusReturn, triggerRef]);
+   const handlePopoverShow = useCallback(() => {
+     didShowPopoverRef.current = true;
+@@ -92,6 +105,7 @@
+     onHide: handlePopoverHide,
+     onShow: handlePopoverShow,
+   });
++  popoverRef.current = popover;
+   const {hide: hidePopover, show: showPopover} = popover;
+ 
+   const show = useCallback((): boolean => {
+diff --git a/src/TextInput/TextInput.tsx b/src/TextInput/TextInput.tsx
+--- a/src/TextInput/TextInput.tsx
++++ b/src/TextInput/TextInput.tsx
+@@ -114,7 +114,7 @@
+ import {useTranslator} from '../i18n';
+ 
+ import {useMergedRefs} from '../hooks/useMergedRefs';
+-export type TextInputType = 'text' | 'password' | 'email';
++export type TextInputType = 'text' | 'password' | 'email' | 'search';
+ 
+ export interface TextInputProps extends Omit<
+   BaseProps,
+@@ -127,6 +127,8 @@
+    * @default 'text'
+    */
+   type?: TextInputType;
++  maxLength?: number;
++  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+   /**
+    * Label text for the input (always rendered for accessibility).
+    */
+diff --git a/src/Toast/ToastViewport.tsx b/src/Toast/ToastViewport.tsx
+--- a/src/Toast/ToastViewport.tsx
++++ b/src/Toast/ToastViewport.tsx
+@@ -314,7 +314,7 @@
+   const [toasts, setToasts] = useState<ToastEntry[]>([]);
+   const [exitingIds, setExitingIds] = useState<Set<string>>(new Set());
+   const toastsRef = useRef(toasts);
+-  toastsRef.current = toasts;
++  // Publish the imperative list synchronously; React renders its snapshots.
+ 
+   // Show the popover on mount so it enters the top layer.
+   const viewportRef = useRef<HTMLDivElement>(null);
+@@ -400,16 +400,14 @@
+       // toast's place, so the old row leaves the DOM without ever being
+       // dismissed. Its settled id is dropped by the prune below, which covers
+       // every silent exit with one rule rather than one branch per path.
+-      setToasts(prev => {
+-        if (uniqueID) {
+-          const existing = prev.find(t => t.options.uniqueID === uniqueID);
+-          if (existing) {
+-            // An ignored collision already returned above; overwrite in place.
+-            return prev.map(t => (t.options.uniqueID === uniqueID ? entry : t));
+-          }
+-        }
+-        return [...prev, entry];
+-      });
++      const prev = toastsRef.current;
++      const existing =
++        uniqueID && prev.some(t => t.options.uniqueID === uniqueID);
++      const next = existing
++        ? prev.map(t => (t.options.uniqueID === uniqueID ? entry : t))
++        : [...prev, entry];
++      toastsRef.current = next;
++      setToasts(next);
+     },
+     [announce],
+   );
+@@ -422,11 +420,17 @@
+     if (exitingIdsRef.current.has(id)) {
+       return;
+     }
++    const entry = toastsRef.current.find(t => t.id === id);
++    if (!entry) {
++      return;
++    }
++    if (!viewportRef.current?.querySelector(`[data-toast-id="${id}"]`)) {
++      toastsRef.current = toastsRef.current.filter(t => t.id !== id);
++      setToasts(toastsRef.current);
++      entry.options.onHide?.(reason);
++      return;
++    }
+     exitingIdsRef.current.add(id);
+-    const entry = toastsRef.current.find(t => t.id === id);
+-    if (entry) {
+-      entry.options.onHide?.(reason);
+-    }
+     // If focus currently lives inside the toast being dismissed, remember
+     // that its removal must hand focus off to a neighbor (or the element
+     // focused before the user entered the viewport) rather than <body>.
+@@ -459,12 +463,14 @@
+       }
+       return new Set(prev).add(id);
+     });
++    entry.options.onHide?.(reason);
+   }, []);
+ 
+   const handleExited = useCallback((id: string) => {
+     exitingIdsRef.current.delete(id);
+     setExitingIds(withoutId(id));
+-    setToasts(prev => prev.filter(t => t.id !== id));
++    toastsRef.current = toastsRef.current.filter(t => t.id !== id);
++    setToasts(toastsRef.current);
+   }, []);
+ 
+   // After a dismissed toast unmounts, hand focus off so it never falls to
+diff --git a/src/Toast/useToast.tsx b/src/Toast/useToast.tsx
+--- a/src/Toast/useToast.tsx
++++ b/src/Toast/useToast.tsx
+@@ -126,6 +126,12 @@
+     removeToast: (id, reason) => {
+       if (fallbackContext && fallbackContext !== proxy) {
+         fallbackContext.removeToast(id, reason);
++      } else {
++        const index = pending.findIndex(entry => entry.id === id);
++        if (index >= 0) {
++          const [entry] = pending.splice(index, 1);
++          entry.options.onHide?.(reason);
++        }
+       }
+     },
+     findByUniqueID: uid => {
+diff --git a/src/hooks/useFocusTrap.ts b/src/hooks/useFocusTrap.ts
+--- a/src/hooks/useFocusTrap.ts
++++ b/src/hooks/useFocusTrap.ts
+@@ -71,7 +71,7 @@
+   if (el.hasAttribute('inert') || el.closest('[inert]')) {
+     return false;
+   }
+-  if (el.hidden || el.closest('[hidden]')) {
++  if (el.hidden || el.closest('[hidden], dialog:not([open])')) {
+     return false;
+   }
+   // closest() matches the element itself as well as any ancestor.
+@@ -80,8 +80,8 @@
+   }
+   // offsetParent is null for display:none (and fixed elements); pair with a
+   // visibility check via getComputedStyle when available.
+-  if (typeof window !== 'undefined' && window.getComputedStyle) {
+-    const style = window.getComputedStyle(el);
++  if (el.ownerDocument.defaultView?.getComputedStyle) {
++    const style = el.ownerDocument.defaultView!.getComputedStyle(el);
+     if (style.visibility === 'hidden' || style.display === 'none') {
+       return false;
+     }
+@@ -107,7 +107,7 @@
+   } catch {
+     // Some elements may throw on focus
+   }
+-  return document.activeElement === element;
++  return element.ownerDocument.activeElement === element;
+ }
+ 
+ /**
+@@ -274,6 +274,7 @@
+       return;
+     }
+ 
++    const document = containerRef.current?.ownerDocument ?? globalThis.document;
+     const previouslyFocused = document.activeElement as HTMLElement | null;
+     // Snapshot the container now; by cleanup it may be detached or unmounted.
+     const container = containerRef.current;
+@@ -306,7 +307,7 @@
+         active === document.documentElement ||
+         (container != null && container.contains(active));
+ 
+-      if (!focusWasLost) {
++      if (!focusWasLost || !document.hasFocus()) {
+         return;
+       }
+ 
+@@ -329,6 +330,7 @@
+       return;
+     }
+ 
++    const document = containerRef.current?.ownerDocument ?? globalThis.document;
+     const handleFocus = (event: FocusEvent) => {
+       const container = containerRef.current;
+       if (!container) {
+@@ -350,7 +352,8 @@
+           focusLastDescendant(container);
+         } else if (
+           !focusedFirst &&
+-          lastFocusRef.current instanceof HTMLElement &&
++          lastFocusRef.current instanceof
++            (document.defaultView?.HTMLElement ?? HTMLElement) &&
+           container.contains(lastFocusRef.current)
+         ) {
+           // A modal surface may intentionally have no tabbable controls and
+@@ -389,12 +392,23 @@
+       return;
+     }
+ 
++    const document = containerRef.current?.ownerDocument ?? globalThis.document;
+     const handleKeyDown = (event: KeyboardEvent) => {
+       const container = containerRef.current;
+       if (!container) {
+         return;
+       }
+ 
++      if (event.defaultPrevented || !container.contains(event.target as Node)) {
++        return;
++      }
++
++      const focusScope = 'dialog[open], [popover]:popover-open';
++      const layer = container.closest(focusScope);
++      if (layer && document.activeElement?.closest(focusScope) !== layer) {
++        return;
++      }
++
+       if (event.key === 'Tab') {
+         // Mark that keyboard navigation is happening
+         isKeyboardNavigationRef.current = true;
+@@ -402,7 +416,13 @@
+         const focusable = getFocusableElements(container);
+         if (focusable.length === 0) {
+           const active = document.activeElement;
+-          if (!(active instanceof HTMLElement) || !container.contains(active)) {
++          if (
++            !(
++              active instanceof
++              (document.defaultView?.HTMLElement ?? HTMLElement)
++            ) ||
++            !container.contains(active)
++          ) {
+             // A layer can be open while focus legitimately sits outside it —
+             // a listbox popup anchored to its own input. Cancelling there
+             // would take Tab away from the whole page.
+diff --git a/dist/Dialog/Dialog.js b/dist/Dialog/Dialog.js
+--- a/dist/Dialog/Dialog.js
++++ b/dist/Dialog/Dialog.js
+@@ -25,6 +25,7 @@
+ import { useCallback, useEffect, useId, useMemo, useRef } from 'react';
+ import * as stylex from '@stylexjs/stylex';
+ import { useScrollLock } from "../hooks/useScrollLock.js";
++import { useFocusTrap } from "../hooks/useFocusTrap.js";
+ import { layerTextReset } from "../Layer/layerTextReset.stylex.js";
+ import { LayerContentBoundary } from "../Layer/layerScopedContext.js";
+ import { LayerDepthProvider } from "../Layer/LayerDepthContext.js";
+@@ -318,7 +319,9 @@
+ 
+   // Consumer-provided labels always win over the DialogHeader default.
+   const hasConsumerName = props['aria-label'] != null || props['aria-labelledby'] != null;
+-  const dialogRef = useRef(null);
++  const { containerRef: dialogRef } = useFocusTrap({
++    isActive: isOpen && !isInline,
++  });
+ 
+   // Callback ref on the <dialog>: sync the default aria-labelledby from the
+   // DialogHeader title (if one rendered) in the same commit, with no second
+@@ -358,11 +361,11 @@
+     if (isOpen) {
+       // Capture the currently focused element as the trigger — used for
+       // directional animation origin and focus restoration on close.
+-      triggerElementRef.current = document.activeElement;
++      triggerElementRef.current = dialog.ownerDocument.activeElement;
+ 
+       // Set directional CSS custom properties before opening
+       const trigger = triggerElementRef.current;
+-      if (trigger && trigger !== document.body) {
++      if (trigger && trigger !== dialog.ownerDocument.body) {
+         const dir = getDialogDirection(trigger);
+         dialog.style.setProperty('--dialog-dir-x', `${dir.x}px`);
+         dialog.style.setProperty('--dialog-dir-y', `${dir.y}px`);
+diff --git a/dist/Selector/useSelectorPresentation.js b/dist/Selector/useSelectorPresentation.js
+--- a/dist/Selector/useSelectorPresentation.js
++++ b/dist/Selector/useSelectorPresentation.js
+@@ -38,10 +38,20 @@
+   } = useFocusReturnVisibility();
+   onHideRef.current = onHide;
+   onShowRef.current = onShow;
++  const popoverRef = useRef(null);
+   const handlePopoverHide = useCallback(() => {
+-    prepareFocusReturn();
++    const trigger = triggerRef.current;
++    const owner = trigger?.ownerDocument;
++    const active = owner?.activeElement;
++    const shouldRestore = owner?.hasFocus() && (
++      active == null || active === owner.body || active === owner.documentElement ||
++      active === trigger || popoverRef.current?.contentRef.current?.contains(active)
++    );
+     onHideRef.current();
+-    triggerRef.current?.focus();
++    if (shouldRestore) {
++      prepareFocusReturn();
++      trigger?.focus();
++    }
+   }, [prepareFocusReturn, triggerRef]);
+   const handlePopoverShow = useCallback(() => {
+     didShowPopoverRef.current = true;
+@@ -53,6 +63,7 @@
+     onHide: handlePopoverHide,
+     onShow: handlePopoverShow
+   });
++  popoverRef.current = popover;
+   const {
+     hide: hidePopover,
+     show: showPopover
+diff --git a/dist/TextInput/TextInput.d.ts b/dist/TextInput/TextInput.d.ts
+--- a/dist/TextInput/TextInput.d.ts
++++ b/dist/TextInput/TextInput.d.ts
+@@ -30,7 +30,7 @@
+ export type { InputStatus as TextInputStatus, InputStatusType as TextInputStatusType, } from '../Field';
+ import type { BaseProps } from '../BaseProps';
+ import type { SizeValue } from '../utils/types';
+-export type TextInputType = 'text' | 'password' | 'email';
++export type TextInputType = 'text' | 'password' | 'email' | 'search';
+ export interface TextInputProps extends Omit<BaseProps, 'onChange' | 'defaultValue'> {
+     /** Ref forwarded to the root element */
+     ref?: React.Ref<HTMLInputElement>;
+@@ -39,6 +39,8 @@
+      * @default 'text'
+      */
+     type?: TextInputType;
++    maxLength?: number;
++    inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
+     /**
+      * Label text for the input (always rendered for accessibility).
+      */
+diff --git a/dist/Toast/ToastViewport.js b/dist/Toast/ToastViewport.js
+--- a/dist/Toast/ToastViewport.js
++++ b/dist/Toast/ToastViewport.js
+@@ -241,7 +241,7 @@
+   const [toasts, setToasts] = useState([]);
+   const [exitingIds, setExitingIds] = useState(new Set());
+   const toastsRef = useRef(toasts);
+-  toastsRef.current = toasts;
++  // Publish the imperative list synchronously; React renders its snapshots.
+ 
+   // Show the popover on mount so it enters the top layer.
+   const viewportRef = useRef(null);
+@@ -315,16 +315,13 @@
+     // toast's place, so the old row leaves the DOM without ever being
+     // dismissed. Its settled id is dropped by the prune below, which covers
+     // every silent exit with one rule rather than one branch per path.
+-    setToasts(prev => {
+-      if (uniqueID) {
+-        const existing = prev.find(t => t.options.uniqueID === uniqueID);
+-        if (existing) {
+-          // An ignored collision already returned above; overwrite in place.
+-          return prev.map(t => t.options.uniqueID === uniqueID ? entry : t);
+-        }
+-      }
+-      return [...prev, entry];
+-    });
++      const prev = toastsRef.current;
++      const existing = uniqueID && prev.some(t => t.options.uniqueID === uniqueID);
++      const next = existing
++        ? prev.map(t => t.options.uniqueID === uniqueID ? entry : t)
++        : [...prev, entry];
++      toastsRef.current = next;
++      setToasts(next);
+   }, [announce]);
+   const removeToast = useCallback((id, reason) => {
+     // An exiting toast stays in toastsRef until its exit transition ends, so
+@@ -334,11 +331,15 @@
+     if (exitingIdsRef.current.has(id)) {
+       return;
+     }
++    const entry = toastsRef.current.find(t => t.id === id);
++    if (!entry) return;
++    if (!viewportRef.current?.querySelector(`[data-toast-id="${id}"]`)) {
++      toastsRef.current = toastsRef.current.filter(t => t.id !== id);
++      setToasts(toastsRef.current);
++      entry.options.onHide?.(reason);
++      return;
++    }
+     exitingIdsRef.current.add(id);
+-    const entry = toastsRef.current.find(t => t.id === id);
+-    if (entry) {
+-      entry.options.onHide?.(reason);
+-    }
+     // If focus currently lives inside the toast being dismissed, remember
+     // that its removal must hand focus off to a neighbor (or the element
+     // focused before the user entered the viewport) rather than <body>.
+@@ -364,11 +365,13 @@
+       }
+       return new Set(prev).add(id);
+     });
++    entry.options.onHide?.(reason);
+   }, []);
+   const handleExited = useCallback(id => {
+     exitingIdsRef.current.delete(id);
+     setExitingIds(withoutId(id));
+-    setToasts(prev => prev.filter(t => t.id !== id));
++    toastsRef.current = toastsRef.current.filter(t => t.id !== id);
++    setToasts(toastsRef.current);
+   }, []);
+ 
+   // After a dismissed toast unmounts, hand focus off so it never falls to
+diff --git a/dist/Toast/useToast.js b/dist/Toast/useToast.js
+--- a/dist/Toast/useToast.js
++++ b/dist/Toast/useToast.js
+@@ -102,6 +102,12 @@
+     removeToast: (id, reason) => {
+       if (fallbackContext && fallbackContext !== proxy) {
+         fallbackContext.removeToast(id, reason);
++      } else {
++        const index = pending.findIndex(entry => entry.id === id);
++        if (index >= 0) {
++          const [entry] = pending.splice(index, 1);
++          entry.options.onHide?.(reason);
++        }
+       }
+     },
+     findByUniqueID: uid => {
+diff --git a/dist/hooks/useFocusTrap.js b/dist/hooks/useFocusTrap.js
+--- a/dist/hooks/useFocusTrap.js
++++ b/dist/hooks/useFocusTrap.js
+@@ -69,7 +69,7 @@
+   if (el.hasAttribute('inert') || el.closest('[inert]')) {
+     return false;
+   }
+-  if (el.hidden || el.closest('[hidden]')) {
++  if (el.hidden || el.closest('[hidden], dialog:not([open])')) {
+     return false;
+   }
+   // closest() matches the element itself as well as any ancestor.
+@@ -78,8 +78,8 @@
+   }
+   // offsetParent is null for display:none (and fixed elements); pair with a
+   // visibility check via getComputedStyle when available.
+-  if (typeof window !== 'undefined' && window.getComputedStyle) {
+-    const style = window.getComputedStyle(el);
++  if (el.ownerDocument.defaultView?.getComputedStyle) {
++    const style = el.ownerDocument.defaultView.getComputedStyle(el);
+     if (style.visibility === 'hidden' || style.display === 'none') {
+       return false;
+     }
+@@ -103,7 +103,7 @@
+   } catch {
+     // Some elements may throw on focus
+   }
+-  return document.activeElement === element;
++  return element.ownerDocument.activeElement === element;
+ }
+ 
+ /**
+@@ -245,6 +245,7 @@
+     if (!isActive) {
+       return;
+     }
++    const document = containerRef.current?.ownerDocument ?? globalThis.document;
+     const previouslyFocused = document.activeElement;
+     // Snapshot the container now; by cleanup it may be detached or unmounted.
+     const container = containerRef.current;
+@@ -267,7 +268,7 @@
+       }
+       const active = document.activeElement;
+       const focusWasLost = active == null || active === document.body || active === document.documentElement || container != null && container.contains(active);
+-      if (!focusWasLost) {
++      if (!focusWasLost || !document.hasFocus()) {
+         return;
+       }
+       if (previouslyFocused != null && previouslyFocused.isConnected && typeof previouslyFocused.focus === 'function') {
+@@ -284,6 +285,7 @@
+     if (!isActive) {
+       return;
+     }
++    const document = containerRef.current?.ownerDocument ?? globalThis.document;
+     const handleFocus = event => {
+       const container = containerRef.current;
+       if (!container) {
+@@ -301,7 +303,7 @@
+         // try focusing the last element instead
+         if (focusedFirst && lastFocusRef.current === document.activeElement) {
+           focusLastDescendant(container);
+-        } else if (!focusedFirst && lastFocusRef.current instanceof HTMLElement && container.contains(lastFocusRef.current)) {
++        } else if (!focusedFirst && lastFocusRef.current instanceof (document.defaultView?.HTMLElement ?? HTMLElement) && container.contains(lastFocusRef.current)) {
+           // A modal surface may intentionally have no tabbable controls and
+           // place initial focus on a tabIndex={-1} heading or panel. Preserve
+           // that programmatic focus target instead of letting Tab escape.
+@@ -335,18 +337,25 @@
+     if (!isActive) {
+       return;
+     }
++    const document = containerRef.current?.ownerDocument ?? globalThis.document;
+     const handleKeyDown = event => {
+       const container = containerRef.current;
+       if (!container) {
+         return;
+       }
++      if (event.defaultPrevented || !container.contains(event.target)) return;
++
++      const focusScope = 'dialog[open], [popover]:popover-open';
++      const layer = container.closest(focusScope);
++      if (layer && document.activeElement?.closest(focusScope) !== layer) return;
++
+       if (event.key === 'Tab') {
+         // Mark that keyboard navigation is happening
+         isKeyboardNavigationRef.current = true;
+         const focusable = getFocusableElements(container);
+         if (focusable.length === 0) {
+           const active = document.activeElement;
+-          if (!(active instanceof HTMLElement) || !container.contains(active)) {
++          if (!(active instanceof (document.defaultView?.HTMLElement ?? HTMLElement)) || !container.contains(active)) {
+             // A layer can be open while focus legitimately sits outside it —
+             // a listbox popup anchored to its own input. Cancelling there
+             // would take Tab away from the whole page.
