@@ -35,7 +35,15 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
     endKeys: pinnedEnd.map((column) => column.columnId),
   });
   const presentation = useMemo(() => {
-    const nativeColumns: TableColumn<Record<string, unknown>>[] = columns.map((column) => ({
+    // Astryx interprets pin keys as contiguous prefix/suffix boundaries. Make
+    // that contract explicit here, independently of the incoming projection.
+    const pinnedIds = new Set([...pinnedStart, ...pinnedEnd].map((column) => column.columnId));
+    const nativeOrder = [
+      ...pinnedStart,
+      ...columns.filter((column) => !pinnedIds.has(column.columnId)),
+      ...pinnedEnd,
+    ];
+    const nativeColumns: TableColumn<Record<string, unknown>>[] = nativeOrder.map((column) => ({
       key: column.columnId,
       header: column.headerName,
       width: pixel(column.semantics.width),
@@ -46,7 +54,7 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
       ["end", pinnedEnd],
     ] as const) {
       for (const column of region) {
-        const index = columns.indexOf(column);
+        const index = nativeOrder.indexOf(column);
         const native = nativeColumns[index];
         if (native === undefined) continue;
         const base = { htmlProps: {}, xstyle: [], columns: nativeColumns };

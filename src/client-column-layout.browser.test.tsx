@@ -135,6 +135,12 @@ test("pin commands preserve scroll, identity and persisted intent for unsortable
   await settle();
   const before = pinned.getBoundingClientRect();
   expect(before.right).toBeLessThan(grid.getBoundingClientRect().right);
+  expect(Math.abs(before.right - (grid.getBoundingClientRect().right - 121))).toBeLessThan(2);
+  const newlyPinnedCells = [...grid.querySelectorAll('[role="gridcell"][aria-colindex="39"]')];
+  expect(newlyPinnedCells.length).toBeGreaterThan(0);
+  for (const cell of newlyPinnedCells)
+    expect(Math.abs(cell.getBoundingClientRect().left - before.left)).toBeLessThan(1);
+
   await page.getByRole("button", { name: "Column 1 column menu", exact: true }).click();
   await page.getByRole("menuitem", { name: "Unpin column", exact: true }).click();
   await settle();
