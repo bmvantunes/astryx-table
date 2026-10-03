@@ -41,9 +41,21 @@ export function installAstryxTableToolbarLifetimeListener(
 export function recordAstryxTableToolbarSubscription(
   event: AstryxTableToolbarSubscriptionEvent,
 ): void {
-  for (const listener of subscriptionListeners) listener(event);
+  for (const listener of subscriptionListeners) {
+    try {
+      listener(event);
+    } catch {
+      // Diagnostics are observational and must never alter runtime behavior.
+    }
+  }
 }
 
 export function recordAstryxTableToolbarLifetime(event: AstryxTableToolbarLifetimeEvent): void {
-  for (const listener of lifetimeListeners) listener(event);
+  for (const listener of lifetimeListeners) {
+    try {
+      listener(event);
+    } catch {
+      // Diagnostics are observational and must never alter runtime behavior.
+    }
+  }
 }

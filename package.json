@@ -6,7 +6,7 @@
     "check": "vp check",
     "test": "vp test --run",
     "test:browser": "node scripts/test-browser.mjs",
-    "test:runner": "node --test scripts/test-browser.test.mjs scripts/verify-import.test.mjs",
+    "test:runner": "node --test scripts/test-browser.test.mjs scripts/verify-import.test.mjs scripts/performance-evidence.test.mjs",
     "build": "vp build",
     "build:library": "vp pack",
     "typecheck": "tsc --noEmit",
@@ -15,7 +15,9 @@
     "test:import": "node scripts/test-import.mjs",
     "verify:active-core": "node scripts/verify-active-core.mjs",
     "test:active-core": "vp test --config vitest.active-core.config.ts --run",
-    "test:package": "node scripts/test-package.mjs"
+    "test:package": "node scripts/test-package.mjs",
+    "test:browser:performance": "node scripts/test-performance.mjs",
+    "publish:performance-evidence": "node scripts/publish-performance-evidence.mjs"
   },
   "dependencies": {
     "@astryxdesign/core": "0.6.5",

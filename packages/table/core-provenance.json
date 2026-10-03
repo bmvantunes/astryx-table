@@ -237,11 +237,6 @@
       "sha256": "4002a422ca4d63fd4945027d8172a765e48877ca817f0adff56d84f341e4d14e"
     },
     {
-      "source": "migration/table/src/internal/toolbar-instrumentation.ts",
-      "target": "packages/table/src/internal/toolbar-instrumentation.ts",
-      "sha256": "a4825a73f333741ba88f5b5385efe0adc82704f5d628ee25bfaba98648c4602b"
-    },
-    {
       "source": "migration/table/src/internal/untrusted-input.ts",
       "target": "packages/table/src/internal/untrusted-input.ts",
       "sha256": "928e24e810b7ef4e5c86af74ae70768303bdd30b4f7ceb35050b8ffd313859d8"
@@ -270,6 +265,16 @@
       "source": "migration/table/src/public-types.ts",
       "target": "packages/table/src/public-types.ts",
       "sha256": "18f84c5118e7647143518ed5ecac511a940b9e7b5de4d7fb6da173579050ce71"
+    },
+    {
+      "source": "migration/table/src/internal/benchmark-budget.ts",
+      "target": "packages/table/src/internal/benchmark-budget.ts",
+      "sha256": "c6cbbee8f9ad6cfd89353bcf2fa6b15f48e510e3fbcff9fe647f2539377b1440"
+    },
+    {
+      "source": "migration/table/src/internal/benchmark-profile.ts",
+      "target": "packages/table/src/internal/benchmark-profile.ts",
+      "sha256": "ffe0dc58a9a084d7cabf15eaeac283606948091cc680244c80af2edb85e8efb7"
     }
   ],
   "paritySourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
@@ -305,6 +310,16 @@
         ["from \"@bruno/table\"", "from \"../src\""]
       ],
       "sha256": "9146042c87aae5cebee306902ad6853043db82237e87bff2611d23ddd8ec69d5"
+    }
+  ],
+  "reviewedChanges": [
+    {
+      "source": "migration/table/src/internal/toolbar-instrumentation.ts",
+      "target": "packages/table/src/internal/toolbar-instrumentation.ts",
+      "sha256": "f25659cea8dbf2114a9058921d10102cdc7bf71379b1d3a04ee6eb51ad71c706",
+      "sourceSha256": "a4825a73f333741ba88f5b5385efe0adc82704f5d628ee25bfaba98648c4602b",
+      "reviewExempt": false,
+      "reason": "Isolate diagnostic listener exceptions so observers cannot interrupt subscriptions or subsequent listeners. Reviewed semantic correction for PR #18 comment 4174121727; not a mechanical import."
     }
   ]
 }

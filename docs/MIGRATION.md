@@ -111,8 +111,9 @@ patches only after the same regressions pass against an unpatched upstream versi
 
 ## Activated Client core and newer source corrections
 
-`packages/table/core-provenance.json` records 44 activated modules. Thirty-nine
-are byte-identical to the retained baseline. Five use the current merged source
+`packages/table/core-provenance.json` records 46 activated modules. Forty
+are byte-identical to the retained baseline, one has the reviewed diagnostic correction
+described below, and five use the current merged source
 `00efa81616b2a999714db595fd1fec48caa55c58`, with only the recorded branding
 renames: column helpers, Client source adapter, navigation, Compiler adapter and
 viewport. Their raw bytes, Git blobs and hashes are archived separately from the
@@ -158,3 +159,49 @@ Pinning/resize/reorder, complete keyboard navigation, filters, grouping, selecti
 Server and editing interfaces must each pass their ledger rows before full parity
 is claimed. New upstream source commits require explicit reconciliation in this
 ledger; old smoke-test results never establish their behavior in the new renderer.
+
+## Reviewed correction in the first Client slice
+
+`toolbar-instrumentation.ts` is an explicit semantic adaptation, outside the
+mechanical import exemption. Its two diagnostic publishers isolate observer
+exceptions so diagnostics cannot interrupt subscriptions or suppress later
+observers. Source and target hashes are recorded under `reviewedChanges` in the
+active-core manifest, and independent review plus regression tests cover the
+change. The remaining 45 active modules and two source contracts remain exact.
+
+The range-runtime identity-attribute comment on PR #18 concerns the future #13
+integration. The current Client never constructs or attaches that runtime, and
+Row Selection is explicitly unavailable. Its type-only renderer references do
+not activate pointer hits or range registration. #13 must connect stable cell
+identities and prove range behavior through the public Browser seam before that
+capability becomes available; adding unused legacy attributes is not evidence
+of that integration.
+
+## Production validation for the migrated Client
+
+`vp run test:browser:performance` runs React's production profiling build with
+Compiler enabled and the retained capable-hardware profile and evidence finalizer.
+The raw Client slice has a 5,000 × 150 two-axis/custom-renderer workload and a
+5,000 × 150 live-publication workload at 20 Hz. Both preserve 12 warmup and 100
+measured samples, complete callback/React work accounting and the 8.33 ms p99
+budget. Presentation cadence retains its separate 20 ms threshold. Commit probes
+measure the renderer view and grid surface, matching the source instrumentation
+boundary, rather than counting the consumer's source-prop delivery component.
+
+The report at `test-results/performance.json` records environment, scenario evidence,
+commit and working-tree cleanliness. A dirty-tree report is development evidence,
+not evidence for a published commit. The package's `prepublishOnly` invokes this
+same command; the package remains private and no publication is authorized.
+
+These raw scenarios do not certify pinned layouts, editing, Server updates or
+other unimplemented capabilities. Their retained scenarios remain owned by the
+corresponding feature tickets and the full release gate in #16. No original
+profile, sample minimum, timing budget or accounting rule has been weakened.
+
+CI's `performance-evidence` job checks the exact push/PR head and requires the
+repository owner's successful `performance/capable-hardware` status plus the linked
+structured report. The publisher accepts only a clean start/end at the same commit,
+all required scenarios, the production environment and unchanged budgets. Standard
+GitHub hardware verifies that attestation; the timings execute on a compatible host.
+The same rule applies to the new SHA produced by merge. This enforces the migrated
+feature gate now; it does not defer performance validation to #16.

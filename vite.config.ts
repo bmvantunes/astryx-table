@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: { dedupe: ["react", "react-dom"] },
   optimizeDeps: {
     include: [
+      "@astryxdesign/core/Toolbar",
       "react",
       "react-dom",
       "react/jsx-runtime",

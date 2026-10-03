@@ -1,6 +1,9 @@
 import { memo, useCallback, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
-import { recordAstryxTableClientGridSurfaceRender } from "./render-instrumentation";
+import {
+  AstryxTableViewCommitDiagnosticProbe,
+  AstryxTableGridSurfaceCommitDiagnosticProbe,
+} from "./commit-diagnostic-probes";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { colorVars } from "@astryxdesign/core/theme/tokens.stylex";
 import { AstryxTableNavigationRuntime } from "./navigation";
@@ -135,17 +138,22 @@ export function AstryxTableView({
   const [navigation] = useState(() => new AstryxTableNavigationRuntime());
   if (snapshot.kind === "invalid") return <div role="alert">Unable to display table values.</div>;
   return (
-    <AstryxTableViewportAdapterBoundary
-      runtime={snapshot.runtime}
-      columns={snapshot.columns}
-      rowSpace={snapshot.rowSpace}
-      projectionKind="raw"
-      navigation={navigation}
-      queryGeneration={snapshot.queryGeneration}
-      queryNavigationMode={snapshot.queryNavigationMode}
-    >
-      {(adapter) => <GridSurface tableId={tableId} snapshot={snapshot} adapter={adapter} />}
-    </AstryxTableViewportAdapterBoundary>
+    <>
+      {__ASTRYX_TABLE_TEST_DIAGNOSTICS__ ? (
+        <AstryxTableViewCommitDiagnosticProbe commitEvidence={snapshot} tableId={tableId} />
+      ) : null}
+      <AstryxTableViewportAdapterBoundary
+        runtime={snapshot.runtime}
+        columns={snapshot.columns}
+        rowSpace={snapshot.rowSpace}
+        projectionKind="raw"
+        navigation={navigation}
+        queryGeneration={snapshot.queryGeneration}
+        queryNavigationMode={snapshot.queryNavigationMode}
+      >
+        {(adapter) => <GridSurface tableId={tableId} snapshot={snapshot} adapter={adapter} />}
+      </AstryxTableViewportAdapterBoundary>
+    </>
   );
 }
 
@@ -155,7 +163,6 @@ type SurfaceProps = {
   readonly adapter: AstryxTableViewportAdapterState;
 };
 const GridSurface = memo(function GridSurface({ tableId, snapshot, adapter }: SurfaceProps) {
-  if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__) recordAstryxTableClientGridSurfaceRender(tableId);
   const [{ attach, attachRowLayer }] = useState(() => ({
     attach: adapter.attach,
     attachRowLayer: adapter.attachRowLayer,
@@ -172,6 +179,12 @@ const GridSurface = memo(function GridSurface({ tableId, snapshot, adapter }: Su
       aria-rowcount={snapshot.rowSpace.totalRows + 1}
       tabIndex={0}
     >
+      {__ASTRYX_TABLE_TEST_DIAGNOSTICS__ ? (
+        <AstryxTableGridSurfaceCommitDiagnosticProbe
+          commitEvidence={{ tableId, snapshot, adapter }}
+          tableId={tableId}
+        />
+      ) : null}
       <Header adapter={adapter} runtime={snapshot.runtime} />
       {snapshot.rowSpace.totalRows === 0 ? (
         <div role="status" aria-label={`${tableId} status`}>

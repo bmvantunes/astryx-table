@@ -41,6 +41,7 @@ vp run test:core
 vp run verify:active-core
 vp run test:active-core
 vp run test:browser
+vp run test:browser:performance
 vp build
 vp pack
 vp run test:package
@@ -59,7 +60,10 @@ fixture path for inspection and never publishes to npm.
 
 Browser tests cover controls and the new Client through its public API. The retained
 production performance profiles remain a separate gate; bounded DOM tests do not
-prove the 8.33 ms p99 target. To re-prove the original import, run
+prove the 8.33 ms p99 target. The current raw Client has its own production gate
+for two-axis scrolling/custom rendering and 20 Hz live publications, using the
+unchanged capable-hardware protocol; later capabilities still require their own
+retained scenarios. To re-prove the original import, run
 `vp run test:import /path/to/shadcn-table`. See [verification boundaries](docs/MIGRATION.md).
 
 ## Plan
@@ -73,3 +77,18 @@ The old repository is not modified or retired by this scaffold.
 Ordinary controls come from npm. No shadcn, Base UI or Tailwind dependency is
 installed in the successor workspace. Controls remain npm dependencies with
 version-pinned patches; these patches require a distribution decision before release.
+
+## Performance evidence before integration
+
+The standard GitHub runner cannot satisfy the retained eight-processor performance
+profile. CI therefore requires an owner-authored report from a capable host for
+the exact pushed or merged commit, verifies the linked report and rejects missing,
+stale, incomplete or failed evidence. It never substitutes a weaker timing profile.
+
+After the local review gate passes, commit the changes, run
+`vp run test:browser:performance` from the clean commit, push/open the PR, then run
+`vp run publish:performance-evidence <PR number>`. The command validates and links
+the complete report before publishing the GitHub status. Repeat for a merge commit
+when main receives its new SHA. This publishes verification evidence only, not npm.
+The performance command must run alone under the retained host protocol in
+[migration/reference/docs/grid/benchmark-profile.md](migration/reference/docs/grid/benchmark-profile.md).

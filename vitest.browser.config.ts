@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: { dedupe: ["react", "react-dom"] },
   optimizeDeps: {
     include: [
+      "@astryxdesign/core/Toolbar",
       "react",
       "react-dom",
       "react/jsx-runtime",
@@ -18,6 +19,7 @@ export default defineConfig({
   plugins: appPlugins(),
   test: {
     include: ["src/**/*.browser.test.tsx"],
+    exclude: ["src/**/*.performance.browser.test.tsx"],
     browser: {
       enabled: true,
       headless: true,

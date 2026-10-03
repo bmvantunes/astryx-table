@@ -20,22 +20,24 @@ run("pnpm", ["pack", "--pack-destination", directory], resolve(root, "packages/t
 const tarball = readdirSync(directory).find((file) => file.endsWith(".tgz"));
 if (!tarball) throw new Error("No package tarball was created.");
 cpSync(resolve(root, "scripts/fixtures/consumer"), directory, { recursive: true });
+function consumerFixture(path, sourceImport) {
+  const text = readFileSync(resolve(root, path), "utf8");
+  if (!text.includes(sourceImport))
+    throw new Error(`Consumer fixture ${path} lacks expected import ${sourceImport}`);
+  return text.replaceAll(sourceImport, 'from "@bmvantunes/astryx-table"');
+}
 for (const name of ["client-types.tsx", "select-aggregation.test-d.ts"]) {
   writeFileSync(
     join(directory, name),
-    readFileSync(resolve(root, "packages/table/tests", name), "utf8").replace(
-      'from "../src"',
-      'from "@bmvantunes/astryx-table"',
-    ),
+    consumerFixture(`packages/table/tests/${name}`, 'from "../src"'),
   );
 }
-writeFileSync(
-  join(directory, "client-capabilities.browser.test.tsx"),
-  readFileSync(resolve(root, "src/client-capabilities.browser.test.tsx"), "utf8").replace(
-    'from "../packages/table/src"',
-    'from "@bmvantunes/astryx-table"',
-  ),
-);
+for (const name of ["client-capabilities.browser.test.tsx", "client-toolbar.browser.test.tsx"]) {
+  writeFileSync(
+    join(directory, name),
+    consumerFixture(`src/${name}`, 'from "../packages/table/src"'),
+  );
+}
 const dependencies = { "@bmvantunes/astryx-table": `file:${join(directory, tarball)}` };
 for (const name of [
   "@astryxdesign/core",

@@ -1,3 +1,4 @@
+import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { useLayoutEffect, useMemo, useState } from "react";
 import type {
   AstryxTableColumns,
@@ -13,7 +14,6 @@ import {
 } from "./internal/client-row-pipeline";
 import { compileAstryxTableGroupRowsColumn } from "./internal/client-grouping-presentation";
 import { registerAstryxTableIdentity } from "./internal/table-identity-registry";
-import { recordAstryxTableClientViewRender } from "./internal/render-instrumentation";
 import { AstryxTableView } from "./internal/astryx-table-view";
 
 /** Current private read-only slice. Selection and grouping configuration arrive in #13/#7. */
@@ -53,7 +53,6 @@ export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumn
 function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColumns<TRow>>(
   props: AstryxTableClientProps<TRow, TColumns>,
 ) {
-  if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__) recordAstryxTableClientViewRender(props.tableId);
   const columns = useMemo(() => compileColumns(props.columns), [props.columns]);
   const groupRowsColumn = useMemo(
     () => compileAstryxTableGroupRowsColumn(props.groupRowsColumn),
@@ -131,7 +130,9 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   );
   return (
     <>
-      {props.children}
+      {props.children === undefined || props.children === null ? null : (
+        <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
+      )}
       <AstryxTableClientRowPipeline
         runtime={view}
         tableId={props.tableId}

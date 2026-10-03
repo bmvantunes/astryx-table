@@ -21,6 +21,9 @@
     },
     "./styles.css": "./dist/assets/stylex.css"
   },
+  "scripts": {
+    "prepublishOnly": "node ../../scripts/test-performance.mjs"
+  },
   "dependencies": {
     "@tanstack/react-hotkeys": "0.10.0",
     "@tanstack/react-pacer": "0.23.0",

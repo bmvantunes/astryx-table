@@ -7,8 +7,10 @@ const root = dirname(fileURLToPath(import.meta.url));
 const baseline = resolve(root, "migration/table/src");
 const manifest = JSON.parse(
   readFileSync(resolve(root, "packages/table/core-provenance.json"), "utf8"),
-) as { files: { target: string }[] };
-const activated = new Set(manifest.files.map(({ target }) => resolve(root, target)));
+) as { files: { target: string }[]; reviewedChanges: { target: string }[] };
+const activated = new Set(
+  [...manifest.files, ...manifest.reviewedChanges].map(({ target }) => resolve(root, target)),
+);
 
 export default defineConfig({
   define: { __ASTRYX_TABLE_DEVELOPMENT__: "true", __ASTRYX_TABLE_TEST_DIAGNOSTICS__: "true" },
