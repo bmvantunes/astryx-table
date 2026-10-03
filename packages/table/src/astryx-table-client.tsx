@@ -116,7 +116,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     [props.tableId, columns],
   );
   return (
-    <>
+    <div data-astryx-table={props.tableId}>
       {props.children === undefined || props.children === null ? null : (
         <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
       )}
@@ -128,6 +128,6 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
       >
         {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
       </AstryxTableClientRowPipeline>
-    </>
+    </div>
   );
 }

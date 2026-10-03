@@ -11,6 +11,8 @@ import {
   cellDomId,
   type NativePinnedPresentation,
 } from "./native-table-presentation";
+import { Divider } from "@astryxdesign/core/Divider";
+import { useColumnResize } from "./column-resize";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { colorVars } from "@astryxdesign/core/theme/tokens.stylex";
 import { AstryxTableNavigationRuntime } from "./navigation";
@@ -138,6 +140,18 @@ const styles = stylex.create({
     whiteSpace: "nowrap",
     textOverflow: "ellipsis",
   },
+  resizeHandle: {
+    position: "absolute",
+    insetInlineEnd: 0,
+    top: 0,
+    width: 8,
+    height: "100%",
+    cursor: "col-resize",
+    touchAction: "none",
+    flexShrink: 0,
+    outline: { default: "none", ":focus-visible": "2px solid currentColor" },
+    outlineOffset: -2,
+  },
   row: {
     display: "flex",
     position: "absolute",
@@ -198,10 +212,27 @@ const GridSurface = memo(function GridSurface({
   const announce = useCallback((message: string) => {
     setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
   }, []);
+  const resize = useColumnResize({
+    tableId,
+    queryGeneration: snapshot.queryGeneration,
+    totalRows: snapshot.rowSpace.totalRows,
+    adapter,
+    runtime: snapshot.runtime,
+    navigation,
+    announce,
+  });
+  const attachResizeGrid = resize.attachGrid;
+  const attachGrid = useCallback(
+    (element: HTMLDivElement | null) => {
+      attachResizeGrid(element);
+      attach(element);
+    },
+    [attach, attachResizeGrid],
+  );
   return (
     <div
       {...stylex.props(styles.viewport)}
-      ref={attach}
+      ref={attachGrid}
       role="grid"
       aria-label={tableId}
       style={{ maxHeight: ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT }}
@@ -222,6 +253,7 @@ const GridSurface = memo(function GridSurface({
           presentation={presentation}
           navigation={navigation}
           announce={announce}
+          onColumnResize={resize.start}
         />
         {snapshot.rowSpace.totalRows === 0 ? (
           <div role="status" aria-label={`${tableId} status`}>
@@ -254,6 +286,7 @@ const GridSurface = memo(function GridSurface({
   );
 });
 
+type ResizeProps = { readonly onColumnResize: ReturnType<typeof useColumnResize>["start"] };
 type PresentationProps = { readonly presentation: ReadonlyMap<string, NativePinnedPresentation> };
 
 const Header = memo(function Header({
@@ -262,12 +295,14 @@ const Header = memo(function Header({
   presentation,
   navigation,
   announce,
-}: PresentationProps & {
-  readonly announce: (message: string) => void;
-  readonly navigation: AstryxTableNavigationRuntime;
-  readonly adapter: AstryxTableViewportAdapterState;
-  readonly runtime: AstryxTableRuntimeView;
-}) {
+  onColumnResize,
+}: PresentationProps &
+  ResizeProps & {
+    readonly announce: (message: string) => void;
+    readonly navigation: AstryxTableNavigationRuntime;
+    readonly adapter: AstryxTableViewportAdapterState;
+    readonly runtime: AstryxTableRuntimeView;
+  }) {
   const [attachHeader] = useState(() => adapter.attachHeader);
   const window = useSyncExternalStore(
     adapter.subscribeHeaderColumnWindow,
@@ -296,6 +331,7 @@ const Header = memo(function Header({
                 runtime={runtime}
                 navigation={navigation}
                 announce={announce}
+                onColumnResize={onColumnResize}
                 column={column}
                 columnIndex={index}
                 presentation={presentation.get(column.columnId)}
@@ -312,6 +348,7 @@ const Header = memo(function Header({
                 runtime={runtime}
                 navigation={navigation}
                 announce={announce}
+                onColumnResize={onColumnResize}
                 column={column}
                 columnIndex={layout.pinnedStart.length + window.centerStartIndex + index}
               />
@@ -336,6 +373,7 @@ const Header = memo(function Header({
                 runtime={runtime}
                 navigation={navigation}
                 announce={announce}
+                onColumnResize={onColumnResize}
                 column={column}
                 columnIndex={adapter.columns.length - layout.pinnedEnd.length + index}
                 presentation={presentation.get(column.columnId)}
@@ -624,7 +662,8 @@ const HeaderCell = memo(function HeaderCell({
   column,
   columnIndex,
   presentation,
-}: {
+  onColumnResize,
+}: ResizeProps & {
   readonly presentation?: NativePinnedPresentation | undefined;
   readonly announce: (message: string) => void;
   readonly navigation: AstryxTableNavigationRuntime;
@@ -651,6 +690,15 @@ const HeaderCell = memo(function HeaderCell({
       );
     }
   };
+  const subscribeActive = useCallback(
+    (listener: () => void) => navigation.subscribeColumn(column.columnId, listener),
+    [navigation, column.columnId],
+  );
+  const getActive = useCallback(() => {
+    const active = navigation.getSnapshot();
+    return active?.region === "header" && active.columnId === column.columnId;
+  }, [navigation, column.columnId]);
+  const isActive = useSyncExternalStore(subscribeActive, getActive, getActive);
   const direction =
     command.sortDirection === "asc"
       ? "ascending"
@@ -668,6 +716,7 @@ const HeaderCell = memo(function HeaderCell({
       aria-sort={command.sortPriority === 1 ? direction : undefined}
       style={{
         ...presentation?.header.htmlProps.style,
+        position: presentation === undefined ? "relative" : "sticky",
         flexShrink: 0,
         maxWidth: "none",
         width: `var(${astryxTableColumnCssVariable("width", column.columnId)}, ${column.semantics.width}px)`,
@@ -729,6 +778,19 @@ const HeaderCell = memo(function HeaderCell({
               ]
             : []),
         ]}
+      />
+      <Divider
+        orientation="vertical"
+        aria-label={`Resize ${column.headerName}`}
+        aria-valuenow={command.width}
+        aria-valuemin={command.minWidth}
+        aria-valuemax={command.maxWidth}
+        aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+        data-astryx-resize-column={column.columnId}
+        tabIndex={isActive ? 0 : -1}
+        onFocus={() => navigation.activateHeader(column.columnId)}
+        onPointerDown={(event) => onColumnResize(event, column.columnId)}
+        xstyle={styles.resizeHandle}
       />
     </TableHeaderCell>
   );

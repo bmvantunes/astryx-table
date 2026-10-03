@@ -17,6 +17,16 @@ const scenarios = new Map([
     "client-pinned-two-axis-presentation-cadence-5000x150",
     ["chromium-production-presentation-cadence-v1", 20, 20],
   ],
+  ["client-resize-start-work-5000x150", ["chromium-capable-hardware-v1", 8.33, 16.66]],
+  ["client-resize-end-work-5000x150", ["chromium-capable-hardware-v1", 8.33, 16.66]],
+  [
+    "client-resize-start-presentation-cadence-5000x150",
+    ["chromium-production-presentation-cadence-v1", 20, 20],
+  ],
+  [
+    "client-resize-end-presentation-cadence-5000x150",
+    ["chromium-production-presentation-cadence-v1", 20, 20],
+  ],
   ["client-live-publication-5000x150-20hz", ["chromium-capable-hardware-v1", 8.33, 16.66]],
 ]);
 function requireEvidence(condition, message) {

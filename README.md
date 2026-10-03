@@ -13,7 +13,7 @@ workbench renders 10,000 rows. This is **not full parity or an npm release**.
 The [parity ledger](docs/PARITY.md) tracks the remaining interactions and release gates.
 This intermediate Client still rejects restored grouping explicitly;
 Row Selection and group-row configuration are rejected by its public props. Their
-implementations remain required in #7 and #13. Resize/reorder remain in #4, and
+implementations remain required in #7 and #13. Pointer and keyboard resize now use native Astryx handles; reorder remains in #4, and
 complete keyboard navigation remains in #5. Shared column grouping/aggregation
 metadata remains valid for raw read-only rendering. These temporary restrictions
 are not reductions of the final parity target.

@@ -175,7 +175,7 @@ mechanical import exemption. Its two diagnostic publishers isolate observer
 exceptions so diagnostics cannot interrupt subscriptions or suppress later
 observers. Source and target hashes are recorded under `reviewedChanges` in the
 active-core manifest, and independent review plus regression tests cover the
-change. The remaining 45 active modules and two source contracts remain exact.
+change. The remaining 46 active modules and two source contracts remain exact.
 
 The range-runtime identity-attribute comment on PR #18 concerns the future #13
 integration. The current Client never constructs or attaches that runtime, and
@@ -230,3 +230,29 @@ all three visual regions during horizontal window changes. The performance gate
 now also requires pinned scroll work and cadence, with the original thresholds.
 Resize/reorder and complete keyboard navigation remain pending; this slice does
 not close issue #4 or certify complete parity.
+
+## Native resize presentation (issue #4, second slice)
+
+The public Astryx `Divider` presents a vertical resize handle inside each native
+header. Pointer preview uses the retained viewport CSS variables and one queued
+animation frame; final width changes use the existing Grid Command and persistence
+path. The retained column-gesture XState workflow is activated byte-for-byte with
+its provenance entry and existing tests. TanStack Hotkeys owns keyboard matching,
+modifier handling and scoped Escape. A table boundary also scopes sibling toolbars.
+
+The shared polite status region announces accepted widths and cancellation.
+Ordinary width previews keep geometry outside React state and perform no persistence.
+Source invalidation, pointer cancellation, Escape and unmount roll back previews;
+value-only live updates preserve the active gesture. Resizing may suspend pinning
+and cancellation restores the previous geometry.
+
+[The native reuse assessment](research/astryx-column-gestures.md) explains why the
+published Table resize engine cannot delegate its geometry and keyboard ownership
+through its current API. This is a capability mismatch, not a patched upstream bug.
+The production gate adds start/end resize work and presentation cadence with the
+same warmup, sample counts and thresholds. Reorder and complete keyboard navigation
+remain pending; this slice does not close #4.
+
+### Deferred native menu layers
+
+The resize performance investigation adds an opt-in `usePopover.lazyMount` seam and enables it for native DropdownMenu. Layer's existing lazy lifecycle remains authoritative. DropdownMenu reads the existing Layer dismissal guard through a private Popover hook before retaining deferred opening intent, preserving keyboard focus, controlled rejection and same-gesture dismissal. Public `show` methods retain their original void-returning callback contract. Public regressions cover repeated opens and no retained closed menu layer; all previous focus suites remain required. Ordinary Popover defaults remain eager. See `astryx-bugs.md` for the controlled performance comparison and exact patch footprint. This workspace patch is not propagated by the emitted grid; issue #16 remains a release prerequisite.

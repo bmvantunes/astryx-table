@@ -43,6 +43,7 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
       ...columns.filter((column) => !pinnedIds.has(column.columnId)),
       ...pinnedEnd,
     ];
+    const nativeIndex = new Map(nativeOrder.map((column, index) => [column.columnId, index]));
     const nativeColumns: TableColumn<Record<string, unknown>>[] = nativeOrder.map((column) => ({
       key: column.columnId,
       header: column.headerName,
@@ -54,7 +55,8 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
       ["end", pinnedEnd],
     ] as const) {
       for (const column of region) {
-        const index = nativeOrder.indexOf(column);
+        const index = nativeIndex.get(column.columnId);
+        if (index === undefined) continue;
         const native = nativeColumns[index];
         if (native === undefined) continue;
         const base = { htmlProps: {}, xstyle: [], columns: nativeColumns };

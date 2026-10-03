@@ -677,3 +677,276 @@ index a4f1cf708ad37291cfbc0697224cadd01366befb..70c8e1e2d4ac9ec238d418bcc02c223e
 +    [attachScrollShadow, startSignature, endSignature],
    );
  }
+diff --git a/dist/DropdownMenu/DropdownMenu.js b/dist/DropdownMenu/DropdownMenu.js
+index 2086c1f1766586d89d6bbc740877d4f39b59c2e5..0dd0f91f4613d0a1674fbc8f35a9afc6e689ccb7 100644
+--- a/dist/DropdownMenu/DropdownMenu.js
++++ b/dist/DropdownMenu/DropdownMenu.js
+@@ -30,7 +30,7 @@
+  */
+ import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+ import * as stylex from '@stylexjs/stylex';
+-import { usePopover } from "../Popover/usePopover.js";
++import { usePopoverInternal as usePopover } from "../Popover/usePopover.js";
+ import { Button } from "../Button/index.js";
+ import { Heading } from "../Heading/index.js";
+ import { Icon } from "../Icon/index.js";
+@@ -428,7 +428,6 @@ function DropdownMenuPopover({
+   const [internalIsOpen, setInternalIsOpen] = useState(false);
+   const isControlled = controlledIsOpen !== undefined;
+   const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+-  const acceptedOpenRef = useRef(false);
+   const notifyClickOnShowRef = useRef(false);
+   const pendingControlledOpenRef = useRef(false);
+   const suppressControlledRollbackHideRef = useRef(false);
+@@ -444,7 +443,7 @@ function DropdownMenuPopover({
+       return;
+     }
+     pendingControlledOpenRef.current = false;
+-    onOpenChange?.(false);
++    if (!isControlled || controlledIsOpen) onOpenChange?.(false);
+     if (!isControlled) {
+       setInternalIsOpen(false);
+     }
+@@ -454,7 +453,7 @@ function DropdownMenuPopover({
+     } else if (document.activeElement === trigger) {
+       trigger?.blur();
+     }
+-  }, [isControlled, onOpenChange]);
++  }, [isControlled, controlledIsOpen, onOpenChange]);
+ 
+   // Defer item focus until the layer has committed open, so focus restore
+   // captures the trigger instead of the first menu item.
+@@ -467,7 +466,6 @@ function DropdownMenuPopover({
+   // programmatic controlled opens keep the item-focus behavior.
+   const openModalityRef = useRef('keyboard');
+   const handleLayerShow = useCallback(() => {
+-    acceptedOpenRef.current = true;
+     if (notifyClickOnShowRef.current) {
+       notifyClickOnShowRef.current = false;
+       onClick?.();
+@@ -478,6 +476,7 @@ function DropdownMenuPopover({
+     }
+   }, [isControlled, onClick, onOpenChange]);
+   const popover = usePopover({
++    lazyMount: true,
+     onHide: handleLayerHide,
+     onShow: handleLayerShow,
+     hasLightDismiss: true,
+@@ -603,19 +602,12 @@ function DropdownMenuPopover({
+     listNavKeyDown(e);
+   }, [listNavKeyDown, closeMenu, typeahead, ownsEvent]);
+   const openAndFocus = useCallback((modality = 'keyboard', notifyClick = false) => {
+-    acceptedOpenRef.current = false;
++    if (popover.wasJustDismissed()) return false;
+     notifyClickOnShowRef.current = notifyClick;
+     pendingControlledOpenRef.current = isControlled;
+     openModalityRef.current = modality;
+     shouldFocusOnOpenRef.current = true;
+     popover.show();
+-    if (!acceptedOpenRef.current) {
+-      notifyClickOnShowRef.current = false;
+-      pendingControlledOpenRef.current = false;
+-      openModalityRef.current = 'keyboard';
+-      shouldFocusOnOpenRef.current = false;
+-      return false;
+-    }
+     return true;
+   }, [isControlled, popover]);
+   const handleButtonClick = useCallback(e => {
+diff --git a/dist/Popover/usePopover.d.ts b/dist/Popover/usePopover.d.ts
+index b0c3cc166c956462ddb16f42590c73a7aba9cfae..8255b976140b723b34a7cffcd735f55fcaf9c7b3 100644
+--- a/dist/Popover/usePopover.d.ts
++++ b/dist/Popover/usePopover.d.ts
+@@ -18,6 +18,8 @@ import type { SpacingStep } from '../utils/types';
+  * Options for usePopover
+  */
+ export interface UsePopoverOptions {
++  /** Mount context content only while open; preserves Layer ownership. Default false. */
++  lazyMount?: boolean;
+     /**
+      * Callback fired when popover is shown.
+      * Wrap in useCallback for stable identity.
+@@ -217,4 +219,6 @@ export interface UsePopoverReturn {
+     };
+ }
+ export declare function usePopover(options?: UsePopoverOptions): UsePopoverReturn;
++/** @internal Shared with DropdownMenu; not exported from the package barrel. */
++export declare function usePopoverInternal(options?: UsePopoverOptions): UsePopoverReturn & {wasJustDismissed: () => boolean};
+ //# sourceMappingURL=usePopover.d.ts.map
+\ No newline at end of file
+diff --git a/dist/Popover/usePopover.js b/dist/Popover/usePopover.js
+index 31f0cfa1e6c4ae1185a1bbf39dcffdf62c715c20..96e0510fc1f16239df95280e3291c69aadc2c5be 100644
+--- a/dist/Popover/usePopover.js
++++ b/dist/Popover/usePopover.js
+@@ -16,7 +16,7 @@
+  */
+ import React, { useCallback, useEffect, useRef } from 'react';
+ import * as stylex from '@stylexjs/stylex';
+-import { useLayer } from "../Layer/useLayer.js";
++import { useLayerInternal as useLayer } from "../Layer/useLayer.js";
+ import { useFocusTrap } from "../hooks/useFocusTrap.js";
+ import { LayerDepthProvider } from "../Layer/LayerDepthContext.js";
+ import "../theme/tokens.stylex.js";
+@@ -155,6 +155,7 @@ function usePopoverImplementation(options = {}) {
+   // Core layer for popover positioning
+   const layer = useLayer({
+     mode: 'context',
++    lazyMount: options.lazyMount,
+     lightDismiss: hasLightDismiss,
+     onShow,
+     onHide
+@@ -265,6 +266,7 @@ function usePopoverImplementation(options = {}) {
+     });
+   }, [layer, hasCloseButton, hasSurface, padding, surfaceTarget, className, style, closeButtonLabel, contentRef, dialogLabel, role, isModal, xstyle]);
+   return {
++    wasJustDismissed: layer.wasJustDismissed,
+     triggerRef,
+     contentRef,
+     anchorId: layer.anchorId,
+@@ -278,5 +280,10 @@ function usePopoverImplementation(options = {}) {
+   };
+ }
+ export function usePopover(options = {}) {
++  const { wasJustDismissed: _, ...popover } = usePopoverImplementation(options);
++  return popover;
++}
++/** @internal Shared with DropdownMenu; not exported from the package barrel. */
++export function usePopoverInternal(options = {}) {
+   return usePopoverImplementation(options);
+ }
+\ No newline at end of file
+diff --git a/src/DropdownMenu/DropdownMenu.tsx b/src/DropdownMenu/DropdownMenu.tsx
+index 75a05f7aec39a71efcf4b5f29fc95de812163eeb..a1b059ad8c5f85098973dc30b197fa1106f9f18f 100644
+--- a/src/DropdownMenu/DropdownMenu.tsx
++++ b/src/DropdownMenu/DropdownMenu.tsx
+@@ -39,7 +39,7 @@ import React, {
+   type ReactNode,
+ } from 'react';
+ import * as stylex from '@stylexjs/stylex';
+-import {usePopover} from '../Popover/usePopover';
++import {usePopoverInternal as usePopover} from '../Popover/usePopover';
+ import {Button, type ButtonProps} from '../Button';
+ import {Heading} from '../Heading';
+ import {Icon} from '../Icon';
+@@ -605,7 +605,6 @@ function DropdownMenuPopover({
+   const [internalIsOpen, setInternalIsOpen] = useState(false);
+   const isControlled = controlledIsOpen !== undefined;
+   const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
+-  const acceptedOpenRef = useRef(false);
+   const notifyClickOnShowRef = useRef(false);
+   const pendingControlledOpenRef = useRef(false);
+   const suppressControlledRollbackHideRef = useRef(false);
+@@ -622,7 +621,7 @@ function DropdownMenuPopover({
+       return;
+     }
+     pendingControlledOpenRef.current = false;
+-    onOpenChange?.(false);
++    if (!isControlled || controlledIsOpen) onOpenChange?.(false);
+     if (!isControlled) {
+       setInternalIsOpen(false);
+     }
+@@ -632,7 +631,7 @@ function DropdownMenuPopover({
+     } else if (document.activeElement === trigger) {
+       trigger?.blur();
+     }
+-  }, [isControlled, onOpenChange]);
++  }, [isControlled, controlledIsOpen, onOpenChange]);
+ 
+   // Defer item focus until the layer has committed open, so focus restore
+   // captures the trigger instead of the first menu item.
+@@ -646,7 +645,6 @@ function DropdownMenuPopover({
+   const openModalityRef = useRef<'keyboard' | 'pointer'>('keyboard');
+ 
+   const handleLayerShow = useCallback(() => {
+-    acceptedOpenRef.current = true;
+     if (notifyClickOnShowRef.current) {
+       notifyClickOnShowRef.current = false;
+       onClick?.();
+@@ -658,6 +656,7 @@ function DropdownMenuPopover({
+   }, [isControlled, onClick, onOpenChange]);
+ 
+   const popover = usePopover({
++    lazyMount: true,
+     onHide: handleLayerHide,
+     onShow: handleLayerShow,
+     hasLightDismiss: true,
+@@ -800,19 +799,12 @@ function DropdownMenuPopover({
+       modality: 'keyboard' | 'pointer' = 'keyboard',
+       notifyClick = false,
+     ): boolean => {
+-      acceptedOpenRef.current = false;
++      if (popover.wasJustDismissed()) return false;
+       notifyClickOnShowRef.current = notifyClick;
+       pendingControlledOpenRef.current = isControlled;
+       openModalityRef.current = modality;
+       shouldFocusOnOpenRef.current = true;
+       popover.show();
+-      if (!acceptedOpenRef.current) {
+-        notifyClickOnShowRef.current = false;
+-        pendingControlledOpenRef.current = false;
+-        openModalityRef.current = 'keyboard';
+-        shouldFocusOnOpenRef.current = false;
+-        return false;
+-      }
+       return true;
+     },
+     [isControlled, popover],
+diff --git a/src/Popover/usePopover.tsx b/src/Popover/usePopover.tsx
+index f7cbb94cf3db31433a6a2dbd945e195488eeaf3e..092dc9d2f0922947eef1fb30826b6c0ec96b0f42 100644
+--- a/src/Popover/usePopover.tsx
++++ b/src/Popover/usePopover.tsx
+@@ -17,7 +17,7 @@
+ 
+ import React, {useCallback, useEffect, useRef, type ReactNode} from 'react';
+ import * as stylex from '@stylexjs/stylex';
+-import {useLayer, type ContextRenderProps} from '../Layer/useLayer';
++import {useLayerInternal as useLayer, type ContextRenderProps} from '../Layer/useLayer';
+ import {useFocusTrap} from '../hooks/useFocusTrap';
+ import {LayerDepthProvider} from '../Layer/LayerDepthContext';
+ import type {StyleXStyles} from '@stylexjs/stylex';
+@@ -117,6 +117,8 @@ const styles = stylex.create({
+  * Options for usePopover
+  */
+ export interface UsePopoverOptions {
++  /** Mount context content only while open; preserves Layer ownership. Default false. */
++  lazyMount?: boolean;
+   /**
+    * Callback fired when popover is shown.
+    * Wrap in useCallback for stable identity.
+@@ -381,7 +383,7 @@ export interface UsePopoverReturn {
+  */
+ function usePopoverImplementation(
+   options: UsePopoverOptions = {},
+-): UsePopoverReturn {
++): UsePopoverReturn & {wasJustDismissed: () => boolean} {
+   const {
+     onShow,
+     onHide,
+@@ -414,6 +416,7 @@ function usePopoverImplementation(
+   // Core layer for popover positioning
+   const layer = useLayer({
+     mode: 'context',
++    lazyMount: options.lazyMount,
+     lightDismiss: hasLightDismiss,
+     onShow,
+     onHide,
+@@ -570,6 +573,7 @@ function usePopoverImplementation(
+   );
+ 
+   return {
++    wasJustDismissed: layer.wasJustDismissed,
+     triggerRef,
+     contentRef,
+     anchorId: layer.anchorId,
+@@ -584,5 +588,11 @@ function usePopoverImplementation(
+ }
+ 
+ export function usePopover(options: UsePopoverOptions = {}): UsePopoverReturn {
++  const {wasJustDismissed: _, ...popover} = usePopoverImplementation(options);
++  return popover;
++}
++
++/** @internal Shared with DropdownMenu; not exported from the package barrel. */
++export function usePopoverInternal(options: UsePopoverOptions = {}) {
+   return usePopoverImplementation(options);
+ }

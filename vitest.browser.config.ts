@@ -8,6 +8,7 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       "@astryxdesign/core/Toolbar",
+      "@astryxdesign/core/Divider",
       "@astryxdesign/core/Table",
       "react",
       "react-dom",

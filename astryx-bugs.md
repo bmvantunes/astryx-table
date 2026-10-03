@@ -18,7 +18,8 @@ Measured with `git apply --numstat patches/@astryxdesign__core@0.6.5.patch`, cou
 
 - Earlier corrections: 6 source modules, **81 added / 29 removed lines**.
 - Pinning and sorting corrections: 2 source modules, **11 added / 10 removed lines**, including comments and whitespace.
-- Total Core source patch: **8 modules, 92 added / 39 removed lines**.
+- Deferred menu mounting and guarded opening: 2 source modules, **17 added / 15 removed lines**. This is the optimization described below, not an additional confirmed original runtime bug.
+- Total Core source patch: **10 modules, 109 added / 54 removed lines**.
 
 Tests, documentation, lockfile changes and the mirrored emitted files are additional. These numbers describe the upstream patch, not the work required to deliver full grid parity.
 
@@ -106,3 +107,21 @@ The repeated-message regression also exposed that two distinct columns may share
 Adding the status-region styles exposed another emitted-package cascade conflict: centre cells retained both native `overflow: hidden` and Adapter `overflow: clip` classes because their cross-package StyleX property keys differed. The installed LTR/RTL tests failed while source tests passed. Centre clipping now uses the public inline style override, which has deterministic precedence over both package stylesheets. Pinned content still uses its separate StyleX clipping box; no native shadows are removed and no Core patch is added.
 
 A later remote review questioned whether native sticky transforms receive contiguous pinned partitions. The reported dynamic pin-to-end case passed a stronger exact-offset reproduction on the reviewed commit; the raw Client already supplies its logical projection. The native presentation boundary now nevertheless assembles an explicit start → centre → end metadata order, so it no longer depends on that caller ordering. This is defensive integration hardening, not a reproduced upstream defect.
+
+The resize slice uses the public `Divider` as presentation rather than installing a second geometry/keyboard engine. Its native Table resize engine lacks a delegation seam for our virtual column window; this is an API mismatch, not a confirmed bug. See the [reuse assessment](docs/research/astryx-column-gestures.md). The new subpath is explicitly prebundled with the existing Astryx imports so development and Browser tests share one React instance.
+
+Local review of the resize Adapter found two retained-behavior regressions: Alt+Arrow could resize a stale active header while a custom input/contenteditable owned focus, and ready source row-count/query-generation changes did not cancel a gesture. Four public cases failed before correction. Active-header shortcuts now require the grid surface itself, and the private controller cancels on generation/count changes while preserving value-only publications. These are integration fixes, not additional Astryx Core patches.
+
+## Native menu mounting optimization
+
+**Classification:** Performance/API integration improvement; separate from the five reproduced upstream defect/gap groups above. Local implementation and regression checks are complete; full production and publication gates remain required.
+
+Closed DropdownMenus eagerly mounted their Popover layers. A CPU sample profile found `readPortalWritingContext` among the largest named costs while virtual headers entered the window. A controlled production comparison rebuilt dependencies in both variants: eager mounting failed raw/pinned scroll p99 at 9.7/11.8 ms; using Layer's existing `lazyMount` passed all five workload tests. CSS containment did not solve pinned scroll and was removed. Profiling itself changed timings, so the diagnostic run is not publication evidence.
+
+The patch forwards an optional `lazyMount` through `usePopover`, defaulting to the existing eager behavior, and enables it for DropdownMenu only. Layer still owns portal selection, mounting, dismissal and focus infrastructure. No replacement menu or portal engine was added.
+
+The first integration failed keyboard focus: DropdownMenu treated an opening as rejected until `onShow` fired synchronously, while lazy mounting intentionally defers that callback. DropdownMenu now checks the existing Layer dismissal guard through a private Popover hook before requesting an opening, preserving its pending focus/callback intent during deferred mounting. The public `Layer.show` and `Popover.show` retain their `void` return contracts. An initial boolean-return implementation was rejected in local review because it broke valid React effect callbacks; a failing type regression preceded this correction. A controlled close also avoids echoing a false state already supplied by the controller.
+
+[Public regressions](src/controls/astryx-menu-mount.browser.test.tsx) cover absent closed layers, repeated keyboard open/Escape focus, initial controlled opening, a rejected controlled request, repeated trigger dismissal without reopening or duplicate notifications, and the original public React effect callback contract. Existing menu-to-Dialog/Popover transfers, Tab, removed actions and outside-click focus remain in the focused suite. The patch affects source, distributed JS and declarations; #16 still owns distribution to published grid consumers.
+
+Remote review also identified repeated linear index searches in native pinned presentation. The Adapter now compiles one Column Identity → native index map per presentation update. This is an integration optimization with no extra Core patch.
