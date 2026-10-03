@@ -1,0 +1,140 @@
+{
+  "name": "@bruno/table",
+  "version": "0.0.0",
+  "description": "A high-performance, strongly typed data grid for React.",
+  "keywords": [
+    "tanstack-intent"
+  ],
+  "homepage": "https://github.com/bmvantunes/shadcn-table/tree/main/packages/table#readme",
+  "bugs": {
+    "url": "https://github.com/bmvantunes/shadcn-table/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bmvantunes/shadcn-table.git",
+    "directory": "packages/table"
+  },
+  "files": [
+    "dist/*.mjs",
+    "dist/*.d.mts",
+    "skills",
+    "USAGE.md",
+    "RELEASE.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./effect": {
+      "types": "./dist/effect.d.mts",
+      "import": "./dist/effect.mjs",
+      "default": "./dist/effect.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack",
+    "check": "vp check",
+    "check:build": "node scripts/assert-build-output.mjs",
+    "dev": "vp pack --watch",
+    "test": "vp test --exclude \"src/**/*.browser.test.tsx\"",
+    "test:browser": "vp test --config vitest.browser.config.ts --run",
+    "test:browser:performance": "NODE_ENV=production vp test --config vitest.performance-browser.config.ts --run --mode production",
+    "test:browser:emitted": "vp test --config vitest.emitted-browser.config.ts --run",
+    "test:skills:unit": "node --test scripts/agent-skills-contract.test.mjs",
+    "test:release:package": "node --test scripts/release-package.test.mjs",
+    "test:skills": "intent validate skills --check && node scripts/assert-intent-staleness.mjs && node scripts/agent-skills-contract.mjs && vp run test:skills:unit && vp run test:skills:package",
+    "test:skills:package": "node scripts/assert-agent-skills-package.mjs",
+    "test:bench:hotkeys": "vp test bench src/internal/hotkey-adapter.bench.ts --run",
+    "test:bench:hotkeys:browser": "vp test bench --config vitest.browser.config.ts src/internal/hotkey-adapter.browser.bench.tsx --run",
+    "test:bench:column-management": "vp test bench src/internal/column-management.bench.ts --run",
+    "test:bench:toolbar": "vp test bench src/internal/toolbar-capabilities.bench.ts --run",
+    "test:bench:row-selection": "vp test bench src/internal/row-selection.bench.ts --run",
+    "test:bench:cell-range": "vp test bench src/internal/cell-range-clipboard.bench.ts --run",
+    "test:bench:drag-fill": "vp test bench src/internal/drag-fill-planner.bench.ts --run",
+    "test:bench:cell-edit": "NODE_OPTIONS=--expose-gc vp test bench src/internal/edit-memory.bench.ts --run && vp test bench src/internal/cell-edit-traversal.bench.ts --run",
+    "test:bench:client-grouping": "vp test bench src/internal/client-grouping.bench.ts --run",
+    "test:bench:server-viewport": "vp test bench src/internal/server-viewport-store.bench.ts --run",
+    "test:types:source": "tsc --project tsconfig.type-tests.json",
+    "test:types:emitted": "tsc --project tests/emitted-consumer/tsconfig.emitted.json && tsc --project tests/emitted-consumer/tsconfig.emitted-server.json && tsc --project tests/emitted-effect-consumer/tsconfig.emitted.json",
+    "prepublishOnly": "vp run @bruno/shadcn#build && vp run build && vp run check && vp run test:skills && vp run test && vp run test:browser && vp run test:browser:performance && vp run test:types:source && vp run test:browser:emitted && vp run check:build && vp run test:types:emitted && vp run test:bench:hotkeys && vp run test:bench:hotkeys:browser && vp run test:bench:column-management && vp run test:bench:toolbar && vp run test:bench:row-selection && vp run test:bench:cell-range && vp run test:bench:drag-fill && vp run test:bench:cell-edit && vp run test:bench:client-grouping && vp run test:bench:server-viewport && vp run test:release:package"
+  },
+  "dependencies": {
+    "@phosphor-icons/react": "^2.1.10",
+    "@tanstack/react-hotkeys": "0.10.0",
+    "@tanstack/react-pacer": "0.23.0",
+    "@tanstack/react-table": "9.0.0",
+    "@tanstack/store": "0.11.1",
+    "xstate": "^5.32.5"
+  },
+  "devDependencies": {
+    "@bruno/shadcn": "workspace:*",
+    "@effect/atom-react": "4.0.0-rc.111",
+    "@tailwindcss/vite": "^4.3.3",
+    "@tanstack/intent": "^0.3.8",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "@vitest/browser-playwright": "4.1.10",
+    "effect": "4.0.0-rc.111",
+    "effect-view-server": "4.2.8",
+    "oxc-transform-react": "^0.145.0",
+    "playwright": "1.60.0",
+    "react": "^19.2.8",
+    "react-dom": "19.2.8",
+    "redis": "6.2.1",
+    "typescript": "^7.0.2",
+    "vite": "catalog:",
+    "vite-plus": "catalog:",
+    "vitest": "^4.1.10",
+    "vitest-browser-react": "2.2.0"
+  },
+  "peerDependencies": {
+    "@bruno/shadcn": ">=0.0.0 <1.0.0",
+    "effect": "4.0.0-rc.111",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "peerDependenciesMeta": {
+    "effect": {
+      "optional": true
+    }
+  },
+  "inlinedDependencies": {
+    "effect-view-server": "4.2.8"
+  },
+  "intent": {
+    "version": 1,
+    "repo": "https://github.com/bmvantunes/shadcn-table",
+    "docs": "https://github.com/bmvantunes/shadcn-table/tree/main/docs/grid",
+    "resources": [
+      "skills/choose-row-model/SKILL.md",
+      "skills/define-columns/SKILL.md",
+      "skills/edit-cells/SKILL.md",
+      "skills/references/docs/adr/0001-require-explicit-column-identity.md",
+      "skills/references/docs/adr/0002-expose-client-and-server-table-variants.md",
+      "skills/references/docs/adr/0021-use-repetition-only-drag-fill.md",
+      "skills/references/docs/adr/0022-reconcile-void-save-operations-through-live-source.md",
+      "skills/references/docs/adr/0032-project-edit-review-rows-through-a-consumer-seam.md",
+      "skills/references/docs/grid/editing-and-conflicts.md",
+      "skills/references/docs/grid/public-api-design.md",
+      "skills/references/docs/grid/requirements.md",
+      "skills/references/docs/grid/research/editable-safety-ui-prototype.md",
+      "skills/references/docs/grid/research/reui-data-grid-patterns.md",
+      "skills/references/docs/grid/research/strict-column-api-prototype.md",
+      "skills/references/docs/grid/server-viewport-model.md",
+      "skills/references/packages/table/README.md",
+      "skills/sync-state.json"
+    ]
+  }
+}

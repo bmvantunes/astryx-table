@@ -6,11 +6,12 @@ Independent project; not an official Meta product.
 
 ## Current status
 
-This is the migration scaffold, **not a working grid or an npm release**.
-It includes Vite+, strict TypeScript, React Compiler, StyleX, published Astryx UI,
-Vitest Node tests, and real Chromium Browser Mode tests. The library workspace is
-deliberately private and empty until the audited import. Its provisional npm scope
-does not reserve or publish a package.
+The audited migration baseline is in place; this is **not a working grid or an npm
+release**. The renamed core and its tests are quarantined under `migration/`, with
+complete source hashes and a [parity ledger](docs/PARITY.md). Astryx 0.6.5 controls
+run with the [documented, user-approved corrections](docs/MIGRATION.md). The
+library entry remains private and empty until the real renderer is implemented.
+Its provisional npm scope does not reserve or publish a package.
 
 ## Develop
 
@@ -28,6 +29,7 @@ vp check
 vp run typecheck
 vp test --run
 vp run test:runner
+vp run test:core
 vp run test:browser
 vp build
 vp pack
@@ -39,8 +41,11 @@ matching the Ubuntu CI setup; installing system packages may require sudo.
 
 `vp build` builds the workbench; `vp pack` checks the library packaging baseline.
 The empty package build is not proof of grid CSS distribution or consumer parity.
-Browser smoke tests verify pointer/keyboard activation and compiled StyleX in an
-actual browser, not jsdom. Production grid performance tests arrive with migration.
+Browser tests verify the workbench and control focus/lifecycle regressions with
+compiled StyleX and React Compiler. Production grid performance tests remain a
+separate gate. To re-prove the audited import, run `vp run test:import
+/path/to/shadcn-table`; it needs a Git checkout containing the pinned source commit
+and builds a disposable original-UI fixture. See [verification boundaries](docs/MIGRATION.md).
 
 ## Plan
 
@@ -51,4 +56,5 @@ The public API will use `AstryxTableClient`, `AstryxTableServer` and the
 The old repository is not modified or retired by this scaffold.
 
 Ordinary controls come from npm. No shadcn, Base UI or Tailwind dependency is
-installed, and no upstream Button/Dialog source is vendored.
+installed in the successor workspace. Controls remain npm dependencies with
+version-pinned patches; these patches require a distribution decision before release.

@@ -8,7 +8,8 @@ Research also inspected unmerged follow-up `d99924b8f6205c2845cd127f3bc662157aa7
 The import ticket must resolve applicable known findings explicitly and record
 which baseline/fixes were selected. Full parity is not permission to preserve known defects.
 
-No core source has been copied by the bootstrap. The strict React Compiler
+The bootstrap copied no core source. The subsequent audited import is recorded in
+`MIGRATION.md` and `migration/manifest.json`. The strict React Compiler
 settings and Vite+ tool versions are informed by the source project's configuration.
 
 The mechanical import will retain original copyright/notices and record source
@@ -18,9 +19,9 @@ CSS/data attributes, persistence keys, documentation links and historical proven
 Do not blindly rewrite upstream package names or historical URLs. Explicitly decide
 whether persisted preferences need a migration; a new package name does not settle it.
 
-Astryx is consumed from npm at 0.6.0, corresponding to release commit
-`1e63a5144bdf4777081edee472089277aceb5d75` in facebook/astryx. Its published license is
-MIT. No upstream component implementation is copied into this scaffold.
+Astryx Core and neutral theme are consumed from npm at 0.6.5. Their published license
+is MIT. The user-approved Core corrections are recorded as a version-pinned pnpm
+patch; see `MIGRATION.md` for scope and distribution limitations.
 
 The original research report is retained with its dated findings. Subsequent user
 decisions supersede its open questions: public repository, full-parity standalone

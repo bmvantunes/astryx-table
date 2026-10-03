@@ -1,4 +1,4 @@
-name: Scaffold validation
+name: Migration baseline validation
 on:
   push:
   pull_request:
@@ -21,6 +21,11 @@ jobs:
       - run: vp run typecheck
       - run: vp test --run
       - run: vp run test:runner
+      - run: vp run test:core
+      - name: Verify pinned import and retained contracts
+        run: |
+          git clone --no-checkout https://github.com/bmvantunes/shadcn-table.git "$RUNNER_TEMP/astryx-import-source"
+          vp run test:import "$RUNNER_TEMP/astryx-import-source"
       - run: vp exec playwright install --with-deps chromium
       - run: vp run test:browser
       - run: vp build
