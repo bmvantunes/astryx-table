@@ -6,12 +6,20 @@ Independent project; not an official Meta product.
 
 ## Current status
 
-The audited migration baseline is in place; this is **not a working grid or an npm
-release**. The renamed core and its tests are quarantined under `migration/`, with
-complete source hashes and a [parity ledger](docs/PARITY.md). Astryx 0.6.5 controls
-run with the [documented, user-approved corrections](docs/MIGRATION.md). The
-library entry remains private and empty until the real renderer is implemented.
-Its provisional npm scope does not reserve or publish a package.
+The first read-only Client slice is implemented locally: exact column/value semantics,
+initial sorting, a two-axis virtual window and published Astryx column menus. The
+workbench renders 10,000 rows. This is **not full parity or an npm release**.
+The [parity ledger](docs/PARITY.md) tracks the remaining interactions and release gates.
+This intermediate Client rejects active column pinning and restored grouping explicitly;
+Row Selection and group-row configuration are rejected by its public props. Their
+implementations remain required in #4, #7 and #13. Shared column grouping/aggregation
+metadata remains valid for raw read-only rendering. These temporary restrictions
+are not reductions of the final parity target.
+The package remains private; its provisional npm scope does not reserve or publish it.
+
+The audited source and tests remain under `migration/`. Activated core modules have
+separate byte-level provenance; new Astryx presentation receives independent review.
+Astryx 0.6.5 controls use the [documented corrections](docs/MIGRATION.md).
 
 ## Develop
 
@@ -30,22 +38,29 @@ vp run typecheck
 vp test --run
 vp run test:runner
 vp run test:core
+vp run verify:active-core
+vp run test:active-core
 vp run test:browser
 vp build
 vp pack
+vp run test:package
 ```
 
 On Linux, use `vp exec playwright install --with-deps chromium` instead of the
 browser-only install above. This also installs Chromium's system dependencies,
 matching the Ubuntu CI setup; installing system packages may require sudo.
 
-`vp build` builds the workbench; `vp pack` checks the library packaging baseline.
-The empty package build is not proof of grid CSS distribution or consumer parity.
-Browser tests verify the workbench and control focus/lifecycle regressions with
-compiled StyleX and React Compiler. Production grid performance tests remain a
-separate gate. To re-prove the audited import, run `vp run test:import
-/path/to/shadcn-table`; it needs a Git checkout containing the pinned source commit
-and builds a disposable original-UI fixture. See [verification boundaries](docs/MIGRATION.md).
+`vp build` builds the workbench; `vp pack` emits the library JavaScript, declarations
+and `dist/assets/stylex.css`. Consumers explicitly import
+`@bmvantunes/astryx-table/styles.css` after Astryx's reset, component and theme CSS.
+`test:package` installs a real tarball into a temporary project and checks declarations,
+styles and menu behavior without StyleX/Compiler plugins or Effect. It prints the
+fixture path for inspection and never publishes to npm.
+
+Browser tests cover controls and the new Client through its public API. The retained
+production performance profiles remain a separate gate; bounded DOM tests do not
+prove the 8.33 ms p99 target. To re-prove the original import, run
+`vp run test:import /path/to/shadcn-table`. See [verification boundaries](docs/MIGRATION.md).
 
 ## Plan
 

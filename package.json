@@ -12,23 +12,27 @@
     "typecheck": "tsc --noEmit",
     "test:core": "vp test --config vitest.core.config.ts --run",
     "verify:import": "node scripts/verify-import.mjs",
-    "test:import": "node scripts/test-import.mjs"
+    "test:import": "node scripts/test-import.mjs",
+    "verify:active-core": "node scripts/verify-active-core.mjs",
+    "test:active-core": "vp test --config vitest.active-core.config.ts --run",
+    "test:package": "node scripts/test-package.mjs"
   },
   "dependencies": {
     "@astryxdesign/core": "0.6.5",
     "@astryxdesign/theme-neutral": "0.6.5",
     "@stylexjs/stylex": "^0.19.0",
+    "@tanstack/react-hotkeys": "0.10.0",
+    "@tanstack/react-pacer": "0.23.0",
+    "@tanstack/react-table": "9.0.0",
+    "@tanstack/store": "0.11.1",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "xstate": "5.32.5"
   },
   "devDependencies": {
     "@effect/atom-react": "4.0.0-rc.111",
     "@phosphor-icons/react": "2.1.10",
     "@stylexjs/unplugin": "0.19.0",
-    "@tanstack/react-hotkeys": "0.10.0",
-    "@tanstack/react-pacer": "0.23.0",
-    "@tanstack/react-table": "9.0.0",
-    "@tanstack/store": "0.11.1",
     "@types/node": "^26.1.1",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
@@ -43,8 +47,7 @@
     "vite": "catalog:",
     "vite-plus": "catalog:",
     "vitest": "4.1.10",
-    "vitest-browser-react": "2.2.0",
-    "xstate": "5.32.5"
+    "vitest-browser-react": "2.2.0"
   },
   "packageManager": "pnpm@11.18.0"
 }

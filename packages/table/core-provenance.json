@@ -1,0 +1,310 @@
+{
+  "baseline": "7b477ff3177c8222c1e75386aa783ed5bf70120e",
+  "files": [
+    {
+      "source": "packages/table/provenance/column-helpers.ts.reference",
+      "target": "packages/table/src/column-helpers.ts",
+      "sha256": "1b98274a43ccd40303ada62a1b0c470a0071c4983df0297edcc74cb419c4e69f",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/column-helpers.ts",
+      "sourceBlob": "6592ec53ec2d8d46c2fe01e4a40815321bbe1b04",
+      "sourceSha256": "cf9880d39230364e4e293090eb0af4ba9a1fecae6da12256cbd93e1bee0f7d8c",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ]
+    },
+    {
+      "source": "migration/table/src/internal/cell-edit-traversal.ts",
+      "target": "packages/table/src/internal/cell-edit-traversal.ts",
+      "sha256": "dec05f920d7374ec0331896866f6fb3d41039d453040ffe0e14c277b09915106"
+    },
+    {
+      "source": "migration/table/src/internal/cell-edit.ts",
+      "target": "packages/table/src/internal/cell-edit.ts",
+      "sha256": "12c5eecdfd2d92f0cca3c3d612fc83fa18b3db573865c83340df0b0f58813c5a"
+    },
+    {
+      "source": "migration/table/src/internal/cell-presentation.tsx",
+      "target": "packages/table/src/internal/cell-presentation.tsx",
+      "sha256": "94e0773ac54d9a78cc6f560fd842d62d1f31e2f37ba1d3585a61eeb042f7b5a2"
+    },
+    {
+      "source": "migration/table/src/internal/cell-range-clipboard.ts",
+      "target": "packages/table/src/internal/cell-range-clipboard.ts",
+      "sha256": "462fba17a6bfbef439005d2a339c295bcb82a92a23d048e34b4995d13a2e9183"
+    },
+    {
+      "source": "migration/table/src/internal/cell-value.ts",
+      "target": "packages/table/src/internal/cell-value.ts",
+      "sha256": "46c9ec9e9533368789f16d8d87daf922dd10257fb82fb2716908783683fdf65e"
+    },
+    {
+      "source": "migration/table/src/internal/client-adapter.tsx",
+      "target": "packages/table/src/internal/client-adapter.tsx",
+      "sha256": "2ccf4e507988e3c203d0dc18ebae7271d66885d85f80795dcfa87698e74423cb"
+    },
+    {
+      "source": "migration/table/src/internal/client-grouping-presentation.ts",
+      "target": "packages/table/src/internal/client-grouping-presentation.ts",
+      "sha256": "580e9f99dcf601bb956f589730f9ddc544b74013455aa386318a5a77f21b20f3"
+    },
+    {
+      "source": "migration/table/src/internal/client-grouping.ts",
+      "target": "packages/table/src/internal/client-grouping.ts",
+      "sha256": "75ea1aabc375c5db59bc15f8d0e52a560bd9be054337747e663eb6a21bdf0d17"
+    },
+    {
+      "source": "migration/table/src/internal/client-projection.ts",
+      "target": "packages/table/src/internal/client-projection.ts",
+      "sha256": "2f0d0499568e9f071f116e17473e7ffb95ce33bd2227515d55431eef81628441"
+    },
+    {
+      "source": "migration/table/src/internal/client-row-model.ts",
+      "target": "packages/table/src/internal/client-row-model.ts",
+      "sha256": "4a12248b24e1461447dd100e485350b477cc6a808f0609e86dc1765d9bd54f39"
+    },
+    {
+      "source": "migration/table/src/internal/client-row-pipeline.tsx",
+      "target": "packages/table/src/internal/client-row-pipeline.tsx",
+      "sha256": "bf2cb6573548346b44082ee7880e02fb98dde770a2802512feb44615f7a221b7"
+    },
+    {
+      "source": "packages/table/provenance/client-source-adapter.ts.reference",
+      "target": "packages/table/src/internal/client-source-adapter.ts",
+      "sha256": "daabdd184915473ade810b286be43b8e1034b3ad252eed815d2d63c65cad02c8",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/internal/client-source-adapter.ts",
+      "sourceBlob": "104cf2863a2a2ca4264ce13c03a644b91039fa94",
+      "sourceSha256": "2558ec26239a1dbf231fae6a172f79c303785b8c0f1d30dfce62de0ee6ab6b61",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ]
+    },
+    {
+      "source": "migration/table/src/internal/column-helper-provenance.ts",
+      "target": "packages/table/src/internal/column-helper-provenance.ts",
+      "sha256": "4269853065a38728f5e34baa8be16b702f41802083e1889071f83cfb2f889f4d"
+    },
+    {
+      "source": "migration/table/src/internal/column-management.ts",
+      "target": "packages/table/src/internal/column-management.ts",
+      "sha256": "eb8424de936125836245ac7b5ff403e2a3b1f6e69166881e3c8fe758ce3686b8"
+    },
+    {
+      "source": "migration/table/src/internal/commit-diagnostic-probes.tsx",
+      "target": "packages/table/src/internal/commit-diagnostic-probes.tsx",
+      "sha256": "dae05da1fd055fbb110ee80ef7fcccdf7fc55f0a8dab424323fdeb2bbd9e1cc5"
+    },
+    {
+      "source": "migration/table/src/internal/compile-columns.ts",
+      "target": "packages/table/src/internal/compile-columns.ts",
+      "sha256": "b7e4653845bc6bf019a5c93a2d45a7597626dc3f10fc536e3bd07137a631b1c2"
+    },
+    {
+      "source": "migration/table/src/internal/development.d.ts",
+      "target": "packages/table/src/internal/development.d.ts",
+      "sha256": "12639cdbc35db9530cb08fb84246e4c5c8faa94288b894e0aab3cd2cd445390c"
+    },
+    {
+      "source": "migration/table/src/internal/grid-command-instrumentation.ts",
+      "target": "packages/table/src/internal/grid-command-instrumentation.ts",
+      "sha256": "f457ffc821722299ad45a2490d53b6a2a1b4b570de694b818bb0eca4ffed7708"
+    },
+    {
+      "source": "migration/table/src/internal/grid-preferences.ts",
+      "target": "packages/table/src/internal/grid-preferences.ts",
+      "sha256": "7a104447c32ee0fe82fdada5d39ee5d785bd15cc8ee6dabdc02c434a8ebfeb6f"
+    },
+    {
+      "source": "migration/table/src/internal/grid-query.ts",
+      "target": "packages/table/src/internal/grid-query.ts",
+      "sha256": "c7b0028eb05a8bd036dccd3ef8bac4bb5ce4210e08a21d365befd033588f51e3"
+    },
+    {
+      "source": "migration/table/src/internal/grid-runtime.ts",
+      "target": "packages/table/src/internal/grid-runtime.ts",
+      "sha256": "18ff19fb5a3906a2fd8d8fbcfd5c9282f14415619bd00818cb69858a20843852"
+    },
+    {
+      "source": "migration/table/src/internal/grid-subscription-instrumentation.ts",
+      "target": "packages/table/src/internal/grid-subscription-instrumentation.ts",
+      "sha256": "9d63922d9f111f4d33f1b23c4c753fff7077abadc4cb97788360383d00fa4cf7"
+    },
+    {
+      "source": "migration/table/src/internal/grouped-row.ts",
+      "target": "packages/table/src/internal/grouped-row.ts",
+      "sha256": "1b7e70250e34bf885d92f6154831d545c5854b7bc9e4d48e7f8bd26c01ba42cf"
+    },
+    {
+      "source": "migration/table/src/internal/hotkey-adapter.ts",
+      "target": "packages/table/src/internal/hotkey-adapter.ts",
+      "sha256": "748cd8ca35c8598866c5389bb9d92b4fecfb089cee7610affc8ac1950a82b653"
+    },
+    {
+      "source": "migration/table/src/internal/listener-registry.ts",
+      "target": "packages/table/src/internal/listener-registry.ts",
+      "sha256": "d244c35e6db61908f4851b11e22540a760254fdb61090878103a727c0c4bc01c"
+    },
+    {
+      "source": "migration/table/src/internal/mounted-row-slots.ts",
+      "target": "packages/table/src/internal/mounted-row-slots.ts",
+      "sha256": "7faa468088a8f0737fdd596622df71902a14539ff2b3fcdd5fbede20a13f79c3"
+    },
+    {
+      "source": "packages/table/provenance/navigation.ts.reference",
+      "target": "packages/table/src/internal/navigation.ts",
+      "sha256": "fedb8de325f780dd595b7c1c4beb11034e56074d478e39108c0505ef81f8c03e",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/internal/navigation.ts",
+      "sourceBlob": "d5281ee58e809062524ba06007cba182c138730c",
+      "sourceSha256": "59d1d6a3f64f07051f52a53ff129b7c4cec621244fddabbe0f5eacfe13652426",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ]
+    },
+    {
+      "source": "migration/table/src/internal/preset-capability.ts",
+      "target": "packages/table/src/internal/preset-capability.ts",
+      "sha256": "72a268096d45edc45d623de05a9dddabebf3a56abd942374408536017fd167c8"
+    },
+    {
+      "source": "migration/table/src/internal/quick-filter.ts",
+      "target": "packages/table/src/internal/quick-filter.ts",
+      "sha256": "0accfba76c4858163e70fb4d5059b6fc72debe516bc3a00ca37623ac9b76028a"
+    },
+    {
+      "source": "packages/table/provenance/react-compiler-adapters.ts.reference",
+      "target": "packages/table/src/internal/react-compiler-adapters.ts",
+      "sha256": "fb59e408a0d2a4bebe8dd5fbe8f3250975f19fd7018e6f3f99d57f0245b46079",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/internal/react-compiler-adapters.ts",
+      "sourceBlob": "7ca81ffc05fc01a64d986607607a4279a6806c6a",
+      "sourceSha256": "3b1873c6ffd9f2aa68ed81f085cb8a2313600cbeaeeb77913b4e28be37417764",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ]
+    },
+    {
+      "source": "migration/table/src/internal/render-instrumentation.ts",
+      "target": "packages/table/src/internal/render-instrumentation.ts",
+      "sha256": "0bef29c88af4562ab5271f15d114a2c06f15b34d7ea950a37091c5770b08d41b"
+    },
+    {
+      "source": "migration/table/src/internal/row-selection.ts",
+      "target": "packages/table/src/internal/row-selection.ts",
+      "sha256": "0147f03fe46ad95d1ed66ed3fdd97ef439bfa9277e2c66fb1e357d128e1bbeff"
+    },
+    {
+      "source": "migration/table/src/internal/select-value-type-provenance.ts",
+      "target": "packages/table/src/internal/select-value-type-provenance.ts",
+      "sha256": "8e778f79382e7e2a0b091f4aa6162e076ca3883f9be7367f5628313e5b5d2454"
+    },
+    {
+      "source": "migration/table/src/internal/set-value-identity.ts",
+      "target": "packages/table/src/internal/set-value-identity.ts",
+      "sha256": "ceef3d3628bdea30ec89836daed21c124805cece22f036f06da98db65fb2912d"
+    },
+    {
+      "source": "migration/table/src/internal/sorting.ts",
+      "target": "packages/table/src/internal/sorting.ts",
+      "sha256": "728cefcce43ebd724a5eda2d89a5a0e083283b4a7eb4bff5a130c84068cc9cf9"
+    },
+    {
+      "source": "migration/table/src/internal/source-lifecycle.ts",
+      "target": "packages/table/src/internal/source-lifecycle.ts",
+      "sha256": "8880aebb76af462f8ef5946fe6a1b902675392bd689ac30eac161e235d5a4e1b"
+    },
+    {
+      "source": "migration/table/src/internal/table-identity-registry.ts",
+      "target": "packages/table/src/internal/table-identity-registry.ts",
+      "sha256": "d2d46b4ec9f004bf3c3c357881d29785c696003af563f065e6220cf3adba299c"
+    },
+    {
+      "source": "migration/table/src/internal/test-diagnostic-build-contract.ts",
+      "target": "packages/table/src/internal/test-diagnostic-build-contract.ts",
+      "sha256": "4002a422ca4d63fd4945027d8172a765e48877ca817f0adff56d84f341e4d14e"
+    },
+    {
+      "source": "migration/table/src/internal/toolbar-instrumentation.ts",
+      "target": "packages/table/src/internal/toolbar-instrumentation.ts",
+      "sha256": "a4825a73f333741ba88f5b5385efe0adc82704f5d628ee25bfaba98648c4602b"
+    },
+    {
+      "source": "migration/table/src/internal/untrusted-input.ts",
+      "target": "packages/table/src/internal/untrusted-input.ts",
+      "sha256": "928e24e810b7ef4e5c86af74ae70768303bdd30b4f7ceb35050b8ffd313859d8"
+    },
+    {
+      "source": "migration/table/src/internal/value-semantics.ts",
+      "target": "packages/table/src/internal/value-semantics.ts",
+      "sha256": "fbae4efe7cab2ddaa834faae047a3a050c74b656f793bcefb9e3473d154680aa"
+    },
+    {
+      "source": "packages/table/provenance/virtual-viewport.ts.reference",
+      "target": "packages/table/src/internal/virtual-viewport.ts",
+      "sha256": "a864429a6c15cd0c022f30bb7f11c28fc9dac55de22d729d24c8ca820bcd3b93",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/internal/virtual-viewport.ts",
+      "sourceBlob": "918271c7458d0da79e71ef0a31980319078d210d",
+      "sourceSha256": "aa0259698d6e1d81fffafb80ffc61363adeb157ea3d9ca225e9500a00d5b09f2",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ]
+    },
+    {
+      "source": "migration/table/src/public-types.ts",
+      "target": "packages/table/src/public-types.ts",
+      "sha256": "18f84c5118e7647143518ed5ecac511a940b9e7b5de4d7fb6da173579050ce71"
+    }
+  ],
+  "paritySourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+  "tests": [
+    {
+      "source": "packages/table/provenance/column-helper-contracts.test.ts.reference",
+      "target": "packages/table/tests/column-helper-contracts.test.ts",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/column-helper-contracts.test.ts",
+      "sourceSha256": "f5fc1bac12b2a5794ff53cdf16be9a1123fa715cd9648dc9f1184953f8ccde13",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"],
+        ["from \"./index\"", "from \"../src\""],
+        ["from \"@bruno/table\"", "from \"../src\""]
+      ],
+      "sha256": "e06dd6fd9f1e115cfab655e22d47f018efffc6989a8c875e001da8e46f5c8af9"
+    },
+    {
+      "source": "packages/table/provenance/select-aggregation.test-d.ts.reference",
+      "target": "packages/table/tests/select-aggregation.test-d.ts",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/select-aggregation.test-d.ts",
+      "sourceSha256": "e96d72a2bd6055b9166b5ab0e60775b2ea028aa330e08eae43718fab6ffd9524",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"],
+        ["from \"./index\"", "from \"../src\""],
+        ["from \"@bruno/table\"", "from \"../src\""]
+      ],
+      "sha256": "9146042c87aae5cebee306902ad6853043db82237e87bff2611d23ddd8ec69d5"
+    }
+  ]
+}
