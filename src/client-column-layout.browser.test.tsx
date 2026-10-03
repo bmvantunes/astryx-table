@@ -121,6 +121,9 @@ test("pin commands preserve scroll, identity and persisted intent for unsortable
   expect(grid.scrollTop, "opening the header menu").toBe(720);
   await page.getByRole("menuitem", { name: "Pin to end", exact: true }).click();
   await settle();
+  await expect
+    .element(page.getByRole("status", { name: "pin-commands interaction status" }))
+    .toHaveTextContent("Column 1 pinned to logical end");
   expect(grid.scrollTop).toBe(720);
   expect(changes).toHaveLength(1);
   expect(changes[0]).toMatchObject({
@@ -144,10 +147,19 @@ test("pin commands preserve scroll, identity and persisted intent for unsortable
   expect(unpinned.getBoundingClientRect().right).toBeLessThanOrEqual(
     grid.getBoundingClientRect().right - 120,
   );
+  await expect
+    .element(page.getByRole("status", { name: "pin-commands interaction status" }))
+    .toHaveTextContent("Column 1 unpinned");
   expect(changes).toHaveLength(2);
   expect(changes[1]).toMatchObject({
     columnPinning: { start: ["COL_ID_COLUMN_0"], end: ["COL_ID_COLUMN_39"] },
   });
+  await page.getByRole("button", { name: "Column 1 column menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Pin to start", exact: true }).click();
+  await expect
+    .element(page.getByRole("status", { name: "pin-commands interaction status" }))
+    .toHaveTextContent("Column 1 pinned to logical start");
+  expect(changes).toHaveLength(3);
 });
 
 test.each(["ltr", "rtl"] as const)(
@@ -320,3 +332,84 @@ test.each(["ltr", "rtl"] as const)(
     }
   },
 );
+
+for (const count of [1, 3]) {
+  test.each(["ltr", "rtl"] as const)(
+    `%s anchors an end region to a wider viewport with ${count} columns`,
+    async (direction) => {
+      const compact = columns.slice(0, count).map((column, index) => ({
+        ...column,
+        pinned:
+          index === count - 1 ? ("end" as const) : index === 0 ? ("start" as const) : undefined,
+      }));
+      await render(
+        <div role="group" aria-label="Pinning host" dir={direction} style={{ width: 640 }}>
+          <AstryxTableClient
+            tableId="short-pinned"
+            columns={compact}
+            getRowId={(row: Row) => row.id}
+            initialOrderBy={[{ columnId: "COL_ID_COLUMN_0", direction: "asc" }]}
+            clientSource={{ rows: rows.slice(0, 1), totalRows: 1, version: 1, status: "ready" }}
+          />
+        </div>,
+      );
+      const host = page.getByRole("group", { name: "Pinning host" }).element();
+      for (const width of [640, 800]) {
+        host.style.width = `${width}px`;
+        await settle();
+        const grid = page.getByRole("grid", { name: "short-pinned" }).element();
+        const header = page
+          .getByRole("columnheader", { name: `Column ${count - 1}`, exact: true })
+          .element();
+        const cell = grid.querySelector(`[role="gridcell"][aria-colindex="${count}"]`)!;
+        const edge = direction === "ltr" ? "right" : "left";
+        expect(
+          Math.abs(header.getBoundingClientRect()[edge] - grid.getBoundingClientRect()[edge]),
+        ).toBeLessThan(3);
+        expect(
+          Math.abs(cell.getBoundingClientRect()[edge] - grid.getBoundingClientRect()[edge]),
+        ).toBeLessThan(3);
+        expect(grid.scrollWidth - grid.clientWidth).toBeLessThanOrEqual(1);
+      }
+    },
+  );
+}
+
+test("announces each accepted pin command when distinct columns share a label", async () => {
+  const repeatedColumns = columns
+    .slice(0, 2)
+    .map((column) => ({ ...column, headerName: "Repeated", pinned: undefined }));
+  await render(
+    <div style={{ width: 640 }}>
+      <AstryxTableClient
+        tableId="repeated-announcement"
+        columns={repeatedColumns}
+        getRowId={(row: Row) => row.id}
+        initialOrderBy={[{ columnId: "COL_ID_COLUMN_0", direction: "asc" }]}
+        clientSource={{ rows: rows.slice(0, 1), totalRows: 1, version: 1, status: "ready" }}
+      />
+    </div>,
+  );
+  await settle();
+  const status = page
+    .getByRole("status", { name: "repeated-announcement interaction status" })
+    .element();
+  const announcements: string[] = [];
+  const observer = new MutationObserver(() => announcements.push(status.textContent ?? ""));
+  observer.observe(status, { subtree: true, childList: true, characterData: true });
+  try {
+    for (const index of [0, 1]) {
+      await page
+        .getByRole("button", { name: "Repeated column menu", exact: true })
+        .nth(index)
+        .click();
+      await page.getByRole("menuitem", { name: "Pin to start", exact: true }).click();
+      await settle();
+    }
+    expect(
+      announcements.filter((text) => text === "Repeated pinned to logical start"),
+    ).toHaveLength(2);
+  } finally {
+    observer.disconnect();
+  }
+});

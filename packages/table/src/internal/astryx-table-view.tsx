@@ -28,6 +28,8 @@ import {
 } from "./virtual-viewport";
 import {
   ASTRYX_TABLE_LIVE_LEFT_PADDING_CSS_VARIABLE,
+  ASTRYX_TABLE_LIVE_TOTAL_WIDTH_CSS_VARIABLE,
+  ASTRYX_TABLE_LIVE_VIEWPORT_FILL_CSS_VARIABLE,
   astryxTableColumnCssVariable,
   astryxTablePinnedWidthCssVariable,
 } from "./column-management";
@@ -120,8 +122,16 @@ const styles = stylex.create({
     backgroundColor: colorVars["--color-background-muted"],
   },
   layer: { position: "relative" },
-  // Virtual cells must clip content without creating a scroll container per cell.
-  cell: { overflow: "clip" },
+  announcement: {
+    position: "absolute",
+    top: 0,
+    insetInlineStart: 0,
+    width: 1,
+    height: 1,
+    overflow: "hidden",
+    clipPath: "inset(50%)",
+    whiteSpace: "nowrap",
+  },
   pinnedContent: {
     maxBlockSize: "100%",
     overflow: "clip",
@@ -184,7 +194,10 @@ const GridSurface = memo(function GridSurface({
 }: SurfaceProps & { readonly navigation: AstryxTableNavigationRuntime }) {
   const [attachRowLayer] = useState(() => adapter.attachRowLayer);
   const { presentation, attach } = useNativeTablePresentation(adapter);
-  const window = adapter.viewportSnapshot.virtualWindow;
+  const [announcement, setAnnouncement] = useState({ sequence: 0, message: "" });
+  const announce = useCallback((message: string) => {
+    setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
+  }, []);
   return (
     <div
       {...stylex.props(styles.viewport)}
@@ -208,6 +221,7 @@ const GridSurface = memo(function GridSurface({
           runtime={snapshot.runtime}
           presentation={presentation}
           navigation={navigation}
+          announce={announce}
         />
         {snapshot.rowSpace.totalRows === 0 ? (
           <div role="status" aria-label={`${tableId} status`}>
@@ -217,7 +231,7 @@ const GridSurface = memo(function GridSurface({
         <div
           {...stylex.props(styles.layer)}
           ref={attachRowLayer}
-          style={{ width: window.totalWidth }}
+          style={{ width: renderedWidth(adapter) }}
         >
           <Rows adapter={adapter} snapshot={snapshot} tableId={tableId} />
         </div>
@@ -228,6 +242,14 @@ const GridSurface = memo(function GridSurface({
           presentation={presentation}
         />
       </TableContext>
+      <div
+        {...stylex.props(styles.announcement)}
+        role="status"
+        aria-label={`${tableId} interaction status`}
+        aria-live="polite"
+      >
+        <span key={announcement.sequence}>{announcement.message}</span>
+      </div>
     </div>
   );
 });
@@ -239,7 +261,9 @@ const Header = memo(function Header({
   runtime,
   presentation,
   navigation,
+  announce,
 }: PresentationProps & {
+  readonly announce: (message: string) => void;
   readonly navigation: AstryxTableNavigationRuntime;
   readonly adapter: AstryxTableViewportAdapterState;
   readonly runtime: AstryxTableRuntimeView;
@@ -255,7 +279,7 @@ const Header = memo(function Header({
     <table
       role="presentation"
       {...stylex.props(styles.header)}
-      style={{ width: layout.totalWidth }}
+      style={{ width: renderedWidth(adapter) }}
     >
       <thead role="presentation" style={{ display: "block", width: "100%" }}>
         <TableRow
@@ -271,6 +295,7 @@ const Header = memo(function Header({
                 key={column.columnId}
                 runtime={runtime}
                 navigation={navigation}
+                announce={announce}
                 column={column}
                 columnIndex={index}
                 presentation={presentation.get(column.columnId)}
@@ -286,6 +311,7 @@ const Header = memo(function Header({
                 key={column.columnId}
                 runtime={runtime}
                 navigation={navigation}
+                announce={announce}
                 column={column}
                 columnIndex={layout.pinnedStart.length + window.centerStartIndex + index}
               />
@@ -295,11 +321,21 @@ const Header = memo(function Header({
               aria-hidden="true"
               style={{ width: window.rightPadding, padding: 0, flexShrink: 0 }}
             />,
+            <th
+              key="viewport-fill"
+              aria-hidden="true"
+              style={{
+                width: `var(${ASTRYX_TABLE_LIVE_VIEWPORT_FILL_CSS_VARIABLE}, ${viewportFill(adapter)}px)`,
+                padding: 0,
+                flexShrink: 0,
+              }}
+            />,
             ...layout.pinnedEnd.map((column, index) => (
               <HeaderCell
                 key={column.columnId}
                 runtime={runtime}
                 navigation={navigation}
+                announce={announce}
                 column={column}
                 columnIndex={adapter.columns.length - layout.pinnedEnd.length + index}
                 presentation={presentation.get(column.columnId)}
@@ -387,7 +423,7 @@ const Row = memo(function Row({
       style={{
         top,
         height: ASTRYX_TABLE_ROW_HEIGHT,
-        width: adapter.viewportSnapshot.virtualWindow.totalWidth,
+        width: renderedWidth(adapter),
       }}
     >
       <td
@@ -439,7 +475,7 @@ const PinnedRows = memo(function PinnedRows({
               position: "absolute",
               insetInlineStart: 0,
               top: ASTRYX_TABLE_ROW_HEIGHT,
-              width: layout.totalWidth,
+              width: renderedWidth(adapter),
               height: range.totalHeight,
               pointerEvents: "none",
               zIndex: 1,
@@ -549,13 +585,16 @@ const Cell = memo(function Cell({
     <TableCell
       {...presentation?.body.htmlProps}
       scope={undefined}
-      xstyle={[presentation === undefined && styles.cell, ...(presentation?.body.xstyle ?? [])]}
+      xstyle={presentation?.body.xstyle}
       id={id}
       className={customClass}
       role="gridcell"
       aria-colindex={columnIndex + 1}
       style={{
         ...presentation?.body.htmlProps.style,
+        // Cross-package StyleX property keys differ; native classes must not win
+        // over the virtual centre's no-scroll-container clipping requirement.
+        overflow: presentation === undefined ? "clip" : undefined,
         height: ASTRYX_TABLE_ROW_HEIGHT,
         flexShrink: 0,
         maxWidth: "none",
@@ -579,6 +618,7 @@ const Cell = memo(function Cell({
 });
 
 const HeaderCell = memo(function HeaderCell({
+  announce,
   navigation,
   runtime,
   column,
@@ -586,6 +626,7 @@ const HeaderCell = memo(function HeaderCell({
   presentation,
 }: {
   readonly presentation?: NativePinnedPresentation | undefined;
+  readonly announce: (message: string) => void;
   readonly navigation: AstryxTableNavigationRuntime;
   readonly runtime: AstryxTableRuntimeView;
   readonly column: CompiledColumn;
@@ -600,6 +641,16 @@ const HeaderCell = memo(function HeaderCell({
     [runtime, column.columnId],
   );
   const command = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const pin = (pinned: "start" | "end" | undefined) => {
+    runtime.dispatchGridCommand({ type: "column.pin.commit", columnId: column.columnId, pinned });
+    if (runtime.getColumnCommandSnapshot(column.columnId).pinned === pinned) {
+      announce(
+        pinned === undefined
+          ? `${column.headerName} unpinned`
+          : `${column.headerName} pinned to logical ${pinned}`,
+      );
+    }
+  };
   const direction =
     command.sortDirection === "asc"
       ? "ascending"
@@ -655,13 +706,7 @@ const HeaderCell = memo(function HeaderCell({
                 {
                   id: "pin-start",
                   label: "Pin to start",
-                  onClick: () => {
-                    runtime.dispatchGridCommand({
-                      type: "column.pin.commit",
-                      columnId: column.columnId,
-                      pinned: "start",
-                    });
-                  },
+                  onClick: () => pin("start"),
                 },
               ]
             : []),
@@ -670,13 +715,7 @@ const HeaderCell = memo(function HeaderCell({
                 {
                   id: "pin-end",
                   label: "Pin to end",
-                  onClick: () => {
-                    runtime.dispatchGridCommand({
-                      type: "column.pin.commit",
-                      columnId: column.columnId,
-                      pinned: "end",
-                    });
-                  },
+                  onClick: () => pin("end"),
                 },
               ]
             : []),
@@ -685,13 +724,7 @@ const HeaderCell = memo(function HeaderCell({
                 {
                   id: "unpin",
                   label: "Unpin column",
-                  onClick: () => {
-                    runtime.dispatchGridCommand({
-                      type: "column.pin.commit",
-                      columnId: column.columnId,
-                      pinned: undefined,
-                    });
-                  },
+                  onClick: () => pin(undefined),
                 },
               ]
             : []),
@@ -715,4 +748,14 @@ function preparedColumnStage(
     (index < window.preparedTargetCenterStartIndex || index >= window.preparedTargetCenterEndIndex)
     ? "retiring"
     : undefined;
+}
+
+// End-pinned regions fill unused viewport space while column widths remain authoritative.
+function viewportFill(adapter: AstryxTableViewportAdapterState): number {
+  const { width, virtualWindow } = adapter.viewportSnapshot;
+  return virtualWindow.pinnedEnd.length === 0 ? 0 : Math.max(0, width - virtualWindow.totalWidth);
+}
+
+function renderedWidth(adapter: AstryxTableViewportAdapterState): string {
+  return `var(${ASTRYX_TABLE_LIVE_TOTAL_WIDTH_CSS_VARIABLE}, ${adapter.viewportSnapshot.virtualWindow.totalWidth + viewportFill(adapter)}px)`;
 }
