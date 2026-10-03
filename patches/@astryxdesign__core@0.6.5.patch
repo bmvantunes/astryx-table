@@ -561,3 +561,119 @@ diff --git a/dist/hooks/useFocusTrap.js b/dist/hooks/useFocusTrap.js
              // A layer can be open while focus legitimately sits outside it —
              // a listbox popup anchored to its own input. Cancelling there
              // would take Tab away from the whole page.
+diff --git a/dist/Table/plugins/sortable/useTableSortable.js b/dist/Table/plugins/sortable/useTableSortable.js
+index ff1d4c62822da0dacbc29201df5df495e6af9491..43b049586d17e35da742992b308cfe65e3cee095 100644
+--- a/dist/Table/plugins/sortable/useTableSortable.js
++++ b/dist/Table/plugins/sortable/useTableSortable.js
+@@ -281,6 +281,9 @@ export function useTableSortable(config) {
+   const t = useTranslator();
+   const configRef = useRef(config);
+   configRef.current = config;
++  // Rendering depends on sort values even when callbacks stay current in a ref.
++  const sortSignature = JSON.stringify(config.sort.map(({sortKey, direction}) => [sortKey, direction]));
++
+   return useMemo(() => ({
+     transformHeaderCell(props, column) {
+       const sortKey = resolveSortKey(column);
+@@ -361,5 +364,5 @@ export function useTableSortable(config) {
+         contextMenuActions: () => [...resolveContextActions(priorActions), ...getSortActions()]
+       };
+     }
+-  }), [t]);
++  }), [t, sortSignature, config.allowUnsortedState, config.isMultiSortEnabled]);
+ }
+\ No newline at end of file
+diff --git a/dist/Table/plugins/stickyColumns/useTableStickyColumns.js b/dist/Table/plugins/stickyColumns/useTableStickyColumns.js
+index 8346e780e24fe9910fcaf1ca2c07339bfb5f9b28..53db758ef8d237c9dffd0f440ba5badba9cf0cd8 100644
+--- a/dist/Table/plugins/stickyColumns/useTableStickyColumns.js
++++ b/dist/Table/plugins/stickyColumns/useTableStickyColumns.js
+@@ -221,14 +221,15 @@ export function useTableStickyColumns(config) {
+   } = config;
+   const start = startKeys ?? EMPTY;
+   const end = endKeys ?? EMPTY;
++  // Equal key contents retain row memoization; changed contents must publish a
++  // new plugin identity to Table and React Compiler.
++  const startSignature = JSON.stringify(start);
++  const endSignature = JSON.stringify(end);
++
+   const hasStart = start.length > 0;
+   const hasEnd = end.length > 0;
+ 
+-  // Live snapshot of the resolved config, read inside the (memoized) transforms
+-  // and the scroll-shadow callback. Keeping these in a ref lets the plugin memo
+-  // be computed once (deps: only the stable scroll-shadow callback) while never
+-  // reading stale config — consumers typically pass fresh array literals each
+-  // render, so we never want array identity in the deps.
++  // Imperative scroll callbacks always read the latest edge configuration.
+   const stateRef = useRef({
+     start,
+     end,
+@@ -369,8 +370,5 @@ export function useTableStickyColumns(config) {
+       };
+     }
+   }),
+-  // The returned plugin's transforms read live config from `stateRef` and
+-  // `attachScrollShadow` is stable (empty deps), so the plugin object can be
+-  // computed once and reused across renders.
+-  [attachScrollShadow]);
++  [attachScrollShadow, startSignature, endSignature]);
+ }
+\ No newline at end of file
+diff --git a/src/Table/plugins/sortable/useTableSortable.tsx b/src/Table/plugins/sortable/useTableSortable.tsx
+index c7ec1d1d3e73f3f564aa3c211e0df5c849b33a0f..481e89f5012d2153831a9e6b54d062a3a768694d 100644
+--- a/src/Table/plugins/sortable/useTableSortable.tsx
++++ b/src/Table/plugins/sortable/useTableSortable.tsx
+@@ -381,6 +381,9 @@ export function useTableSortable<
+   const t = useTranslator();
+   const configRef = useRef(config);
+   configRef.current = config;
++  // Rendering depends on sort values even when callbacks stay current in a ref.
++  const sortSignature = JSON.stringify(config.sort.map(({sortKey, direction}) => [sortKey, direction]));
++
+ 
+   return useMemo(
+     (): TablePlugin<T> => ({
+@@ -466,6 +469,6 @@ export function useTableSortable<
+         };
+       },
+     }),
+-    [t],
++    [t, sortSignature, config.allowUnsortedState, config.isMultiSortEnabled],
+   );
+ }
+diff --git a/src/Table/plugins/stickyColumns/useTableStickyColumns.tsx b/src/Table/plugins/stickyColumns/useTableStickyColumns.tsx
+index a4f1cf708ad37291cfbc0697224cadd01366befb..70c8e1e2d4ac9ec238d418bcc02c223ed5835b9c 100644
+--- a/src/Table/plugins/stickyColumns/useTableStickyColumns.tsx
++++ b/src/Table/plugins/stickyColumns/useTableStickyColumns.tsx
+@@ -282,14 +282,15 @@ export function useTableStickyColumns<T extends Record<string, unknown>>(
+   const start = startKeys ?? EMPTY;
+   const end = endKeys ?? EMPTY;
+ 
++  // Equal key contents retain row memoization; changed contents must publish a
++  // new plugin identity to Table and React Compiler.
++  const startSignature = JSON.stringify(start);
++  const endSignature = JSON.stringify(end);
++
+   const hasStart = start.length > 0;
+   const hasEnd = end.length > 0;
+ 
+-  // Live snapshot of the resolved config, read inside the (memoized) transforms
+-  // and the scroll-shadow callback. Keeping these in a ref lets the plugin memo
+-  // be computed once (deps: only the stable scroll-shadow callback) while never
+-  // reading stale config — consumers typically pass fresh array literals each
+-  // render, so we never want array identity in the deps.
++  // Imperative scroll callbacks always read the latest edge configuration.
+   const stateRef = useRef({start, end, hasStart, hasEnd});
+   stateRef.current = {start, end, hasStart, hasEnd};
+ 
+@@ -427,9 +428,6 @@ export function useTableStickyColumns<T extends Record<string, unknown>>(
+         };
+       },
+     }),
+-    // The returned plugin's transforms read live config from `stateRef` and
+-    // `attachScrollShadow` is stable (empty deps), so the plugin object can be
+-    // computed once and reused across renders.
+-    [attachScrollShadow],
++    [attachScrollShadow, startSignature, endSignature],
+   );
+ }
