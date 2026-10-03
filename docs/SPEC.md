@@ -8,7 +8,7 @@ The current grid has valuable, tested domain and interaction behavior, but its s
 
 ## Solution
 
-Port the proven grid, not Astryx's ordinary Table engine. Consume maintained Astryx controls and themes from npm. Mechanically rename public grid symbols to AstryxTable. Preserve source provenance, domain invariants and verification evidence; replace presentation-bound code and re-prove changed integrations.
+Preserve the proven grid contracts while choosing the smallest demonstrated implementation. Evaluate the complete published Astryx Table, its controlled plugins and presentation primitives before recreating equivalent behavior. Consume maintained Astryx controls and themes from npm. Mechanically rename public grid symbols to AstryxTable. Preserve source provenance, domain invariants and verification evidence; replace presentation-bound code and re-prove changed integrations.
 
 ## User Stories
 
@@ -51,7 +51,7 @@ Port the proven grid, not Astryx's ordinary Table engine. Consume maintained Ast
 - Existing core and its tests are reuse candidates, not exempt from regression testing. User waived repeated reviewers only for verified unchanged copy plus mechanical rename. Changed behavior and UI integration require fresh review.
 - Preserve mandatory table/column identities, Client raw-row identity and Server source-owned identity, strict editing/read-only discrimination, mandatory non-empty sorting and exact value domains.
 - Retain authoritative source generations/versions, atomic clipboard and edit gestures, sparse histories, overlays and conflict evidence. Keep Effect optional and View Server first-party semantics intact.
-- Retain one scroll owner, segmented logical rowspace, virtual center columns, mounted sticky partitions and suspension behavior. Astryx sticky plugins are not equivalent and must not become a second authority.
+- Retain one scroll owner, segmented logical rowspace, virtual center columns, mounted sticky partitions and suspension behavior. Published Astryx Table plugins or rendering may satisfy parts of this contract through a small private Adapter; verify the actual integration and keep exactly one authority for geometry and state.
 - Keep TanStack Table v9, Store, Hotkeys and Pacer ownership and private XState workflows unless a separately approved decision changes them.
 - Generic controls remain upstream npm dependencies. Do not bring Base UI-specific trigger workarounds into Astryx automatically or swizzle controls by default.
 - Use Vite+ for dev/build/check/test/pack, React Compiler, StyleX for owned presentation and published Astryx CSS/theme entry points. Independently prove application and library CSS paths.
@@ -71,3 +71,9 @@ Retiring/deleting the old repository, publishing npm immediately, expanding feat
 ## Further Notes
 
 The bootstrap has a real styled Astryx interaction workbench and an empty private library entry, not a migrated grid. The first ticket establishes audited import evidence. Large mechanical changes may use one isolated integration branch; do not pretend every intermediate partial rename is independently publishable. Once baseline import is verified, each UI slice must be independently demoable and tested.
+
+## Reuse and improvement direction (2026-10-03)
+
+The user explicitly requested a complete evaluation of Astryx Table capabilities, not blind copying of the existing renderer. Prefer directly consuming published behavior, or a small private Adapter, when that removes local ownership while preserving behavior, inference, accessibility and performance. This supersedes the earlier blanket preference against the native Table engine. Optimize and improve either retained or new code when evidence supports the change; unchanged-copy provenance is an audit mechanism, not a reason to retain unnecessary code.
+
+Evaluate the whole Table export surface, including sorting, filters, selection, grouping, expansion, resize, column settings, context menus, status, scrolling and accessibility. Distinguish native capabilities from externally supplied behavior. Compare actual net code removal and validate candidates in Browser and production profiling; feature names or a successful build alone do not establish parity. The full parity epic and its acceptance criteria remain unchanged.

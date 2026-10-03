@@ -93,7 +93,7 @@ Its known changes/findings have explicit owners:
 
 ## Astryx corrections
 
-Core and neutral theme are pinned to 0.6.5. The approved pnpm patch changes six
+Core and neutral theme are pinned to 0.6.5. The initial approved pnpm patch changed six
 upstream source modules (+81/-29), together with their shipped JS/declarations:
 TextInput native props; Selector focus return; Toast cancellation/lifecycle; and
 Dialog/focus-trap containment and restoration. Regression cases run against the
@@ -108,6 +108,14 @@ No upstream issue/PR or npm publication is part of this change. A pnpm installat
 patch does not propagate to consumers of a published grid. #16 must settle and
 verify that distribution boundary before releasing any dependent renderer. Remove
 patches only after the same regressions pass against an unpatched upstream version.
+
+The subsequent native Table investigation adds two source modules and their shipped
+JS: sticky-column and sorting plugins now publish semantic configuration changes to
+Table/React Compiler while preserving memoization for equivalent values. The patch
+adds no new public API. Regression cases exercise the published Table entry with
+stable data/columns. See [the running bug record](../astryx-bugs.md) and
+[reuse assessment](research/astryx-table-reuse.md). These plugin fixes are preparation
+for adoption, not a claim that full pinning/sorting parity is implemented.
 
 ## Activated Client core and newer source corrections
 
