@@ -30,22 +30,6 @@ importers:
       '@stylexjs/stylex':
         specifier: ^0.19.0
         version: 0.19.0
-      react:
-        specifier: 19.2.8
-        version: 19.2.8
-      react-dom:
-        specifier: 19.2.8
-        version: 19.2.8(react@19.2.8)
-    devDependencies:
-      '@effect/atom-react':
-        specifier: 4.0.0-rc.111
-        version: 4.0.0-rc.111(effect@4.0.0-rc.111)(react@19.2.8)(scheduler@0.27.0)
-      '@phosphor-icons/react':
-        specifier: 2.1.10
-        version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@stylexjs/unplugin':
-        specifier: 0.19.0
-        version: 0.19.0(patch_hash=ea9bf1145f5a1c82a82d958088629fdf1515e45d74a928432e39b4750649b70c)(unplugin@2.3.11)
       '@tanstack/react-hotkeys':
         specifier: 0.10.0
         version: 0.10.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -58,6 +42,25 @@ importers:
       '@tanstack/store':
         specifier: 0.11.1
         version: 0.11.1
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
+      xstate:
+        specifier: 5.32.5
+        version: 5.32.5
+    devDependencies:
+      '@effect/atom-react':
+        specifier: 4.0.0-rc.111
+        version: 4.0.0-rc.111(effect@4.0.0-rc.111)(react@19.2.8)(scheduler@0.27.0)
+      '@phosphor-icons/react':
+        specifier: 2.1.10
+        version: 2.1.10(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@stylexjs/unplugin':
+        specifier: 0.19.0
+        version: 0.19.0(patch_hash=ea9bf1145f5a1c82a82d958088629fdf1515e45d74a928432e39b4750649b70c)(unplugin@2.3.11)
       '@types/node':
         specifier: ^26.1.1
         version: 26.5.0
@@ -103,11 +106,33 @@ importers:
       vitest-browser-react:
         specifier: 2.2.0
         version: 2.2.0(@types/react-dom@19.2.7(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@4.1.10)
+
+  packages/table:
+    dependencies:
+      '@astryxdesign/core':
+        specifier: 0.6.5
+        version: 0.6.5(patch_hash=3bc7120afe1fd72959b0b6916807afe5ed223e62d60ca6c23aada7338d54f110)(@stylexjs/stylex@0.19.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-hotkeys':
+        specifier: 0.10.0
+        version: 0.10.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-pacer':
+        specifier: 0.23.0
+        version: 0.23.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/react-table':
+        specifier: 9.0.0
+        version: 9.0.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+      '@tanstack/store':
+        specifier: 0.11.1
+        version: 0.11.1
+      react:
+        specifier: ^19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: ^19.2.8
+        version: 19.2.8(react@19.2.8)
       xstate:
         specifier: 5.32.5
         version: 5.32.5
-
-  packages/table: {}
 
 packages:
 

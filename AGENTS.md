@@ -49,3 +49,15 @@ Use `vp env doctor` for environment problems; never silently loosen a gate.
 
 Before substantial implementation, discover package skills with
 `pnpm dlx @tanstack/intent@latest list` and load matching package guidance.
+
+## Migrated-feature performance gate
+
+Run `vp run test:browser:performance` for the active migrated scenarios before
+publication, preserving the retained capable-hardware protocol. After the clean
+local review round, commit, rerun performance against that clean commit, and publish
+its evidence with `vp run publish:performance-evidence <PR number>` after pushing.
+The GitHub `performance-evidence` job must pass for the exact head before merge.
+After merge, also measure and attest the new main commit. A dirty development
+report, a stale SHA, a skipped scenario or an absent attestation is not a pass.
+Future feature issues must add their retained scenarios to this gate; the initial
+raw Client scenarios do not establish full parity. No npm publication is authorized.

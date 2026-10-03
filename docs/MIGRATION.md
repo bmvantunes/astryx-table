@@ -1,13 +1,13 @@
 # Audited import and control foundation
 
-This checkpoint implements the non-shipping migration baseline in issue #2 and
-integrates the user-approved Astryx 0.6.5 corrections. The public library entry is
-still empty. It does not claim completion of the Client renderer (#3), any later
-feature, or the release gate (#16).
+The merged issue #2 established the non-shipping migration baseline and approved
+Astryx 0.6.5 corrections. The current issue #3 slice activates a read-only Client
+and separately tests its Astryx presentation and emitted package. Later features
+and the release gate remain pending.
 
 ## Source and transformations
 
-The sole source is merged commit
+The original audited baseline is merged commit
 `431aa4013db89bb8d803e8b7cff005d8375b9cdf` of
 [bmvantunes/shadcn-table](https://github.com/bmvantunes/shadcn-table/tree/431aa4013db89bb8d803e8b7cff005d8375b9cdf).
 No dirty working-tree files or unmerged PR #100 implementation were copied.
@@ -84,8 +84,8 @@ Its known changes/findings have explicit owners:
   import fidelity against original UI contracts; it does **not** prove Astryx UI,
   emitted successor types or installed successor behavior. The fixture is outside
   the successor workspace and its location is printed for diagnosis.
-- `vp run test:browser`: real successor StyleX/React Compiler control regressions
-  and workbench tests. Not a grid/browser parity gate yet.
+- `vp run test:browser`: real successor StyleX/React Compiler control regressions,
+  workbench and public Client tests. It is not full grid parity certification.
 - Source layout/Compiler, benchmark-runner, Server facet and Client/Server SSR
   contracts depend on the original workspace/UI and run in the import fixture,
   not the direct core runner. Browser and performance files remain in the ledger
@@ -108,3 +108,100 @@ No upstream issue/PR or npm publication is part of this change. A pnpm installat
 patch does not propagate to consumers of a published grid. #16 must settle and
 verify that distribution boundary before releasing any dependent renderer. Remove
 patches only after the same regressions pass against an unpatched upstream version.
+
+## Activated Client core and newer source corrections
+
+`packages/table/core-provenance.json` records 46 activated modules. Forty
+are byte-identical to the retained baseline, one has the reviewed diagnostic correction
+described below, and five use the current merged source
+`00efa81616b2a999714db595fd1fec48caa55c58`, with only the recorded branding
+renames: column helpers, Client source adapter, navigation, Compiler adapter and
+viewport. Their raw bytes, Git blobs and hashes are archived separately from the
+immutable initial import. Two current-source helper contract files are retained
+with explicit import remapping. No dirty source working-tree content was imported.
+
+`verify:active-core` verifies these bytes and transformations. Only these exact
+files are excluded from automatic formatting, preserving the audit trail; lint,
+TypeScript and behavioral verification remain enabled. Semantic edits must leave
+this mechanical-copy ledger and receive ordinary review.
+`test:active-core` runs the 1,066 retained core cases with imports redirected to
+activated modules where available. Unactivated subsystems still use their retained
+baseline. This is not 1,066 newly written renderer tests.
+
+The new public Client suite covers exact bigint sorting, empty results, keyboard
+menu focus, 10,000 × 150 data, unchanged-row presentation, root render isolation
+and coherent per-frame horizontal preparation. Source and installed declarations
+share an inference/rejection fixture. `test:package` exercises the actual tarball
+and its emitted CSS in an isolated consumer without Effect or StyleX compilation.
+The source control patch is not applied to that consumer; only the specific
+read-only menu/rendering path is proven against unpatched Astryx 0.6.5.
+
+## Current-source follow-up ownership
+
+Remote `main` was verified on 2026-10-03 at
+`00efa81616b2a999714db595fd1fec48caa55c58`. This advances the parity target beyond
+the older local checkout; the immutable initial import remains reproducible.
+
+| Source PR | Requirement and Astryx disposition                                                                                                 |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| #101      | Resize-preview row windows/transforms: active viewport updated; gesture proof remains #4.                                          |
+| #102      | Portal stacking: prove equivalent Astryx overlays under #5/#15; do not copy Base UI layers.                                        |
+| #104      | Drag-fill frame optimization and accessible row ownership: #14/#15/#16.                                                            |
+| #105      | Invalidated Active Cell stays cleared: active navigation updated; Server proof under #9.                                           |
+| #106      | Retained-source lifecycle recovery: active source adapter updated; lifecycle proof under #9.                                       |
+| #107      | Measured header insets: active viewport/Compiler adapter updated and header attached; keyboard reveal proof under #5.              |
+| #108      | PageUp remains on the active header: active navigation updated; interaction proof under #5.                                        |
+| #109      | Opaque Combobox chips remain renderable: Astryx filter/group control proof under #6/#7/#15.                                        |
+| #110      | Select aggregate capability: active helper updated; 18 retained Node contracts and source/emitted Select type fixture run.         |
+| #111      | Fail-closed diagnostics and runtime chunks: native build definitions adopted and tested; complete chunk/release audit remains #16. |
+
+Pinning/resize/reorder, complete keyboard navigation, filters, grouping, selection,
+Server and editing interfaces must each pass their ledger rows before full parity
+is claimed. New upstream source commits require explicit reconciliation in this
+ledger; old smoke-test results never establish their behavior in the new renderer.
+
+## Reviewed correction in the first Client slice
+
+`toolbar-instrumentation.ts` is an explicit semantic adaptation, outside the
+mechanical import exemption. Its two diagnostic publishers isolate observer
+exceptions so diagnostics cannot interrupt subscriptions or suppress later
+observers. Source and target hashes are recorded under `reviewedChanges` in the
+active-core manifest, and independent review plus regression tests cover the
+change. The remaining 45 active modules and two source contracts remain exact.
+
+The range-runtime identity-attribute comment on PR #18 concerns the future #13
+integration. The current Client never constructs or attaches that runtime, and
+Row Selection is explicitly unavailable. Its type-only renderer references do
+not activate pointer hits or range registration. #13 must connect stable cell
+identities and prove range behavior through the public Browser seam before that
+capability becomes available; adding unused legacy attributes is not evidence
+of that integration.
+
+## Production validation for the migrated Client
+
+`vp run test:browser:performance` runs React's production profiling build with
+Compiler enabled and the retained capable-hardware profile and evidence finalizer.
+The raw Client slice has a 5,000 × 150 two-axis/custom-renderer workload and a
+5,000 × 150 live-publication workload at 20 Hz. Both preserve 12 warmup and 100
+measured samples, complete callback/React work accounting and the 8.33 ms p99
+budget. Presentation cadence retains its separate 20 ms threshold. Commit probes
+measure the renderer view and grid surface, matching the source instrumentation
+boundary, rather than counting the consumer's source-prop delivery component.
+
+The report at `test-results/performance.json` records environment, scenario evidence,
+commit and working-tree cleanliness. A dirty-tree report is development evidence,
+not evidence for a published commit. The package's `prepublishOnly` invokes this
+same command; the package remains private and no publication is authorized.
+
+These raw scenarios do not certify pinned layouts, editing, Server updates or
+other unimplemented capabilities. Their retained scenarios remain owned by the
+corresponding feature tickets and the full release gate in #16. No original
+profile, sample minimum, timing budget or accounting rule has been weakened.
+
+CI's `performance-evidence` job checks the exact push/PR head and requires the
+repository owner's successful `performance/capable-hardware` status plus the linked
+structured report. The publisher accepts only a clean start/end at the same commit,
+all required scenarios, the production environment and unchanged budgets. Standard
+GitHub hardware verifies that attestation; the timings execute on a compatible host.
+The same rule applies to the new SHA produced by merge. This enforces the migrated
+feature gate now; it does not defer performance validation to #16.
