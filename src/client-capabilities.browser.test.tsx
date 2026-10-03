@@ -55,7 +55,7 @@ class Boundary extends Component<{ children: ReactNode }, { message: string | nu
 afterEach(cleanup);
 
 test.each(["start", "end"] as const)(
-  "initial %s pinning fails explicitly until the pinning renderer lands",
+  "initial %s pinning preserves its only column",
   async (pinned) => {
     await render(
       <Boundary>
@@ -63,12 +63,13 @@ test.each(["start", "end"] as const)(
       </Boundary>,
     );
     await expect
-      .element(page.getByRole("alert"))
-      .toHaveTextContent("Column pinning is not available in this Client slice");
+      .element(page.getByRole("columnheader", { name: "Name", exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole("gridcell", { name: "ONE", exact: true })).toBeVisible();
   },
 );
 test.each(["start", "end"] as const)(
-  "restored %s pinning fails explicitly instead of losing columns",
+  "restored %s pinning preserves its only column",
   async (side) => {
     const columnPinning =
       side === "start"
@@ -80,8 +81,9 @@ test.each(["start", "end"] as const)(
       </Boundary>,
     );
     await expect
-      .element(page.getByRole("alert"))
-      .toHaveTextContent("Column pinning is not available in this Client slice");
+      .element(page.getByRole("columnheader", { name: "Name", exact: true }))
+      .toBeVisible();
+    await expect.element(page.getByRole("gridcell", { name: "ONE", exact: true })).toBeVisible();
   },
 );
 test("restored grouping fails explicitly before raw callbacks receive fabricated rows", async () => {

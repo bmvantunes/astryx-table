@@ -55,6 +55,7 @@ export default defineConfig({
       "react-dom/client",
       "react/jsx-runtime",
       "@astryxdesign/core/Toolbar",
+      "@astryxdesign/core/Table",
       "@astryxdesign/core/DropdownMenu",
       "vitest-browser-react",
     ],

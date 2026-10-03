@@ -40,13 +40,6 @@ export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumn
   if (props.editable) {
     throw new TypeError("Editing is not available in this Client slice (issues #11–#12).");
   }
-  if (
-    props.columns.some(
-      (column) => "pinned" in column && (column.pinned === "start" || column.pinned === "end"),
-    )
-  ) {
-    throw new TypeError("Column pinning is not available in this Client slice (issue #4).");
-  }
   return <AstryxTableClientInstance key={props.tableId} {...props} />;
 }
 
@@ -82,12 +75,6 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         groupRowsWidth: groupRowsColumn.width,
       },
     );
-    // Inspect the core's sanitized preferences rather than duplicating its version/identity policy.
-    if (
-      instance.getColumnLayoutSnapshot().allColumns.some((column) => column.pinned !== undefined)
-    ) {
-      throw new TypeError("Column pinning is not available in this Client slice (issue #4).");
-    }
     if (instance.getQuerySnapshot().groupBy.length > 0) {
       throw new TypeError("Grouping is not available in this Client slice (issue #7).");
     }

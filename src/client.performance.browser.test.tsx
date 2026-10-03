@@ -53,222 +53,250 @@ const nextFrame = () => new Promise<number>((resolve) => nativeFrame(resolve));
 type Work = { callbackDurationMs: number; reactDurationMs: number };
 afterEach(cleanup);
 
-test("production Client accounts for complete two-axis frame work over 5,000 × 150 raw rows", async ({
-  annotate,
-}) => {
-  expect(import.meta.env.MODE).toBe("production");
-  expect(__ASTRYX_TABLE_DEVELOPMENT__).toBe(false);
-  expect(__ASTRYX_TABLE_TEST_DIAGNOSTICS__).toBe(true);
-  expect(Object.prototype.hasOwnProperty.call(createElement("div"), "_store")).toBe(false);
-  const customRenderer = vi.fn(({ row }: { row: Row }) => row.symbol);
-  const columns = Array.from({ length: 150 }, (_, index) => ({
-    columnId: `COL_ID_C${index}` as AstryxTableColumnId,
-    headerName: `Column ${index}`,
-    field: "sequence" as const,
-    valueType: "number" as const,
-    width: 120,
-    ...(index === 10 ? { cellRenderer: customRenderer } : {}),
-  })) satisfies AstryxTableColumns<Row>;
-  const tableId = "production-client";
-  let pending: Work | undefined;
-  let scheduling: Work | undefined;
-  let profilerCalls = 0;
-  let recordingScroll = false;
-  let unownedReactCommits = 0;
-  let unownedCallbacks = 0;
-  let deferredReactCommits = 0;
-  let collectingDeferredWork = false;
-  let observations = 0;
-  const queuedFrames = new Set<number>();
-  let roots = 0;
-  let surfaces = 0;
-  let restoreFrameProbe: (() => void) | undefined;
-  const removeRoot = installAstryxTableClientViewRenderListenerForTable(tableId, () => {
-    roots++;
-  });
-  const removeSurface = installAstryxTableClientGridSurfaceRenderListenerForTable(tableId, () => {
-    surfaces++;
-  });
-  try {
-    await render(
-      <Profiler
-        id={tableId}
-        onRender={(_id, _phase, actualDuration, _baseDuration, startTime, commitTime) => {
-          profilerCalls++;
-          observations++;
-          if (recordingScroll && collectingDeferredWork) deferredReactCommits++;
-          if (recordingScroll && !pending) unownedReactCommits++;
-          if (pending)
-            pending.reactDurationMs += captureAstryxTableReactCommitWork({
-              actualDurationMs: actualDuration,
-              commitTimeMs: commitTime,
-              observedAtMs: performance.now(),
-              startTimeMs: startTime,
-            }).durationMs;
-        }}
-      >
-        <div style={{ width: 1024 }}>
-          <AstryxTableClient
-            tableId={tableId}
-            columns={columns}
-            getRowId={(row: Row) => row.id}
-            initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
-            clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
-          />
-        </div>
-      </Profiler>,
-    );
-    const gridLocator = page.getByRole("grid", { name: tableId });
-    await expect.element(gridLocator).toBeVisible();
-    const grid = gridLocator.element();
-    await nextFrame();
-    await nextFrame();
-    expect(profilerCalls).toBeGreaterThan(0);
-    expect(roots).toBeGreaterThan(0);
-    expect(surfaces).toBeGreaterThan(0);
-    roots = 0;
-    surfaces = 0;
-    const nativeCancelFrame = window.cancelAnimationFrame.bind(window);
-    const probe = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
-      const request = nativeFrame((timestamp) => {
-        queuedFrames.delete(request);
-        observations++;
-        const started = performance.now();
-        try {
-          callback(timestamp);
-        } finally {
-          if (recordingScroll && !scheduling) unownedCallbacks++;
-          if (scheduling) scheduling.callbackDurationMs += performance.now() - started;
-        }
-      });
-      queuedFrames.add(request);
-      return request;
+test.for(["raw", "pinned"] as const)(
+  "production Client accounts for complete two-axis frame work over 5,000 × 150 rows (%s)",
+  { timeout: 30_000 },
+  async (layout, { annotate }) => {
+    expect(import.meta.env.MODE).toBe("production");
+    expect(__ASTRYX_TABLE_DEVELOPMENT__).toBe(false);
+    expect(__ASTRYX_TABLE_TEST_DIAGNOSTICS__).toBe(true);
+    expect(Object.prototype.hasOwnProperty.call(createElement("div"), "_store")).toBe(false);
+    const customRenderer = vi.fn(({ row }: { row: Row }) => row.symbol);
+    const columns = Array.from({ length: 150 }, (_, index) => ({
+      columnId: `COL_ID_C${index}` as AstryxTableColumnId,
+      headerName: `Column ${index}`,
+      field: "sequence" as const,
+      valueType: "number" as const,
+      width: 120,
+      ...(index === (layout === "pinned" ? 24 : 10) ? { cellRenderer: customRenderer } : {}),
+      ...(layout === "pinned" && index === 0
+        ? { pinned: "start" as const }
+        : layout === "pinned" && index === 149
+          ? { pinned: "end" as const }
+          : {}),
+    })) satisfies AstryxTableColumns<Row>;
+    const tableId = `production-client-${layout}`;
+    // Begin beyond the retained header overscan in the narrower pinned centre region.
+    const horizontalStart = layout === "pinned" ? 2400 : 880;
+    let pending: Work | undefined;
+    let scheduling: Work | undefined;
+    let profilerCalls = 0;
+    let recordingScroll = false;
+    let unownedReactCommits = 0;
+    let unownedCallbacks = 0;
+    let deferredReactCommits = 0;
+    let collectingDeferredWork = false;
+    let observations = 0;
+    const queuedFrames = new Set<number>();
+    let roots = 0;
+    let surfaces = 0;
+    let restoreFrameProbe: (() => void) | undefined;
+    const removeRoot = installAstryxTableClientViewRenderListenerForTable(tableId, () => {
+      roots++;
     });
-    const cancellationProbe = vi
-      .spyOn(window, "cancelAnimationFrame")
-      .mockImplementation((request) => {
-        queuedFrames.delete(request);
-        nativeCancelFrame(request);
+    const removeSurface = installAstryxTableClientGridSurfaceRenderListenerForTable(tableId, () => {
+      surfaces++;
+    });
+    try {
+      await render(
+        <Profiler
+          id={tableId}
+          onRender={(_id, _phase, actualDuration, _baseDuration, startTime, commitTime) => {
+            profilerCalls++;
+            observations++;
+            if (recordingScroll && collectingDeferredWork) deferredReactCommits++;
+            if (recordingScroll && !pending) unownedReactCommits++;
+            if (pending)
+              pending.reactDurationMs += captureAstryxTableReactCommitWork({
+                actualDurationMs: actualDuration,
+                commitTimeMs: commitTime,
+                observedAtMs: performance.now(),
+                startTimeMs: startTime,
+              }).durationMs;
+          }}
+        >
+          <div style={{ width: 1024 }}>
+            <AstryxTableClient
+              tableId={tableId}
+              columns={columns}
+              getRowId={(row: Row) => row.id}
+              initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
+              clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+            />
+          </div>
+        </Profiler>,
+      );
+      const gridLocator = page.getByRole("grid", { name: tableId });
+      await expect.element(gridLocator).toBeVisible();
+      const grid = gridLocator.element();
+      await nextFrame();
+      await nextFrame();
+      const centreCell = [...grid.querySelectorAll<HTMLElement>('[role="gridcell"]')].find(
+        (cell) => getComputedStyle(cell).position !== "sticky",
+      );
+      expect(centreCell).toBeDefined();
+      expect(getComputedStyle(centreCell!).overflow).toBe("clip");
+      expect(profilerCalls).toBeGreaterThan(0);
+      expect(roots).toBeGreaterThan(0);
+      expect(surfaces).toBeGreaterThan(0);
+      roots = 0;
+      surfaces = 0;
+      const nativeCancelFrame = window.cancelAnimationFrame.bind(window);
+      const probe = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+        const request = nativeFrame((timestamp) => {
+          queuedFrames.delete(request);
+          observations++;
+          const started = performance.now();
+          try {
+            callback(timestamp);
+          } finally {
+            if (recordingScroll && !scheduling) unownedCallbacks++;
+            if (scheduling) scheduling.callbackDurationMs += performance.now() - started;
+          }
+        });
+        queuedFrames.add(request);
+        return request;
       });
-    restoreFrameProbe = () => {
-      probe.mockRestore();
-      cancellationProbe.mockRestore();
-    };
-    // Every interval belongs to a sample, including preparation after presentation.
-    // Keep React and callback work together to avoid double-charging synchronous commits.
-    function captureInterval() {
-      if (!pending) throw new Error("Scroll work has no owning sample.");
-      const duration = Math.max(pending.callbackDurationMs, pending.reactDurationMs);
+      const cancellationProbe = vi
+        .spyOn(window, "cancelAnimationFrame")
+        .mockImplementation((request) => {
+          queuedFrames.delete(request);
+          nativeCancelFrame(request);
+        });
+      restoreFrameProbe = () => {
+        probe.mockRestore();
+        cancellationProbe.mockRestore();
+      };
+      // Every interval belongs to a sample, including preparation after presentation.
+      // Keep React and callback work together to avoid double-charging synchronous commits.
+      function captureInterval() {
+        if (!pending) throw new Error("Scroll work has no owning sample.");
+        const duration = Math.max(pending.callbackDurationMs, pending.reactDurationMs);
+        pending = { callbackDurationMs: 0, reactDurationMs: 0 };
+        scheduling = pending;
+        return duration;
+      }
+      const work: number[] = [];
+      const cadence: number[] = [];
+      const rowWindows = new Set<string>();
+      const columnWindows = new Set<string>();
+      let customBeforeMeasured = 0;
+      await nextFrame();
       pending = { callbackDurationMs: 0, reactDurationMs: 0 };
       scheduling = pending;
-      return duration;
-    }
-    const work: number[] = [];
-    const cadence: number[] = [];
-    const rowWindows = new Set<string>();
-    const columnWindows = new Set<string>();
-    let customBeforeMeasured = 0;
-    await nextFrame();
-    pending = { callbackDurationMs: 0, reactDurationMs: 0 };
-    scheduling = pending;
-    for (let sample = 0; sample < 112; sample++) {
-      const warmup = sample < 12;
-      if (sample === 12) {
-        recordingScroll = true;
-        customBeforeMeasured = customRenderer.mock.calls.length;
+      for (let sample = 0; sample < 112; sample++) {
+        const warmup = sample < 12;
+        if (sample === 12) {
+          recordingScroll = true;
+          customBeforeMeasured = customRenderer.mock.calls.length;
+        }
+        grid.scrollTop = warmup
+          ? sample === 11
+            ? 8656
+            : (sample + 1) * 720
+          : 8656 + (sample - 12) * 4;
+        grid.scrollLeft = warmup
+          ? sample === 11
+            ? horizontalStart
+            : (sample + 1) * 72
+          : horizontalStart + (sample - 12) * 4;
+        const started = performance.now();
+        grid.dispatchEvent(new Event("scroll"));
+        const admissionDurationMs = performance.now() - started;
+        const renderedAt = await nextFrame();
+        let sampleWork = admissionDurationMs + captureInterval();
+        const presentedAt = await nextFrame();
+        sampleWork += captureInterval();
+        cadence.push(presentedAt - renderedAt);
+        collectingDeferredWork = true;
+        await nextFrame();
+        sampleWork += captureInterval();
+        collectingDeferredWork = false;
+        work.push(sampleWork);
+        if (!warmup) {
+          rowWindows.add(
+            [...grid.querySelectorAll('[role="row"]')]
+              .map((row) => row.getAttribute("aria-rowindex"))
+              .join("|"),
+          );
+          columnWindows.add(
+            [...grid.querySelectorAll('[role="columnheader"]')]
+              .map((column) => column.getAttribute("aria-colindex"))
+              .join("|"),
+          );
+        }
       }
-      grid.scrollTop = warmup
-        ? sample === 11
-          ? 8656
-          : (sample + 1) * 720
-        : 8656 + (sample - 12) * 4;
-      grid.scrollLeft = warmup
-        ? sample === 11
-          ? 880
-          : (sample + 1) * 72
-        : 880 + (sample - 12) * 4;
-      const started = performance.now();
-      grid.dispatchEvent(new Event("scroll"));
-      const admissionDurationMs = performance.now() - started;
-      const renderedAt = await nextFrame();
-      let sampleWork = admissionDurationMs + captureInterval();
-      const presentedAt = await nextFrame();
-      sampleWork += captureInterval();
-      cadence.push(presentedAt - renderedAt);
+      // Drain multi-frame preparation/promotion/cleanup into the final measured sample.
+      // Quiescence requires an empty scheduled queue and two intervals without callbacks/commits.
       collectingDeferredWork = true;
-      await nextFrame();
-      sampleWork += captureInterval();
-      collectingDeferredWork = false;
-      work.push(sampleWork);
-      if (!warmup) {
-        rowWindows.add(
-          [...grid.querySelectorAll('[role="row"]')]
-            .map((row) => row.getAttribute("aria-rowindex"))
-            .join("|"),
-        );
-        columnWindows.add(
-          [...grid.querySelectorAll('[role="columnheader"]')]
-            .map((column) => column.getAttribute("aria-colindex"))
-            .join("|"),
-        );
+      let quietFrames = 0;
+      for (let frame = 0; frame < 120 && quietFrames < 2; frame++) {
+        const before = observations;
+        await nextFrame();
+        work[work.length - 1]! += captureInterval();
+        quietFrames = observations === before && queuedFrames.size === 0 ? quietFrames + 1 : 0;
       }
+      expect(quietFrames).toBe(2);
+      expect(unownedReactCommits).toBe(0);
+      expect(unownedCallbacks).toBe(0);
+      // This workload must exercise commits later than the old two-frame capture window.
+      expect(deferredReactCommits).toBeGreaterThan(0);
+      recordingScroll = false;
+      expect(rowWindows.size).toBeGreaterThan(5);
+      expect(columnWindows.size).toBeGreaterThan(2);
+      expect(customRenderer.mock.calls.length).toBeGreaterThan(customBeforeMeasured);
+      expect(roots).toBe(0);
+      expect(surfaces).toBe(0);
+      expect(grid.querySelectorAll('[role="row"]').length).toBeLessThanOrEqual(33);
+      expect(grid.querySelectorAll('[role="columnheader"]').length).toBeLessThanOrEqual(37);
+      if (layout === "pinned") {
+        for (const name of ["Column 0", "Column 149"]) {
+          const header = page.getByRole("columnheader", { name, exact: true }).element();
+          expect(getComputedStyle(header).position).toBe("sticky");
+          const cells = grid.querySelectorAll(
+            `[role="gridcell"][aria-colindex="${header.getAttribute("aria-colindex")}"]`,
+          );
+          expect(cells.length).toBeGreaterThan(0);
+          for (const cell of cells)
+            expect(
+              Math.abs(cell.getBoundingClientRect().left - header.getBoundingClientRect().left),
+            ).toBeLessThan(1);
+        }
+      }
+      const environment = getAstryxTableBenchmarkEnvironment();
+      const evidence = [
+        finalizeAstryxTableBenchmarkEvidence(work, {
+          environment,
+          scenario: `client-${layout}-two-axis-custom-renderer-work-5000x150`,
+          profile: "chromium-capable-hardware-v1",
+          warmupSampleCount: 12,
+          measuredSampleCount: 100,
+          budgetMs: 8.33,
+          droppedFrameThresholdMs: 16.66,
+          maxDroppedFrameCount: 2,
+        }),
+        finalizeAstryxTableBenchmarkEvidence(cadence, {
+          environment,
+          scenario: `client-${layout}-two-axis-presentation-cadence-5000x150`,
+          profile: "chromium-production-presentation-cadence-v1",
+          warmupSampleCount: 12,
+          measuredSampleCount: 100,
+          budgetMs: 20,
+          droppedFrameThresholdMs: 20,
+          maxDroppedFrameCount: 2,
+        }),
+      ];
+      await annotate(
+        JSON.stringify({ benchmark: `AstryxTable ${layout} Client production evidence`, evidence }),
+        "benchmark",
+      );
+    } finally {
+      restoreFrameProbe?.();
+      removeRoot();
+      removeSurface();
     }
-    // Drain multi-frame preparation/promotion/cleanup into the final measured sample.
-    // Quiescence requires an empty scheduled queue and two intervals without callbacks/commits.
-    collectingDeferredWork = true;
-    let quietFrames = 0;
-    for (let frame = 0; frame < 120 && quietFrames < 2; frame++) {
-      const before = observations;
-      await nextFrame();
-      work[work.length - 1]! += captureInterval();
-      quietFrames = observations === before && queuedFrames.size === 0 ? quietFrames + 1 : 0;
-    }
-    expect(quietFrames).toBe(2);
-    expect(unownedReactCommits).toBe(0);
-    expect(unownedCallbacks).toBe(0);
-    // This workload must exercise commits later than the old two-frame capture window.
-    expect(deferredReactCommits).toBeGreaterThan(0);
-    recordingScroll = false;
-    expect(rowWindows.size).toBeGreaterThan(5);
-    expect(columnWindows.size).toBeGreaterThan(2);
-    expect(customRenderer.mock.calls.length).toBeGreaterThan(customBeforeMeasured);
-    expect(roots).toBe(0);
-    expect(surfaces).toBe(0);
-    expect(grid.querySelectorAll('[role="row"]').length).toBeLessThanOrEqual(33);
-    expect(grid.querySelectorAll('[role="columnheader"]').length).toBeLessThanOrEqual(37);
-    const environment = getAstryxTableBenchmarkEnvironment();
-    const evidence = [
-      finalizeAstryxTableBenchmarkEvidence(work, {
-        environment,
-        scenario: "client-raw-two-axis-custom-renderer-work-5000x150",
-        profile: "chromium-capable-hardware-v1",
-        warmupSampleCount: 12,
-        measuredSampleCount: 100,
-        budgetMs: 8.33,
-        droppedFrameThresholdMs: 16.66,
-        maxDroppedFrameCount: 2,
-      }),
-      finalizeAstryxTableBenchmarkEvidence(cadence, {
-        environment,
-        scenario: "client-raw-two-axis-presentation-cadence-5000x150",
-        profile: "chromium-production-presentation-cadence-v1",
-        warmupSampleCount: 12,
-        measuredSampleCount: 100,
-        budgetMs: 20,
-        droppedFrameThresholdMs: 20,
-        maxDroppedFrameCount: 2,
-      }),
-    ];
-    await annotate(
-      JSON.stringify({ benchmark: "AstryxTable raw Client production evidence", evidence }),
-      "benchmark",
-    );
-  } finally {
-    restoreFrameProbe?.();
-    removeRoot();
-    removeSurface();
-  }
-}, 30_000);
+  },
+);
 
 test(
   "keeps 20 Hz publications bounded and isolated with stable row references",

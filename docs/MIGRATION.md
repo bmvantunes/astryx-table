@@ -1,7 +1,7 @@
 # Audited import and control foundation
 
 The merged issue #2 established the non-shipping migration baseline and approved
-Astryx 0.6.5 corrections. The current issue #3 slice activates a read-only Client
+Astryx 0.6.5 corrections. The merged issue #3 slice activates a read-only Client
 and separately tests its Astryx presentation and emitted package. Later features
 and the release gate remain pending.
 
@@ -163,7 +163,7 @@ the older local checkout; the immutable initial import remains reproducible.
 | #110      | Select aggregate capability: active helper updated; 18 retained Node contracts and source/emitted Select type fixture run.         |
 | #111      | Fail-closed diagnostics and runtime chunks: native build definitions adopted and tested; complete chunk/release audit remains #16. |
 
-Pinning/resize/reorder, complete keyboard navigation, filters, grouping, selection,
+Resize/reorder, complete keyboard navigation, filters, grouping, selection,
 Server and editing interfaces must each pass their ledger rows before full parity
 is claimed. New upstream source commits require explicit reconciliation in this
 ledger; old smoke-test results never establish their behavior in the new renderer.
@@ -189,8 +189,8 @@ of that integration.
 
 `vp run test:browser:performance` runs React's production profiling build with
 Compiler enabled and the retained capable-hardware profile and evidence finalizer.
-The raw Client slice has a 5,000 × 150 two-axis/custom-renderer workload and a
-5,000 × 150 live-publication workload at 20 Hz. Both preserve 12 warmup and 100
+The Client slice has raw and pinned 5,000 × 150 two-axis/custom-renderer workloads and a
+5,000 × 150 live-publication workload at 20 Hz. All preserve 12 warmup and 100
 measured samples, complete callback/React work accounting and the 8.33 ms p99
 budget. Presentation cadence retains its separate 20 ms threshold. Commit probes
 measure the renderer view and grid surface, matching the source instrumentation
@@ -201,7 +201,7 @@ commit and working-tree cleanliness. A dirty-tree report is development evidence
 not evidence for a published commit. The package's `prepublishOnly` invokes this
 same command; the package remains private and no publication is authorized.
 
-These raw scenarios do not certify pinned layouts, editing, Server updates or
+These scenarios do not certify resizing, reordering, editing, Server updates or
 other unimplemented capabilities. Their retained scenarios remain owned by the
 corresponding feature tickets and the full release gate in #16. No original
 profile, sample minimum, timing budget or accounting rule has been weakened.
@@ -213,3 +213,20 @@ all required scenarios, the production environment and unchanged budgets. Standa
 GitHub hardware verifies that attestation; the timings execute on a compatible host.
 The same rule applies to the new SHA produced by merge. This enforces the migrated
 feature gate now; it does not defer performance validation to #16.
+
+## Native pinning integration (issue #4, first slice)
+
+The renderer composes published Astryx Table cells, headers, rows and sticky-column
+presentation with the retained viewport's one scroll owner and bounded two-axis
+windows. Initial, restored and menu pinning share the existing command and
+preference state. Measured narrow viewports suspend pinning and restore it when
+the layout fits; premeasurement SSR keeps a bounded unpinned window. Flat keyed
+headers preserve menu focus when a column moves between regions.
+
+Public Browser and installed-tarball regressions cover LTR/RTL alignment, narrow
+viewport recovery, persistence, keyboard menu focus and long custom content.
+Chromium accessibility-tree checks prove one logical row with ordered cells across
+all three visual regions during horizontal window changes. The performance gate
+now also requires pinned scroll work and cadence, with the original thresholds.
+Resize/reorder and complete keyboard navigation remain pending; this slice does
+not close issue #4 or certify complete parity.
