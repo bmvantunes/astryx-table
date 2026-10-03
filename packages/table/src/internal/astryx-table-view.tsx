@@ -12,7 +12,8 @@ import {
   type NativePinnedPresentation,
 } from "./native-table-presentation";
 import { Divider } from "@astryxdesign/core/Divider";
-import { useColumnResize } from "./column-resize";
+import { useColumnInteractions } from "./column-interactions";
+import { Button } from "@astryxdesign/core/Button";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
 import { colorVars } from "@astryxdesign/core/theme/tokens.stylex";
 import { AstryxTableNavigationRuntime } from "./navigation";
@@ -212,7 +213,7 @@ const GridSurface = memo(function GridSurface({
   const announce = useCallback((message: string) => {
     setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
   }, []);
-  const resize = useColumnResize({
+  const interactions = useColumnInteractions({
     tableId,
     queryGeneration: snapshot.queryGeneration,
     totalRows: snapshot.rowSpace.totalRows,
@@ -221,7 +222,7 @@ const GridSurface = memo(function GridSurface({
     navigation,
     announce,
   });
-  const attachResizeGrid = resize.attachGrid;
+  const attachResizeGrid = interactions.attachGrid;
   const attachGrid = useCallback(
     (element: HTMLDivElement | null) => {
       attachResizeGrid(element);
@@ -230,50 +231,53 @@ const GridSurface = memo(function GridSurface({
     [attach, attachResizeGrid],
   );
   return (
-    <div
-      {...stylex.props(styles.viewport)}
-      ref={attachGrid}
-      role="grid"
-      aria-label={tableId}
-      style={{ maxHeight: ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT }}
-      aria-colcount={adapter.columns.length}
-      aria-rowcount={snapshot.rowSpace.totalRows + 1}
-      tabIndex={0}
-    >
-      {__ASTRYX_TABLE_TEST_DIAGNOSTICS__ ? (
-        <AstryxTableGridSurfaceCommitDiagnosticProbe
-          commitEvidence={{ tableId, snapshot, adapter }}
-          tableId={tableId}
-        />
-      ) : null}
-      <TableContext value={nativeTableAppearance}>
-        <Header
-          adapter={adapter}
-          runtime={snapshot.runtime}
-          presentation={presentation}
-          navigation={navigation}
-          announce={announce}
-          onColumnResize={resize.start}
-        />
-        {snapshot.rowSpace.totalRows === 0 ? (
-          <div role="status" aria-label={`${tableId} status`}>
-            No rows
-          </div>
+    <>
+      <div
+        {...stylex.props(styles.viewport)}
+        ref={attachGrid}
+        role="grid"
+        aria-label={tableId}
+        style={{ maxHeight: ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT }}
+        aria-colcount={adapter.columns.length}
+        aria-rowcount={snapshot.rowSpace.totalRows + 1}
+        tabIndex={0}
+      >
+        {__ASTRYX_TABLE_TEST_DIAGNOSTICS__ ? (
+          <AstryxTableGridSurfaceCommitDiagnosticProbe
+            commitEvidence={{ tableId, snapshot, adapter }}
+            tableId={tableId}
+          />
         ) : null}
-        <div
-          {...stylex.props(styles.layer)}
-          ref={attachRowLayer}
-          style={{ width: renderedWidth(adapter) }}
-        >
-          <Rows adapter={adapter} snapshot={snapshot} tableId={tableId} />
+        <TableContext value={nativeTableAppearance}>
+          <Header
+            adapter={adapter}
+            runtime={snapshot.runtime}
+            presentation={presentation}
+            navigation={navigation}
+            announce={announce}
+            onColumnResize={interactions.startResize}
+            onColumnReorder={interactions.startReorder}
+          />
+          <div
+            {...stylex.props(styles.layer)}
+            ref={attachRowLayer}
+            style={{ width: renderedWidth(adapter) }}
+          >
+            <Rows adapter={adapter} snapshot={snapshot} tableId={tableId} />
+          </div>
+          <PinnedRows
+            adapter={adapter}
+            snapshot={snapshot}
+            tableId={tableId}
+            presentation={presentation}
+          />
+        </TableContext>
+      </div>
+      {snapshot.rowSpace.totalRows === 0 ? (
+        <div role="status" aria-label={`${tableId} status`}>
+          No rows
         </div>
-        <PinnedRows
-          adapter={adapter}
-          snapshot={snapshot}
-          tableId={tableId}
-          presentation={presentation}
-        />
-      </TableContext>
+      ) : null}
       <div
         {...stylex.props(styles.announcement)}
         role="status"
@@ -282,11 +286,14 @@ const GridSurface = memo(function GridSurface({
       >
         <span key={announcement.sequence}>{announcement.message}</span>
       </div>
-    </div>
+    </>
   );
 });
 
-type ResizeProps = { readonly onColumnResize: ReturnType<typeof useColumnResize>["start"] };
+type GestureProps = {
+  readonly onColumnResize: ReturnType<typeof useColumnInteractions>["startResize"];
+  readonly onColumnReorder: ReturnType<typeof useColumnInteractions>["startReorder"];
+};
 type PresentationProps = { readonly presentation: ReadonlyMap<string, NativePinnedPresentation> };
 
 const Header = memo(function Header({
@@ -296,8 +303,9 @@ const Header = memo(function Header({
   navigation,
   announce,
   onColumnResize,
+  onColumnReorder,
 }: PresentationProps &
-  ResizeProps & {
+  GestureProps & {
     readonly announce: (message: string) => void;
     readonly navigation: AstryxTableNavigationRuntime;
     readonly adapter: AstryxTableViewportAdapterState;
@@ -332,6 +340,7 @@ const Header = memo(function Header({
                 navigation={navigation}
                 announce={announce}
                 onColumnResize={onColumnResize}
+                onColumnReorder={onColumnReorder}
                 column={column}
                 columnIndex={index}
                 presentation={presentation.get(column.columnId)}
@@ -349,6 +358,7 @@ const Header = memo(function Header({
                 navigation={navigation}
                 announce={announce}
                 onColumnResize={onColumnResize}
+                onColumnReorder={onColumnReorder}
                 column={column}
                 columnIndex={layout.pinnedStart.length + window.centerStartIndex + index}
               />
@@ -374,6 +384,7 @@ const Header = memo(function Header({
                 navigation={navigation}
                 announce={announce}
                 onColumnResize={onColumnResize}
+                onColumnReorder={onColumnReorder}
                 column={column}
                 columnIndex={adapter.columns.length - layout.pinnedEnd.length + index}
                 presentation={presentation.get(column.columnId)}
@@ -627,6 +638,7 @@ const Cell = memo(function Cell({
       id={id}
       className={customClass}
       role="gridcell"
+      data-astryx-column-id={column.columnId}
       aria-colindex={columnIndex + 1}
       style={{
         ...presentation?.body.htmlProps.style,
@@ -637,6 +649,7 @@ const Cell = memo(function Cell({
         flexShrink: 0,
         maxWidth: "none",
         width: `var(${astryxTableColumnCssVariable("width", column.columnId)}, ${column.semantics.width}px)`,
+        transform: `var(${astryxTableColumnCssVariable("transform", column.columnId)}, none)`,
         textAlign: column.semantics.cellAlign,
         display:
           preparedStage === undefined
@@ -655,6 +668,20 @@ const Cell = memo(function Cell({
   );
 });
 
+function columnMoveTarget(
+  runtime: AstryxTableRuntimeView,
+  columnId: string,
+  direction: -1 | 1,
+): number | undefined {
+  const { columns } = runtime.getColumnLayoutSnapshot();
+  const index = columns.findIndex((candidate) => candidate.columnId === columnId);
+  const source = columns[index];
+  const target = columns[index + direction];
+  return source !== undefined && target !== undefined && source.pinned === target.pinned
+    ? index + direction
+    : undefined;
+}
+
 const HeaderCell = memo(function HeaderCell({
   announce,
   navigation,
@@ -663,7 +690,8 @@ const HeaderCell = memo(function HeaderCell({
   columnIndex,
   presentation,
   onColumnResize,
-}: ResizeProps & {
+  onColumnReorder,
+}: GestureProps & {
   readonly presentation?: NativePinnedPresentation | undefined;
   readonly announce: (message: string) => void;
   readonly navigation: AstryxTableNavigationRuntime;
@@ -680,6 +708,32 @@ const HeaderCell = memo(function HeaderCell({
     [runtime, column.columnId],
   );
   const command = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const getMoveAvailability = useCallback(
+    () =>
+      (columnMoveTarget(runtime, column.columnId, -1) !== undefined ? 1 : 0) |
+      (columnMoveTarget(runtime, column.columnId, 1) !== undefined ? 2 : 0),
+    [runtime, column.columnId],
+  );
+  const moveAvailability = useSyncExternalStore(
+    runtime.subscribeColumnLayout,
+    getMoveAvailability,
+    getMoveAvailability,
+  );
+  const move = (direction: -1 | 1) => {
+    const targetIndex = columnMoveTarget(runtime, column.columnId, direction);
+    if (targetIndex === undefined) return;
+    if (
+      runtime.dispatchGridCommand({
+        type: "column.reorder.commit",
+        columnId: column.columnId,
+        targetIndex,
+        pinned: runtime.getColumnCommandSnapshot(column.columnId).pinned,
+      })
+    ) {
+      const { visibleColumnIds } = runtime.getColumnLayoutSnapshot();
+      announce(`${column.headerName} position ${targetIndex + 1} of ${visibleColumnIds.length}`);
+    }
+  };
   const pin = (pinned: "start" | "end" | undefined) => {
     runtime.dispatchGridCommand({ type: "column.pin.commit", columnId: column.columnId, pinned });
     if (runtime.getColumnCommandSnapshot(column.columnId).pinned === pinned) {
@@ -712,6 +766,7 @@ const HeaderCell = memo(function HeaderCell({
       scope="col"
       role="columnheader"
       aria-label={column.headerName}
+      data-astryx-column-id={column.columnId}
       aria-colindex={columnIndex + 1}
       aria-sort={command.sortPriority === 1 ? direction : undefined}
       style={{
@@ -720,6 +775,7 @@ const HeaderCell = memo(function HeaderCell({
         flexShrink: 0,
         maxWidth: "none",
         width: `var(${astryxTableColumnCssVariable("width", column.columnId)}, ${column.semantics.width}px)`,
+        transform: `var(${astryxTableColumnCssVariable("transform", column.columnId)}, none)`,
         height: ASTRYX_TABLE_ROW_HEIGHT,
         paddingBlock: 0,
         display: "flex",
@@ -727,6 +783,18 @@ const HeaderCell = memo(function HeaderCell({
         gap: 4,
       }}
     >
+      <Button
+        label={`Reorder ${column.headerName}`}
+        data-astryx-reorder-column={column.columnId}
+        isIconOnly
+        size="sm"
+        variant="ghost"
+        icon={<span aria-hidden="true">⠿</span>}
+        tabIndex={isActive ? 0 : -1}
+        style={{ cursor: "grab", touchAction: "none" }}
+        onFocus={() => navigation.activateHeader(column.columnId)}
+        onPointerDown={(event) => onColumnReorder(event, column.columnId)}
+      />
       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
         {column.headerName}
       </span>
@@ -777,6 +845,18 @@ const HeaderCell = memo(function HeaderCell({
                 },
               ]
             : []),
+          {
+            id: "move-start",
+            label: "Move toward logical start",
+            isDisabled: (moveAvailability & 1) === 0,
+            onClick: () => move(-1),
+          },
+          {
+            id: "move-end",
+            label: "Move toward logical end",
+            isDisabled: (moveAvailability & 2) === 0,
+            onClick: () => move(1),
+          },
         ]}
       />
       <Divider

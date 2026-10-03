@@ -1,3 +1,4 @@
+import * as stylex from "@stylexjs/stylex";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { useLayoutEffect, useMemo, useState } from "react";
 import type {
@@ -15,6 +16,8 @@ import {
 import { compileAstryxTableGroupRowsColumn } from "./internal/client-grouping-presentation";
 import { registerAstryxTableIdentity } from "./internal/table-identity-registry";
 import { AstryxTableView } from "./internal/astryx-table-view";
+
+const styles = stylex.create({ root: { position: "relative" } });
 
 /** Current private read-only slice. Selection and grouping configuration arrive in #13/#7. */
 export type AstryxTableClientProps<TRow, TColumns extends AstryxTableColumns<TRow>> = Omit<
@@ -116,7 +119,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     [props.tableId, columns],
   );
   return (
-    <div data-astryx-table={props.tableId}>
+    <div {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
       {props.children === undefined || props.children === null ? null : (
         <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
       )}

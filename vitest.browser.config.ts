@@ -9,6 +9,7 @@ export default defineConfig({
     include: [
       "@astryxdesign/core/Toolbar",
       "@astryxdesign/core/Divider",
+      "@astryxdesign/core/Button",
       "@astryxdesign/core/Table",
       "react",
       "react-dom",

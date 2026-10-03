@@ -119,7 +119,7 @@ for adoption, not a claim that full pinning/sorting parity is implemented.
 
 ## Activated Client core and newer source corrections
 
-`packages/table/core-provenance.json` records 46 activated modules. Forty
+`packages/table/core-provenance.json` records 48 activated modules. Forty-two
 are byte-identical to the retained baseline, one has the reviewed diagnostic correction
 described below, and five use the current merged source
 `00efa81616b2a999714db595fd1fec48caa55c58`, with only the recorded branding
@@ -175,7 +175,7 @@ mechanical import exemption. Its two diagnostic publishers isolate observer
 exceptions so diagnostics cannot interrupt subscriptions or suppress later
 observers. Source and target hashes are recorded under `reviewedChanges` in the
 active-core manifest, and independent review plus regression tests cover the
-change. The remaining 46 active modules and two source contracts remain exact.
+change. The remaining 47 active modules and two source contracts remain exact.
 
 The range-runtime identity-attribute comment on PR #18 concerns the future #13
 integration. The current Client never constructs or attaches that runtime, and
@@ -256,3 +256,36 @@ remain pending; this slice does not close #4.
 ### Deferred native menu layers
 
 The resize performance investigation adds an opt-in `usePopover.lazyMount` seam and enables it for native DropdownMenu. Layer's existing lazy lifecycle remains authoritative. DropdownMenu reads the existing Layer dismissal guard through a private Popover hook before retaining deferred opening intent, preserving keyboard focus, controlled rejection and same-gesture dismissal. Public `show` methods retain their original void-returning callback contract. Public regressions cover repeated opens and no retained closed menu layer; all previous focus suites remain required. Ordinary Popover defaults remain eager. See `astryx-bugs.md` for the controlled performance comparison and exact patch footprint. This workspace patch is not propagated by the emitted grid; issue #16 remains a release prerequisite.
+
+## Native reorder presentation (issue #4, third slice)
+
+Native icon-only Buttons present drag handles; native menus expose logical start/end
+moves constrained to the current pinning region. Pointer drops may change order and
+pinning atomically through the retained command. The private gesture owner now serves
+resize and reorder with one pointer lifecycle, TanStack Escape handling, and stable
+callbacks. `column-geometry.ts` is activated byte-for-byte with provenance.
+
+Reorder previews share per-column transforms across headers and cells without React
+state updates or preference writes. The viewport owns edge scrolling; geometry is
+updated after its published header window is mounted. Stable measured anchors and
+committed widths avoid layout reads on every scroll frame; native scroll writes
+precede preview style changes. Source disappearance through
+virtualization preserves the logical source index. Centre fill is an unpin drop zone;
+suspended centreless layouts preserve the source pinning intent. Focus restoration is
+bounded and stops if another control or window takes focus.
+
+Public tests cover LTR/RTL menu moves and disabled boundaries, preview/final-pointer
+coordinates, atomic pinning, narrow suspension, source unmount during autoscroll,
+cancellation/teardown, focus ownership and live source publications. The same tests
+run against the installed tarball. The production gate adds preview and RTL autoscroll
+work/cadence over 5,000 rows and 150 columns, including a custom renderer. Every active
+frame is accounted once, and final commit/deferred cleanup is charged to the last
+sample. Existing scenarios and budgets are unchanged. The new full-range header cap
+is derived from viewport width, 32px scroll guards, body/header overscan and pinned
+columns; fractional offsets can mount more headers than the older sampled paths.
+
+Remote review of the preceding pinning/resize slice also led to stable gesture start
+callbacks and moving grid-owned interaction/empty statuses outside the grid's row
+ownership. Native status descendants within a header control remain valid. These
+changes receive fresh local review with the reorder integration. Complete keyboard
+and segmented reveal proof remains pending; this slice does not close #4.
