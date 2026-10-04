@@ -233,3 +233,9 @@ on an unsortable text column did not open its filter, and active filters lacked
 a visible/accessible trigger indication. Both are corrected locally; F2 remains
 a body-cell action, while Alt+Enter opens a header filter and Alt+Shift+Enter
 clears/restores the initial expression. No additional Core patch is involved.
+
+CI exposed a timing assumption in the inherited keyboard-pinning regression: it
+sent navigation keys before the native menu's animation-frame focus transfer.
+The test now observes focus on the first action and then on Pin to end before
+activation. It still verifies the same trigger identity, returned focus and
+logical column index. This is test synchronization, not a reproduced Core defect.
