@@ -30,6 +30,7 @@ type Bindings = {
   adapter: AstryxTableViewportAdapterState;
   navigation: AstryxTableNavigationRuntime;
   isGestureActive: () => boolean;
+  announce: (message: string) => void;
 };
 
 // Logical navigation stays in the retained runtime. This boundary projects it
@@ -359,14 +360,43 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
       if (!ownsSurface(event) || latest.current.isGestureActive()) return;
       const active = navigation.getSnapshot();
       if (active?.region === "header") {
-        if (
-          !alt &&
-          intent !== "f2" &&
-          latest.current.runtime.getColumnCommandSnapshot(active.columnId).sortable
-        ) {
+        if (intent === "f2") return;
+        const command = latest.current.runtime.getColumnCommandSnapshot(active.columnId);
+        const toggleFilter = () => {
+          event.preventDefault();
+          if (
+            latest.current.runtime.dispatchGridCommand({
+              type: command.filterActive ? "column.filter.clear" : "column.filter.reset",
+              columnId: active.columnId,
+            })
+          ) {
+            const label =
+              latest.current.adapter.columns.find((column) => column.columnId === active.columnId)
+                ?.headerName ?? active.columnId;
+            latest.current.announce(
+              `${label} filter ${command.filterActive ? "cleared" : "reset"}`,
+            );
+          }
+        };
+        const openFilter = () => {
+          const element = grid.current!;
+          const header = element.ownerDocument.getElementById(
+            headerDomId(adapter.instanceId, active.columnId),
+          );
+          const trigger = header?.querySelector<HTMLElement>("[data-astryx-column-filter-trigger]");
+          if (trigger && element.contains(trigger)) {
+            trigger.focus({ preventScroll: true });
+            if (requestAstryxTableHotkeyWorkflowAction(trigger)) event.preventDefault();
+          }
+        };
+        if (alt) {
+          if (shift && (command.filterActive || command.filterBaselineAvailable)) toggleFilter();
+          else openFilter();
+        } else if (command.sortable) {
           event.preventDefault();
           latest.current.runtime.toggleColumnSort(active.columnId, shift);
-        }
+        } else if (command.filterActive || command.filterBaselineAvailable) toggleFilter();
+        else openFilter();
         return;
       }
       if (intent === "space" || alt || shift) return;

@@ -230,7 +230,14 @@ test("keyboard pinning keeps focus on the same header menu trigger", async () =>
   const original = trigger.element();
   original.focus();
   await userEvent.keyboard("{Enter}");
-  await userEvent.keyboard("{ArrowDown}{ArrowDown}{Enter}");
+  await expect
+    .element(page.getByRole("menuitem", { name: "Sort ascending", exact: true }))
+    .toHaveFocus();
+  await userEvent.keyboard("{ArrowDown}{ArrowDown}");
+  await expect
+    .element(page.getByRole("menuitem", { name: "Pin to end", exact: true }))
+    .toHaveFocus();
+  await userEvent.keyboard("{Enter}");
   await settle();
   expect(trigger.element()).toBe(original);
   await expect.element(trigger).toHaveFocus();

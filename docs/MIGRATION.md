@@ -328,3 +328,31 @@ All production scenarios now charge asynchronous MutationObserver work separatel
 from the maximum of React and RAF work. The harness conservatively includes native
 control and test observers created during each workload. Performance remains
 working-tree evidence until a clean reviewed commit is measured and attested.
+
+## Native text-filter controls (issues #5/#6, in progress)
+
+The first working slice combines published TextInput, Selector, CheckboxInput and
+usePopover with the existing filter runtime and versioned preferences. The native
+Table filtering plugin was evaluated; its scalar PowerSearch conversion and
+Apply/Reset editor do not replace the retained exact-expression contract. See
+[the assessment](research/astryx-filter-controls.md).
+
+Implemented locally: menu and Alt+Enter opening, eight scalar text operators,
+case/accent sensitivity, 150 ms Pacer debounce, local IME drafts with session
+invalidation, invalid/pending-draft cancellation, Clear/Restore commands and
+Alt+Shift+Enter baseline toggling. F2 retains its existing body role. Native
+Selector Escape dismisses only its own overlay first; native filter unmount
+returns focus without revealing the old column. Committed preferences restore
+through the unchanged codec format and separate Astryx namespace policy.
+
+Compound expressions remain unchanged when opened; their full editor, `in` operand
+lists, other scalar families, live facets, toolbar controls and the Server matrix
+remain pending. Full regression, installed-package, performance and independent
+review gates are still required; neither #5 nor #6 is closed by this slice.
+
+Production diagnostics now add three scenarios to the existing nineteen: a
+5,000 × 150 text-column scroll workload (work and presentation cadence) and
+20 Hz live publication with a filter open. The latter checks that both the
+filter editor and trigger retain their render counts through unrelated value
+updates. Original budgets, sample counts and earlier scenarios remain unchanged.
+This does not certify filter typing, compound editing, facets or deferred families.
