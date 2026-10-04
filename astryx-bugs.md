@@ -4,13 +4,13 @@ This is the running record requested by Bruno. Package under investigation: `@as
 
 The first three entries group the earlier corrections by user-visible problem. They cover six source modules, not three individual line changes. New findings get stable IDs. Keep reproduced defects, API gaps and unconfirmed observations distinct; mark a correction validated only after its regression tests pass.
 
-| ID         | Area            | Problem                                                                              | Status                                   |
-| ---------- | --------------- | ------------------------------------------------------------------------------------ | ---------------------------------------- |
-| ASTRYX-001 | Focus           | Modal focus containment and Selector focus restoration can choose the wrong target   | Corrected locally; merged in PR #17      |
-| ASTRYX-002 | Toast           | Same-turn or queued dismissal can lose cancellation and lifecycle evidence           | Corrected locally; merged in PR #17      |
-| ASTRYX-003 | TextInput types | Native search, input mode and maximum length are rejected by the public types        | Corrected locally; merged in PR #17      |
-| ASTRYX-004 | Table pinning   | Pin changes leave memoized body cells sticky; Compiler can also retain stale headers | Corrected locally; regression tests pass |
-| ASTRYX-005 | Table sorting   | Controlled sort changes leave the header/ARIA stale with React Compiler              | Corrected locally; regression tests pass |
+| ID         | Area            | Problem                                                                              | Status                              |
+| ---------- | --------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
+| ASTRYX-001 | Focus           | Modal focus containment and Selector focus restoration can choose the wrong target   | Corrected locally; merged in PR #17 |
+| ASTRYX-002 | Toast           | Same-turn or queued dismissal can lose cancellation and lifecycle evidence           | Corrected locally; merged in PR #17 |
+| ASTRYX-003 | TextInput types | Native search, input mode and maximum length are rejected by the public types        | Corrected locally; merged in PR #17 |
+| ASTRYX-004 | Table pinning   | Pin changes leave memoized body cells sticky; Compiler can also retain stale headers | Corrected locally; merged in PR #19 |
+| ASTRYX-005 | Table sorting   | Controlled sort changes leave the header/ARIA stale with React Compiler              | Corrected locally; merged in PR #19 |
 
 ## Patch size
 
@@ -18,7 +18,8 @@ Measured with `git apply --numstat patches/@astryxdesign__core@0.6.5.patch`, cou
 
 - Earlier corrections: 6 source modules, **81 added / 29 removed lines**.
 - Pinning and sorting corrections: 2 source modules, **11 added / 10 removed lines**, including comments and whitespace.
-- Total Core source patch: **8 modules, 92 added / 39 removed lines**.
+- Deferred menu mounting and guarded opening: 2 source modules, **17 added / 15 removed lines**. This is the optimization described below, not an additional confirmed original runtime bug.
+- Total Core source patch: **10 modules, 109 added / 54 removed lines**.
 
 Tests, documentation, lockfile changes and the mirrored emitted files are additional. These numbers describe the upstream patch, not the work required to deliver full grid parity.
 
@@ -84,3 +85,70 @@ Tests, documentation, lockfile changes and the mirrored emitted files are additi
 - The separate `@stylexjs/unplugin` patch is tooling work, not an Astryx Core bug.
 
 For every future entry, record the pinned version, smallest reproduction, cause, correction, regression evidence and delivery status. Remove a local patch only after the same regression passes against an unpatched upstream version.
+
+## Integration optimizations (not counted as upstream bugs)
+
+The virtual native-cell Adapter uses `maxWidth: none` because native Table cells default to a zero maximum width for ordinary table layout; our flex rows own explicit widths. It uses `overflow: clip` for body content. Native pinned-cell shadows retain visible overflow, with a separate clipped content box.
+
+The first full native-cell production run exceeded our scroll p99 budget (9.3 ms). A temporary plain `td` without presentation passed at 2.7 ms, but applying the native classes to that same `td` still failed at 9.7 ms; replacing the component alone was not a solution. Removing only `overflow: hidden` from the comparison isolated the CSS trigger. Keeping native `TableCell` with `overflow: clip` passed the existing raw workload at 3.3 ms and live 20 Hz publication at 0.8 ms. These are development measurements, not clean-commit publication evidence. The exact browser cost mechanism has not been traced; `hidden` creates scroll containers while `clip` does not. See [CSS Overflow](https://www.w3.org/TR/css-overflow-3/#valdef-overflow-hidden).
+
+This uses supported presentation overrides, adds no Core patch, and does not assert that native Table is generally defective. [Public integration tests](src/client-column-layout.browser.test.tsx) cover fixed dimensions, long custom content and clipping in LTR/RTL; production gates also cover native pinned regions before publication.
+
+The installed-tarball check also caught CSS-order dependence when the generic clip override and native pinned overflow were applied together. The Adapter now applies that override only to centre cells, leaving pinned cells' native shadow overflow intact and clipping their inner content box. The same long-content regression passes in source and installed-consumer builds. This is an integration correction, not another upstream patch.
+
+Independent review found that the inner pinned content box also needed a maximum block size: a 100px custom renderer could extend beyond the fixed 36px row. The LTR/RTL regression failed before adding `maxBlockSize: 100%`; it now checks both horizontal and vertical clipping through source and installed-package seams. Native shadow overflow remains on the outer cell.
+
+GitHub review of PR #20 found two further integration defects. End-pinned headers and cells stopped at the sum of column widths when the viewport was wider. The renderer now includes the retained viewport-fill space in its header, body and sticky surfaces, including after viewport resizing. Four public LTR/RTL cases (one end-pinned column and a three-region layout) failed before the correction.
+
+Pin/unpin commands also lacked an accessible completion announcement. A polite status region now announces the accepted logical start/end or unpinned state. The public command regression failed before the correction and covers all three outcomes. Both corrections belong to the Adapter, add no Core patch, and run through source and installed-package validation.
+
+The repeated-message regression also exposed that two distinct columns may share a header label: consecutive same-side pin commands then produce the same text. Announcements now carry a sequence so each accepted command updates the live region even when its wording repeats.
+
+Adding the status-region styles exposed another emitted-package cascade conflict: centre cells retained both native `overflow: hidden` and Adapter `overflow: clip` classes because their cross-package StyleX property keys differed. The installed LTR/RTL tests failed while source tests passed. Centre clipping now uses the public inline style override, which has deterministic precedence over both package stylesheets. Pinned content still uses its separate StyleX clipping box; no native shadows are removed and no Core patch is added.
+
+A later remote review questioned whether native sticky transforms receive contiguous pinned partitions. The reported dynamic pin-to-end case passed a stronger exact-offset reproduction on the reviewed commit; the raw Client already supplies its logical projection. The native presentation boundary now nevertheless assembles an explicit start → centre → end metadata order, so it no longer depends on that caller ordering. This is defensive integration hardening, not a reproduced upstream defect.
+
+The resize slice uses the public `Divider` as presentation rather than installing a second geometry/keyboard engine. Its native Table resize engine lacks a delegation seam for our virtual column window; this is an API mismatch, not a confirmed bug. See the [reuse assessment](docs/research/astryx-column-gestures.md). The new subpath is explicitly prebundled with the existing Astryx imports so development and Browser tests share one React instance.
+
+Local review of the resize Adapter found two retained-behavior regressions: Alt+Arrow could resize a stale active header while a custom input/contenteditable owned focus, and ready source row-count/query-generation changes did not cancel a gesture. Four public cases failed before correction. Active-header shortcuts now require the grid surface itself, and the private controller cancels on generation/count changes while preserving value-only publications. These are integration fixes, not additional Astryx Core patches.
+
+## Native menu mounting optimization
+
+**Classification:** Performance/API integration improvement; separate from the five reproduced upstream defect/gap groups above. Local implementation and regression checks are complete; full production and publication gates remain required.
+
+Closed DropdownMenus eagerly mounted their Popover layers. A CPU sample profile found `readPortalWritingContext` among the largest named costs while virtual headers entered the window. A controlled production comparison rebuilt dependencies in both variants: eager mounting failed raw/pinned scroll p99 at 9.7/11.8 ms; using Layer's existing `lazyMount` passed all five workload tests. CSS containment did not solve pinned scroll and was removed. Profiling itself changed timings, so the diagnostic run is not publication evidence.
+
+The patch forwards an optional `lazyMount` through `usePopover`, defaulting to the existing eager behavior, and enables it for DropdownMenu only. Layer still owns portal selection, mounting, dismissal and focus infrastructure. No replacement menu or portal engine was added.
+
+The first integration failed keyboard focus: DropdownMenu treated an opening as rejected until `onShow` fired synchronously, while lazy mounting intentionally defers that callback. DropdownMenu now checks the existing Layer dismissal guard through a private Popover hook before requesting an opening, preserving its pending focus/callback intent during deferred mounting. The public `Layer.show` and `Popover.show` retain their `void` return contracts. An initial boolean-return implementation was rejected in local review because it broke valid React effect callbacks; a failing type regression preceded this correction. A controlled close also avoids echoing a false state already supplied by the controller.
+
+[Public regressions](src/controls/astryx-menu-mount.browser.test.tsx) cover absent closed layers, repeated keyboard open/Escape focus, initial controlled opening, a rejected controlled request, repeated trigger dismissal without reopening or duplicate notifications, and the original public React effect callback contract. Existing menu-to-Dialog/Popover transfers, Tab, removed actions and outside-click focus remain in the focused suite. The patch affects source, distributed JS and declarations; #16 still owns distribution to published grid consumers.
+
+Remote review also identified repeated linear index searches in native pinned presentation. The Adapter now compiles one Column Identity → native index map per presentation update. This is an integration optimization with no extra Core patch.
+
+## Reorder integration corrections
+
+The new public LTR/RTL drag regression reproduced an error in the retained target-pin heuristic: dropping in the trailing half of the last centre column selected the next pinned column's region, even though the pointer remained inside the centre. The Adapter now uses the physical sticky-region boundaries. The centre, including its viewport-fill gap, is an unpinned drop zone. Suspended centreless layouts preserve the source pinning intent. This is a correction to our integration logic, not an Astryx Core defect or patch.
+
+Reorder uses the published native Button, the same private gesture lifecycle as resize, and the retained logical geometry helpers. Edge autoscroll waits for the viewport publication and mounted header window before measuring again. Preview transforms affect both headers and cells; only the final accepted command persists order and pinning together. Focus restoration is bounded and yields to another focused control or a window that loses focus. These features still require the complete production, package and review gates before publication.
+
+CodeRabbit's full review of the preceding pinning/resize commit found grid-owned status announcements directly inside `role="grid"`. Public empty/non-empty regressions failed before moving interaction and empty-state statuses beside the grid. The table wrapper supplies their positioning context. Native control announcements inside header cells remain supported. Gesture start callbacks are now explicitly stable so status updates do not invalidate memoized headers solely through new callback identities. Both are integration corrections, with no additional Astryx Core patch.
+
+The first per-frame production autoscroll run exceeded the unchanged 8.33ms budget at 22.2ms p99. Reusing stable measured anchors and committed widths instead of clearing transforms and rereading every rectangle reduced it to 10.2ms. Moving the native scroll write ahead of preview CSS writes removed another forced-layout boundary; the next complete development run passed at 4.3ms p99. Its single over-16.66ms sample remains within the existing maximum of two and includes the final commit/cleanup accounting. These are dirty-development diagnostics, not clean-commit publication evidence. The original raw/pinned/resize scenarios also passed unchanged. This is local interaction optimization, not a new upstream bug.
+
+Local specification and verification reviews independently found that releasing at the initial screen X after autoscroll skipped a valid logical reorder. Both LTR/RTL public regressions failed before the correction. Final release resolves the current logical destination whenever the pointer or native scroll position changed; unchanged index and pinning still produce no durable command. A second review reproduced stationary clicks incorrectly unpinning a column while pinning was suspended in a narrow mixed layout. The LTR/RTL regression failed before preserving clicks with unchanged pointer and scroll positions. This is an Adapter correction, not an upstream patch.
+
+The same suspended-layout reproduction also failed with a two-pixel release movement inside the source column. Hit-testing now preserves its pin intent inside its own untransformed logical rectangle, while a real crossing still selects the destination region. Both directions are covered through the public Client; the same-screen-X autoscroll cases remain covered separately.
+
+A further public LTR/RTL regression reproduced a virtual-window dependency in that exception: after autoscrolling both centre columns out of a suspended mixed layout, a centre-to-end drop incorrectly retained the unpinned source state. The existence of remaining centre columns is now compiled once from the complete logical projection; mounted geometry only selects the physical destination. This local integration correction adds no Astryx Core patch.
+
+Remote review reproduced source-preview drift during reorder autoscroll: the
+logical destination was correct, but an unpinned source header and its body cells
+moved away from the pointer by the accumulated native scroll delta. Public LTR/RTL
+regressions failed with a 320px drift before correction. The source transform now
+compensates native scrolling only when the source participates in scrolling
+(unpinned or suspended); active sticky sources keep their original pointer-only
+transform. The same tests protect both source kinds and body/header alignment.
+Pin announcements now also require the runtime to accept the command before
+checking its resulting state. Both are local integration corrections, with no
+additional Astryx Core patch.

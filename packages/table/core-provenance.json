@@ -275,6 +275,16 @@
       "source": "migration/table/src/internal/benchmark-profile.ts",
       "target": "packages/table/src/internal/benchmark-profile.ts",
       "sha256": "ffe0dc58a9a084d7cabf15eaeac283606948091cc680244c80af2edb85e8efb7"
+    },
+    {
+      "source": "migration/table/src/internal/column-gesture.ts",
+      "target": "packages/table/src/internal/column-gesture.ts",
+      "sha256": "950cbb02cb08ee69e09aeadd3d32b704048f3aa6d352ecd51abf3046305a34a7"
+    },
+    {
+      "source": "migration/table/src/internal/column-geometry.ts",
+      "target": "packages/table/src/internal/column-geometry.ts",
+      "sha256": "f8a30d4ed7ce28ba659d6983958f2a71365b5dcad509897ddc6ff45630331133"
     }
   ],
   "paritySourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",

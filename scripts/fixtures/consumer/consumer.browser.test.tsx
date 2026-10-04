@@ -41,7 +41,7 @@ test("installed JavaScript, declarations and CSS render an exact styled Client w
     .toHaveStyle({ overflow: "auto", position: "relative", fontSize: "14px" });
   await expect
     .element(page.getByRole("gridcell", { name: "9007199254740993", exact: true }))
-    .toHaveStyle({ paddingInlineStart: "10px", boxSizing: "border-box" });
+    .toHaveStyle({ paddingInlineStart: "8px", boxSizing: "border-box" });
   const trigger = page.getByRole("button", { name: "Amount column menu", exact: true });
   trigger.element().focus();
   await userEvent.keyboard("{Enter}");

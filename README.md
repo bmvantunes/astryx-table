@@ -6,13 +6,16 @@ Independent project; not an official Meta product.
 
 ## Current status
 
-The first read-only Client slice is implemented locally: exact column/value semantics,
-initial sorting, a two-axis virtual window and published Astryx column menus. The
+The read-only Client implements exact column/value semantics, initial sorting,
+two-axis virtualization, and published Astryx cells and column menus. Initial,
+restored and menu-driven column pinning support LTR/RTL and narrow-layout suspension. The
 workbench renders 10,000 rows. This is **not full parity or an npm release**.
 The [parity ledger](docs/PARITY.md) tracks the remaining interactions and release gates.
-This intermediate Client rejects active column pinning and restored grouping explicitly;
+This intermediate Client still rejects restored grouping explicitly;
 Row Selection and group-row configuration are rejected by its public props. Their
-implementations remain required in #4, #7 and #13. Shared column grouping/aggregation
+implementations remain required in #7 and #13. Pointer resize/reorder and keyboard resize/menu moves use native Astryx controls.
+Reorder includes virtual-window autoscroll and atomic pinning changes; complete
+keyboard navigation and segmented reveal verification remain in #5/#4. Shared column grouping/aggregation
 metadata remains valid for raw read-only rendering. These temporary restrictions
 are not reductions of the final parity target.
 The package remains private; its provisional npm scope does not reserve or publish it.

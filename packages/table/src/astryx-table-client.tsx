@@ -1,3 +1,4 @@
+import * as stylex from "@stylexjs/stylex";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { useLayoutEffect, useMemo, useState } from "react";
 import type {
@@ -15,6 +16,8 @@ import {
 import { compileAstryxTableGroupRowsColumn } from "./internal/client-grouping-presentation";
 import { registerAstryxTableIdentity } from "./internal/table-identity-registry";
 import { AstryxTableView } from "./internal/astryx-table-view";
+
+const styles = stylex.create({ root: { position: "relative" } });
 
 /** Current private read-only slice. Selection and grouping configuration arrive in #13/#7. */
 export type AstryxTableClientProps<TRow, TColumns extends AstryxTableColumns<TRow>> = Omit<
@@ -39,13 +42,6 @@ export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumn
   }
   if (props.editable) {
     throw new TypeError("Editing is not available in this Client slice (issues #11–#12).");
-  }
-  if (
-    props.columns.some(
-      (column) => "pinned" in column && (column.pinned === "start" || column.pinned === "end"),
-    )
-  ) {
-    throw new TypeError("Column pinning is not available in this Client slice (issue #4).");
   }
   return <AstryxTableClientInstance key={props.tableId} {...props} />;
 }
@@ -82,12 +78,6 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         groupRowsWidth: groupRowsColumn.width,
       },
     );
-    // Inspect the core's sanitized preferences rather than duplicating its version/identity policy.
-    if (
-      instance.getColumnLayoutSnapshot().allColumns.some((column) => column.pinned !== undefined)
-    ) {
-      throw new TypeError("Column pinning is not available in this Client slice (issue #4).");
-    }
     if (instance.getQuerySnapshot().groupBy.length > 0) {
       throw new TypeError("Grouping is not available in this Client slice (issue #7).");
     }
@@ -129,7 +119,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     [props.tableId, columns],
   );
   return (
-    <>
+    <div {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
       {props.children === undefined || props.children === null ? null : (
         <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
       )}
@@ -141,6 +131,6 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
       >
         {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
       </AstryxTableClientRowPipeline>
-    </>
+    </div>
   );
 }

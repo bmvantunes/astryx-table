@@ -32,10 +32,23 @@ for (const name of ["client-types.tsx", "select-aggregation.test-d.ts"]) {
     consumerFixture(`packages/table/tests/${name}`, 'from "../src"'),
   );
 }
-for (const name of ["client-capabilities.browser.test.tsx", "client-toolbar.browser.test.tsx"]) {
+cpSync(
+  resolve(root, "config/browser-accessibility.ts"),
+  join(directory, "browser-accessibility.ts"),
+);
+for (const name of [
+  "client-capabilities.browser.test.tsx",
+  "client-toolbar.browser.test.tsx",
+  "client-column-layout.browser.test.tsx",
+  "client-column-resize.browser.test.tsx",
+  "client-column-reorder.browser.test.tsx",
+]) {
   writeFileSync(
     join(directory, name),
-    consumerFixture(`src/${name}`, 'from "../packages/table/src"'),
+    consumerFixture(`src/${name}`, 'from "../packages/table/src"').replace(
+      'import "./styles.css";',
+      'import "@astryxdesign/core/reset.css";\nimport "@astryxdesign/core/astryx.css";\nimport "@astryxdesign/theme-neutral/theme.css";\nimport "@bmvantunes/astryx-table/styles.css";',
+    ),
   );
 }
 const dependencies = { "@bmvantunes/astryx-table": `file:${join(directory, tarball)}` };
@@ -97,7 +110,7 @@ const entry = consumerRequire.resolve("@bmvantunes/astryx-table");
 if (!entry.endsWith("/dist/index.mjs"))
   throw new Error(`Consumer did not resolve emitted JavaScript: ${entry}`);
 const css = readFileSync(consumerRequire.resolve("@bmvantunes/astryx-table/styles.css"), "utf8");
-if (!css.includes("padding-inline") || !css.includes("--color-border"))
+if (!/overflow:\s*clip/.test(css) || !css.includes("--color-border"))
   throw new Error("Package CSS lacks the renderer styles/theme tokens.");
 run("vp", ["run", "typecheck"]);
 process.chdir(directory);

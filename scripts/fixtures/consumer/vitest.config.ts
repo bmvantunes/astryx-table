@@ -1,4 +1,5 @@
 import { defineConfig } from "vite-plus";
+import { readGridAccessibility } from "./browser-accessibility.ts";
 import { playwright } from "vite-plus/test/browser-playwright";
 
 // Deliberately no StyleX or React Compiler plugin: the installed library is already compiled.
@@ -17,6 +18,7 @@ export default defineConfig({
   test: {
     include: ["*.browser.test.tsx"],
     browser: {
+      commands: { readGridAccessibility },
       enabled: true,
       headless: true,
       provider: playwright(),

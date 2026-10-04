@@ -1,7 +1,7 @@
 # Audited import and control foundation
 
 The merged issue #2 established the non-shipping migration baseline and approved
-Astryx 0.6.5 corrections. The current issue #3 slice activates a read-only Client
+Astryx 0.6.5 corrections. The merged issue #3 slice activates a read-only Client
 and separately tests its Astryx presentation and emitted package. Later features
 and the release gate remain pending.
 
@@ -119,7 +119,7 @@ for adoption, not a claim that full pinning/sorting parity is implemented.
 
 ## Activated Client core and newer source corrections
 
-`packages/table/core-provenance.json` records 46 activated modules. Forty
+`packages/table/core-provenance.json` records 48 activated modules. Forty-two
 are byte-identical to the retained baseline, one has the reviewed diagnostic correction
 described below, and five use the current merged source
 `00efa81616b2a999714db595fd1fec48caa55c58`, with only the recorded branding
@@ -163,7 +163,7 @@ the older local checkout; the immutable initial import remains reproducible.
 | #110      | Select aggregate capability: active helper updated; 18 retained Node contracts and source/emitted Select type fixture run.         |
 | #111      | Fail-closed diagnostics and runtime chunks: native build definitions adopted and tested; complete chunk/release audit remains #16. |
 
-Pinning/resize/reorder, complete keyboard navigation, filters, grouping, selection,
+Resize/reorder, complete keyboard navigation, filters, grouping, selection,
 Server and editing interfaces must each pass their ledger rows before full parity
 is claimed. New upstream source commits require explicit reconciliation in this
 ledger; old smoke-test results never establish their behavior in the new renderer.
@@ -175,7 +175,7 @@ mechanical import exemption. Its two diagnostic publishers isolate observer
 exceptions so diagnostics cannot interrupt subscriptions or suppress later
 observers. Source and target hashes are recorded under `reviewedChanges` in the
 active-core manifest, and independent review plus regression tests cover the
-change. The remaining 45 active modules and two source contracts remain exact.
+change. The remaining 47 active modules and two source contracts remain exact.
 
 The range-runtime identity-attribute comment on PR #18 concerns the future #13
 integration. The current Client never constructs or attaches that runtime, and
@@ -189,8 +189,8 @@ of that integration.
 
 `vp run test:browser:performance` runs React's production profiling build with
 Compiler enabled and the retained capable-hardware profile and evidence finalizer.
-The raw Client slice has a 5,000 × 150 two-axis/custom-renderer workload and a
-5,000 × 150 live-publication workload at 20 Hz. Both preserve 12 warmup and 100
+The Client slice has raw and pinned 5,000 × 150 two-axis/custom-renderer workloads and a
+5,000 × 150 live-publication workload at 20 Hz. All preserve 12 warmup and 100
 measured samples, complete callback/React work accounting and the 8.33 ms p99
 budget. Presentation cadence retains its separate 20 ms threshold. Commit probes
 measure the renderer view and grid surface, matching the source instrumentation
@@ -201,7 +201,7 @@ commit and working-tree cleanliness. A dirty-tree report is development evidence
 not evidence for a published commit. The package's `prepublishOnly` invokes this
 same command; the package remains private and no publication is authorized.
 
-These raw scenarios do not certify pinned layouts, editing, Server updates or
+These scenarios do not certify resizing, reordering, editing, Server updates or
 other unimplemented capabilities. Their retained scenarios remain owned by the
 corresponding feature tickets and the full release gate in #16. No original
 profile, sample minimum, timing budget or accounting rule has been weakened.
@@ -213,3 +213,79 @@ all required scenarios, the production environment and unchanged budgets. Standa
 GitHub hardware verifies that attestation; the timings execute on a compatible host.
 The same rule applies to the new SHA produced by merge. This enforces the migrated
 feature gate now; it does not defer performance validation to #16.
+
+## Native pinning integration (issue #4, first slice)
+
+The renderer composes published Astryx Table cells, headers, rows and sticky-column
+presentation with the retained viewport's one scroll owner and bounded two-axis
+windows. Initial, restored and menu pinning share the existing command and
+preference state. Measured narrow viewports suspend pinning and restore it when
+the layout fits; premeasurement SSR keeps a bounded unpinned window. Flat keyed
+headers preserve menu focus when a column moves between regions.
+
+Public Browser and installed-tarball regressions cover LTR/RTL alignment, narrow
+viewport recovery, persistence, keyboard menu focus and long custom content.
+Chromium accessibility-tree checks prove one logical row with ordered cells across
+all three visual regions during horizontal window changes. The performance gate
+now also requires pinned scroll work and cadence, with the original thresholds.
+Resize/reorder and complete keyboard navigation remain pending; this slice does
+not close issue #4 or certify complete parity.
+
+## Native resize presentation (issue #4, second slice)
+
+The public Astryx `Divider` presents a vertical resize handle inside each native
+header. Pointer preview uses the retained viewport CSS variables and one queued
+animation frame; final width changes use the existing Grid Command and persistence
+path. The retained column-gesture XState workflow is activated byte-for-byte with
+its provenance entry and existing tests. TanStack Hotkeys owns keyboard matching,
+modifier handling and scoped Escape. A table boundary also scopes sibling toolbars.
+
+The shared polite status region announces accepted widths and cancellation.
+Ordinary width previews keep geometry outside React state and perform no persistence.
+Source invalidation, pointer cancellation, Escape and unmount roll back previews;
+value-only live updates preserve the active gesture. Resizing may suspend pinning
+and cancellation restores the previous geometry.
+
+[The native reuse assessment](research/astryx-column-gestures.md) explains why the
+published Table resize engine cannot delegate its geometry and keyboard ownership
+through its current API. This is a capability mismatch, not a patched upstream bug.
+The production gate adds start/end resize work and presentation cadence with the
+same warmup, sample counts and thresholds. Reorder and complete keyboard navigation
+remain pending; this slice does not close #4.
+
+### Deferred native menu layers
+
+The resize performance investigation adds an opt-in `usePopover.lazyMount` seam and enables it for native DropdownMenu. Layer's existing lazy lifecycle remains authoritative. DropdownMenu reads the existing Layer dismissal guard through a private Popover hook before retaining deferred opening intent, preserving keyboard focus, controlled rejection and same-gesture dismissal. Public `show` methods retain their original void-returning callback contract. Public regressions cover repeated opens and no retained closed menu layer; all previous focus suites remain required. Ordinary Popover defaults remain eager. See `astryx-bugs.md` for the controlled performance comparison and exact patch footprint. This workspace patch is not propagated by the emitted grid; issue #16 remains a release prerequisite.
+
+## Native reorder presentation (issue #4, third slice)
+
+Native icon-only Buttons present drag handles; native menus expose logical start/end
+moves constrained to the current pinning region. Pointer drops may change order and
+pinning atomically through the retained command. The private gesture owner now serves
+resize and reorder with one pointer lifecycle, TanStack Escape handling, and stable
+callbacks. `column-geometry.ts` is activated byte-for-byte with provenance.
+
+Reorder previews share per-column transforms across headers and cells without React
+state updates or preference writes. The viewport owns edge scrolling; geometry is
+updated after its published header window is mounted. Stable measured anchors and
+committed widths avoid layout reads on every scroll frame; native scroll writes
+precede preview style changes. Source disappearance through
+virtualization preserves the logical source index. Centre fill is an unpin drop zone;
+suspended centreless layouts preserve the source pinning intent. Focus restoration is
+bounded and stops if another control or window takes focus.
+
+Public tests cover LTR/RTL menu moves and disabled boundaries, preview/final-pointer
+coordinates, atomic pinning, narrow suspension, source unmount during autoscroll,
+cancellation/teardown, focus ownership and live source publications. The same tests
+run against the installed tarball. The production gate adds preview and RTL autoscroll
+work/cadence over 5,000 rows and 150 columns, including a custom renderer. Every active
+frame is accounted once, and final commit/deferred cleanup is charged to the last
+sample. Existing scenarios and budgets are unchanged. The new full-range header cap
+is derived from viewport width, 32px scroll guards, body/header overscan and pinned
+columns; fractional offsets can mount more headers than the older sampled paths.
+
+Remote review of the preceding pinning/resize slice also led to stable gesture start
+callbacks and moving grid-owned interaction/empty statuses outside the grid's row
+ownership. Native status descendants within a header control remain valid. These
+changes receive fresh local review with the reorder integration. Complete keyboard
+and segmented reveal proof remains pending; this slice does not close #4.

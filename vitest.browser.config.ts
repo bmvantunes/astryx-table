@@ -1,5 +1,6 @@
 import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser-playwright";
+import { readGridAccessibility } from "./config/browser-accessibility";
 import { appPlugins } from "./config/plugins";
 
 export default defineConfig({
@@ -7,6 +8,8 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       "@astryxdesign/core/Toolbar",
+      "@astryxdesign/core/Divider",
+      "@astryxdesign/core/Button",
       "@astryxdesign/core/Table",
       "react",
       "react-dom",
@@ -22,6 +25,7 @@ export default defineConfig({
     include: ["src/**/*.browser.test.tsx"],
     exclude: ["src/**/*.performance.browser.test.tsx"],
     browser: {
+      commands: { readGridAccessibility },
       enabled: true,
       headless: true,
       provider: playwright(),

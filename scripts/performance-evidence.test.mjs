@@ -40,6 +40,51 @@ function report() {
                 20,
               ],
               [
+                "client-pinned-two-axis-custom-renderer-work-5000x150",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+              ],
+              [
+                "client-pinned-two-axis-presentation-cadence-5000x150",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+              ],
+              ["client-resize-start-work-5000x150", "chromium-capable-hardware-v1", 8.33, 16.66],
+              ["client-resize-end-work-5000x150", "chromium-capable-hardware-v1", 8.33, 16.66],
+              [
+                "client-resize-start-presentation-cadence-5000x150",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+              ],
+              [
+                "client-resize-end-presentation-cadence-5000x150",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+              ],
+              ["client-reorder-preview-work-5000x150", "chromium-capable-hardware-v1", 8.33, 16.66],
+              [
+                "client-reorder-preview-presentation-cadence-5000x150",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+              ],
+              [
+                "client-reorder-autoscroll-work-5000x150",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+              ],
+              [
+                "client-reorder-autoscroll-presentation-cadence-5000x150",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+              ],
+              [
                 "client-live-publication-5000x150-20hz",
                 "chromium-capable-hardware-v1",
                 8.33,
@@ -68,7 +113,7 @@ function report() {
   };
 }
 test("accepts complete evidence for the exact clean commit", () => {
-  assert.equal(validatePerformanceEvidence(report(), commit).length, 3);
+  assert.equal(validatePerformanceEvidence(report(), commit).length, 13);
 });
 for (const [name, change] of [
   [
