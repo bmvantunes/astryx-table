@@ -518,7 +518,9 @@ ends. Closing the overlay cancels its pending publication. The editor observes i
 own column's committed snapshot, version and command epoch, not row publications.
 
 Each compound mounts at most 64 conditions and nested editors share a 256-node
-render budget. Windows retain off-screen condition drafts and canonical values.
+render budget. Multi-value leaves share that budget too: their operand windows
+shrink to their allocated capacity instead of each mounting 64 inputs.
+Windows retain off-screen condition drafts and canonical values.
 Budget-exhausted branches expose an Open conditions command with a bounded subtree
 view and a Back to full expression control; every retained operand remains reachable.
 Global node/operand and depth limits govern structural commands. Native controls

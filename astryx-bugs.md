@@ -496,3 +496,17 @@ Escape after repeated toggles and focus retained on a clicked sibling button.
 The table-level case remains in
 [column preferences](src/column-preferences.browser.test.tsx). Delivery is local
 pending complete validation and review of this slice.
+
+### Nested multi-value filters exceeded the mounted editor budget
+
+CodeRabbit identified that compound conditions shared a render budget but each
+`in` leaf still mounted its independent 64-input window. A public regression with
+four groups of four leaves reproduced 1,024 mounted text inputs, exceeding the
+256-input bound. This is an AstryxTable integration defect, not an Astryx Core bug.
+
+Leaf operand windows now use their allocated share of the same budget. Paging,
+status text, add/remove focus and off-window errors use that capacity consistently.
+The regression checks the bound across windows and additions, reaches the final
+operand, and verifies that persistence preserves every operand and sibling leaf.
+The corrected-draft regression also waits for the rendered row count before
+checking persistence, avoiding an assertion racing React's scheduler.

@@ -181,6 +181,14 @@ test("native search and keyboard toggles reach virtualized columns without chang
     />,
   );
   const grid = page.getByRole("grid", { name: props.tableId, exact: true }).element();
+  // Let the initial measured window commit before issuing the test's scroll.
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  await expect
+    .element(page.getByRole("columnheader", { name: "Column 0", exact: true }))
+    .toBeVisible();
+  expect(grid.scrollWidth).toBeGreaterThan(grid.clientWidth);
   grid.scrollLeft = 100_000;
   grid.dispatchEvent(new Event("scroll"));
   await expect
