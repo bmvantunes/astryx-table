@@ -250,7 +250,8 @@ test.each(["ltr", "rtl"] as const)(
     expect(Math.abs(grid.element().scrollLeft)).toBeLessThan(1);
     await userEvent.keyboard("{ArrowRight}");
     await expect.poll(() => Math.abs(grid.element().scrollLeft)).toBeGreaterThan(0);
-    expect(Math.abs(grid.element().scrollLeft)).toBeLessThanOrEqual(120);
+    // The second centre column ends at 360px; the 120px end pin reduces the visible edge.
+    expect(Math.abs(grid.element().scrollLeft)).toBe(Math.max(480 - grid.element().clientWidth, 0));
     await userEvent.keyboard("{End}");
     await expect.poll(() => active()?.getAttribute("aria-colindex")).toBe("42");
     const before = grid.element().scrollLeft;
@@ -601,3 +602,54 @@ test("live conditional cell styling recovers focus from a newly hidden control",
   expect(getComputedStyle(action).visibility).toBe("hidden");
   await expect.element(grid, { timeout: 1500 }).toHaveFocus();
 });
+
+test.each(["ltr", "rtl"] as const)(
+  "%s oversized columns reveal with the minimum delta from either side",
+  async (direction) => {
+    const oversized = [
+      { ...columns[0], pinned: undefined, width: 1200 },
+      { ...columns[1], width: 2000 },
+      { ...columns[2], pinned: undefined, width: 2000 },
+    ] satisfies AstryxTableColumns<Row>;
+    await mount(direction, rows, oversized);
+    const grid = page.getByRole("grid");
+    await expect.element(page.getByRole("columnheader", { name: "A", exact: true })).toBeVisible();
+    await new Promise<void>((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+    );
+    expect(grid.element().clientWidth).toBeLessThan(1200);
+    expect(grid.element().scrollLeft).toBe(0);
+    grid.element().focus();
+    await userEvent.keyboard("{ArrowRight}");
+    await expect.poll(() => Math.abs(grid.element().scrollLeft)).toBe(1200);
+    expect(active()?.getAttribute("aria-colindex")).toBe("2");
+    grid.element().scrollLeft = direction === "rtl" ? -4000 : 4000;
+    await expect.poll(() => Math.abs(grid.element().scrollLeft)).toBe(4000);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await userEvent.keyboard("{ArrowDown}");
+    await expect
+      .poll(() => Math.abs(grid.element().scrollLeft))
+      .toBe(Math.max(3200 - grid.element().clientWidth, 0));
+    expect(active()?.getAttribute("aria-colindex")).toBe("2");
+    expect(active()?.textContent).toBe("1");
+    await expect.element(grid).toHaveFocus();
+  },
+);
+
+test.each(["ltr", "rtl"] as const)(
+  "%s sticky header navigation preserves the manually scrolled body position",
+  async (direction) => {
+    await mount(direction);
+    const grid = page.getByRole("grid");
+    grid.element().focus();
+    await expect.poll(() => active()?.getAttribute("role")).toBe("gridcell");
+    grid.element().scrollTop = 720;
+    await expect.poll(() => grid.element().scrollTop).toBe(720);
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await userEvent.keyboard("{ArrowUp}{ArrowRight}");
+    await expect.poll(() => active()?.getAttribute("role")).toBe("columnheader");
+    expect(active()?.getAttribute("aria-colindex")).toBe("2");
+    expect(grid.element().scrollTop).toBe(720);
+    await expect.element(grid).toHaveFocus();
+  },
+);
