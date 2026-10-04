@@ -141,3 +141,14 @@ Local specification and verification reviews independently found that releasing 
 The same suspended-layout reproduction also failed with a two-pixel release movement inside the source column. Hit-testing now preserves its pin intent inside its own untransformed logical rectangle, while a real crossing still selects the destination region. Both directions are covered through the public Client; the same-screen-X autoscroll cases remain covered separately.
 
 A further public LTR/RTL regression reproduced a virtual-window dependency in that exception: after autoscrolling both centre columns out of a suspended mixed layout, a centre-to-end drop incorrectly retained the unpinned source state. The existence of remaining centre columns is now compiled once from the complete logical projection; mounted geometry only selects the physical destination. This local integration correction adds no Astryx Core patch.
+
+Remote review reproduced source-preview drift during reorder autoscroll: the
+logical destination was correct, but an unpinned source header and its body cells
+moved away from the pointer by the accumulated native scroll delta. Public LTR/RTL
+regressions failed with a 320px drift before correction. The source transform now
+compensates native scrolling only when the source participates in scrolling
+(unpinned or suspended); active sticky sources keep their original pointer-only
+transform. The same tests protect both source kinds and body/header alignment.
+Pin announcements now also require the runtime to accept the command before
+checking its resulting state. Both are local integration corrections, with no
+additional Astryx Core patch.

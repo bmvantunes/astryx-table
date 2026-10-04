@@ -568,3 +568,46 @@ test.each(["ltr", "rtl"] as const)(
     expect(saved.columnPinning.start).toEqual(["COL_ID_START"]);
   },
 );
+
+test.each([
+  ["ltr", "A"],
+  ["rtl", "A"],
+  ["ltr", "Start"],
+  ["rtl", "Start"],
+] as const)(
+  "%s keeps dragged %s preview under the pointer during autoscroll",
+  async (direction, name) => {
+    const many = [
+      columns[0],
+      columns[1],
+      ...Array.from({ length: 38 }, (_, i) => ({
+        ...columns[2],
+        columnId: `COL_ID_EXTRA_${i}` as AstryxTableColumnId,
+        headerName: `Extra ${i}`,
+      })),
+      columns[3],
+    ] satisfies AstryxTableColumns<Row>;
+    await mount(direction, [], many);
+    const header = page.getByRole("columnheader", { name, exact: true }).element();
+    const initialLeft = header.getBoundingClientRect().left;
+    const columnIndex = header.getAttribute("aria-colindex");
+    const { pointerId, x } = await beginDrag(name);
+    const end = page
+      .getByRole("columnheader", { name: "End", exact: true })
+      .element()
+      .getBoundingClientRect();
+    const edgeX = direction === "ltr" ? end.left - 8 : end.right + 8;
+    const grid = page.getByRole("grid").element();
+    try {
+      window.dispatchEvent(new PointerEvent("pointermove", { pointerId, clientX: edgeX }));
+      await expect.poll(() => Math.abs(grid.scrollLeft)).toBeGreaterThan(0);
+      expect(header.isConnected).toBe(true);
+      const expectedLeft = initialLeft + edgeX - x;
+      expect(Math.abs(header.getBoundingClientRect().left - expectedLeft)).toBeLessThan(1);
+      const cell = grid.querySelector(`[role="gridcell"][aria-colindex="${columnIndex}"]`)!;
+      expect(Math.abs(cell.getBoundingClientRect().left - expectedLeft)).toBeLessThan(1);
+    } finally {
+      window.dispatchEvent(new PointerEvent("pointercancel", { pointerId }));
+    }
+  },
+);

@@ -209,7 +209,9 @@ export function createColumnReorder({
           cell.columnIndex;
         const delta =
           cell.columnIndex === sourceIndex
-            ? x - startX
+            ? x -
+              startX +
+              (suspended || source.pinned === undefined ? nativeScrollLeft - initialScrollLeft : 0)
             : shift * source.semantics.width * (direction === "rtl" ? -1 : 1);
         const value = delta === 0 ? "none" : `translate3d(${delta}px, 0, 0)`;
         const property = astryxTableColumnCssVariable("transform", column.columnId);

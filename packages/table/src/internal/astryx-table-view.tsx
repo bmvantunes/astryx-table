@@ -735,8 +735,12 @@ const HeaderCell = memo(function HeaderCell({
     }
   };
   const pin = (pinned: "start" | "end" | undefined) => {
-    runtime.dispatchGridCommand({ type: "column.pin.commit", columnId: column.columnId, pinned });
-    if (runtime.getColumnCommandSnapshot(column.columnId).pinned === pinned) {
+    const accepted = runtime.dispatchGridCommand({
+      type: "column.pin.commit",
+      columnId: column.columnId,
+      pinned,
+    });
+    if (accepted && runtime.getColumnCommandSnapshot(column.columnId).pinned === pinned) {
       announce(
         pinned === undefined
           ? `${column.headerName} unpinned`
