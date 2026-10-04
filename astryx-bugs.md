@@ -997,3 +997,17 @@ The check now uses the region's owning document constructor. Both regressions pa
 owned focus returns to the surviving grid, while outside focus remains untouched.
 The cases also run against the installed package. This is an AstryxTable integration
 defect, not an additional Astryx Core patch; no shortcut or overlay behavior changes.
+
+### Iframe Quick Filter composition stalled later input
+
+A public same-origin iframe regression reproduced two failures: completing an
+IME session did not apply its search text, and clearing during composition left
+subsequent ordinary input unable to filter. The completion handler checked the
+parent realm's `HTMLInputElement`, rejected the iframe input and never released
+the active composition token. This is an AstryxTable integration defect.
+
+The guard now uses the input's owning document constructor. Browser regressions
+cover deferred composition, normal completion, Clear invalidation, late completion
+and the next ordinary input. They also run against the installed package. Native
+Astryx input behavior, TanStack Pacer scheduling and session-only filter ownership
+remain unchanged; no upstream patch or persistence format change is needed.

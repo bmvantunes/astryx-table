@@ -1,3 +1,4 @@
+import { act } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -211,3 +212,80 @@ test("IME input stays local until completion and native Clear invalidates the co
     vi.useRealTimers();
   }
 });
+
+test.for([false, true])(
+  "iframe Quick Filter completes and releases IME sessions (clear: %s)",
+  async (clearDuringComposition) => {
+    const frame = document.createElement("iframe");
+    frame.title = "Quick Filter composition document";
+    document.body.append(frame);
+    let view: Awaited<ReturnType<typeof render>> | undefined;
+    const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+    const previousActEnvironment = environment.IS_REACT_ACT_ENVIRONMENT;
+    try {
+      const owner = frame.contentDocument;
+      const realm = owner?.defaultView;
+      if (owner === null || realm === null || realm === undefined)
+        throw new Error("Expected a same-origin Quick Filter document");
+      const container = owner.createElement("div");
+      owner.body.append(container);
+      view = await render(
+        <AstryxTableClient {...props}>
+          <AstryxTableQuickFilter />
+        </AstryxTableClient>,
+        { container, baseElement: owner.body },
+      );
+      environment.IS_REACT_ACT_ENVIRONMENT = true;
+      // Browser locators resolve in the test document; inspect the iframe's native roles.
+      const input = owner.querySelector<HTMLInputElement>('input[type="search"]');
+      if (input === null) throw new Error("Expected the Quick Filter searchbox");
+      expect(input instanceof HTMLInputElement).toBe(false);
+      const setValue = Object.getOwnPropertyDescriptor(
+        realm.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      if (setValue === undefined) throw new Error("Expected the native input value setter");
+      const change = async (text: string) => {
+        await act(async () => {
+          setValue.call(input, text);
+          input.dispatchEvent(new realm.Event("input", { bubbles: true }));
+        });
+      };
+      const cells = () =>
+        Array.from(owner.querySelectorAll('[role="gridcell"]'), (cell) => cell.textContent);
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      await act(async () => {
+        input.dispatchEvent(new realm.CompositionEvent("compositionstart", { bubbles: true }));
+      });
+      await change("Gr");
+      await act(async () => vi.advanceTimersByTimeAsync(200));
+      expect(cells()).toEqual(["Ada", "Alan", "Grace"]);
+      if (clearDuringComposition) {
+        const clear = owner.querySelector<HTMLButtonElement>(
+          'button[aria-label="Clear Quick Filter"]',
+        );
+        if (clear === null) throw new Error("Expected native Quick Filter Clear");
+        await act(async () => clear.click());
+        expect(input.value).toBe("");
+      }
+      await change("Grace");
+      await act(async () => {
+        input.dispatchEvent(
+          new realm.CompositionEvent("compositionend", { bubbles: true, data: "Grace" }),
+        );
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(cells()).toEqual(clearDuringComposition ? ["Ada", "Alan", "Grace"] : ["Grace"]);
+      expect(input.value).toBe(clearDuringComposition ? "" : "Grace");
+      await change("Alan");
+      await act(async () => vi.advanceTimersByTimeAsync(200));
+      expect(cells()).toEqual(["Alan"]);
+      expect(input.value).toBe("Alan");
+    } finally {
+      vi.useRealTimers();
+      await view?.unmount();
+      environment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+      frame.remove();
+    }
+  },
+);
