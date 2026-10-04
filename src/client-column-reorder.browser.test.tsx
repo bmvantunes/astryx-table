@@ -611,3 +611,20 @@ test.each([
     }
   },
 );
+
+test("repeated cancellation and unmount release temporary reorder presentation", async () => {
+  const screen = await mount("ltr", []);
+  const stylesheetCount = document.styleSheets.length;
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const { pointerId, x } = await beginDrag("A");
+    window.dispatchEvent(new PointerEvent("pointermove", { pointerId, clientX: x + 30 }));
+    const header = page.getByRole("columnheader", { name: "A", exact: true }).element();
+    await expect.poll(() => getComputedStyle(header).transform).not.toBe("none");
+    window.dispatchEvent(new PointerEvent("pointercancel", { pointerId }));
+    await expect.poll(() => getComputedStyle(header).transform).toBe("none");
+    expect(document.styleSheets.length).toBe(stylesheetCount);
+  }
+  await beginDrag("A");
+  await screen.unmount();
+  expect(document.styleSheets.length).toBeLessThanOrEqual(stylesheetCount);
+});

@@ -2,6 +2,31 @@ export const performanceContext = "performance/capable-hardware";
 export const repository = "bmvantunes/astryx-table";
 const scenarios = new Map([
   [
+    "client-held-arrow-down-input-through-render-work-5000x150-pinned",
+    ["chromium-capable-hardware-v1", 8.33, 16.66, 200],
+  ],
+  [
+    "client-held-arrow-down-presentation-frame-cadence-5000x150-pinned",
+    ["chromium-production-presentation-cadence-v1", 20, 20, 200],
+  ],
+  [
+    "client-held-arrow-down-two-repeats-per-frame-work-5000x150-pinned",
+    ["chromium-capable-hardware-v1", 8.33, 16.66, 200],
+  ],
+  [
+    "client-held-arrow-down-two-repeats-per-presentation-frame-cadence-5000x150-pinned",
+    ["chromium-production-presentation-cadence-v1", 20, 20, 200],
+  ],
+  [
+    "client-held-arrow-right-input-through-render-work-5000x150-pinned",
+    ["chromium-capable-hardware-v1", 8.33, 16.66, 200],
+  ],
+  [
+    "client-held-arrow-right-presentation-frame-cadence-5000x150-pinned",
+    ["chromium-production-presentation-cadence-v1", 20, 20, 200],
+  ],
+
+  [
     "client-raw-two-axis-custom-renderer-work-5000x150",
     ["chromium-capable-hardware-v1", 8.33, 16.66],
   ],
@@ -72,7 +97,7 @@ export function validatePerformanceEvidence(report, commit) {
     const protocol = scenarios.get(entry.scenario);
     requireEvidence(protocol && !seen.has(entry.scenario), "unknown or duplicate scenario");
     seen.add(entry.scenario);
-    const [profile, budget, threshold] = protocol;
+    const [profile, budget, threshold, sampleCount = 100] = protocol;
     const env = entry.environment;
     requireEvidence(
       env?.profile === "chromium-capable-hardware-v1" &&
@@ -88,7 +113,9 @@ export function validatePerformanceEvidence(report, commit) {
     );
     const summary = entry.summary;
     requireEvidence(
-      entry.profile === profile && summary?.budget === budget && summary.sampleCount === 100,
+      entry.profile === profile &&
+        summary?.budget === budget &&
+        summary.sampleCount === sampleCount,
       "profile, budget or sample count differs",
     );
     const timings = [summary.min, summary.p50, summary.p95, summary.p99, summary.max];

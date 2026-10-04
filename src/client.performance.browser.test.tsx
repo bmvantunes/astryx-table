@@ -1,3 +1,4 @@
+import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler, createElement, useEffect, useState } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -97,6 +98,9 @@ test.for(["raw", "pinned"] as const)(
     const removeSurface = installAstryxTableClientGridSurfaceRenderListenerForTable(tableId, () => {
       surfaces++;
     });
+    const observers = measureMutationObserverWork(() => {
+      observations++;
+    });
     try {
       await render(
         <Profiler
@@ -171,7 +175,8 @@ test.for(["raw", "pinned"] as const)(
       // Keep React and callback work together to avoid double-charging synchronous commits.
       function captureInterval() {
         if (!pending) throw new Error("Scroll work has no owning sample.");
-        const duration = Math.max(pending.callbackDurationMs, pending.reactDurationMs);
+        const duration =
+          Math.max(pending.callbackDurationMs, pending.reactDurationMs) + observers.take();
         pending = { callbackDurationMs: 0, reactDurationMs: 0 };
         scheduling = pending;
         return duration;
@@ -291,6 +296,7 @@ test.for(["raw", "pinned"] as const)(
         "benchmark",
       );
     } finally {
+      observers.restore();
       restoreFrameProbe?.();
       removeRoot();
       removeSurface();
@@ -316,6 +322,7 @@ test(
       reactCommits: number;
       observedText?: string | null;
       complete: boolean;
+      observerDurationMs: number;
     };
     const publicationSamples: PublicationSample[] = [];
     let activePublication: PublicationSample | undefined;
@@ -324,6 +331,10 @@ test(
     let overlappingPublications = 0;
     let unownedReactCommits = 0;
     let recordingPublications = false;
+    const publicationObservers = measureMutationObserverWork((duration) => {
+      if (recordingPublications && activePublication !== undefined)
+        activePublication.observerDurationMs += duration;
+    });
     const nativeRequestFrame = window.requestAnimationFrame.bind(window);
     let restoreFrameProbe: (() => void) | undefined;
     const removeReconciliation = installAstryxTableClientReconciliationListener((event) => {
@@ -376,6 +387,7 @@ test(
               phase: "rendered",
               reactCommits: 0,
               complete: false,
+              observerDurationMs: 0,
             };
             publicationSamples.push(sample);
             activePublication = sample;
@@ -523,12 +535,13 @@ test(
         });
       }
       const evidence = finalizeAstryxTableBenchmarkEvidence(
-        publicationSamples.map((sample) =>
-          combineAstryxTableBenchmarkFrameWork({
-            admissionDurationMs: sample.admissionDurationMs,
-            renderedFrame: sample.rendered,
-            presentationFrame: sample.presentation,
-          }),
+        publicationSamples.map(
+          (sample) =>
+            combineAstryxTableBenchmarkFrameWork({
+              admissionDurationMs: sample.admissionDurationMs,
+              renderedFrame: sample.rendered,
+              presentationFrame: sample.presentation,
+            }) + sample.observerDurationMs,
         ),
         {
           budgetMs: 8.33,
@@ -558,6 +571,7 @@ test(
     } finally {
       recordingPublications = false;
       restoreFrameProbe?.();
+      publicationObservers.restore();
       removeGrid();
       removeView();
       removeReconciliation();

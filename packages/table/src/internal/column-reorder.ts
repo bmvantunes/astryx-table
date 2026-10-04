@@ -36,6 +36,18 @@ export function createColumnReorder({
   );
   const suspended = adapter.viewportSnapshot.virtualWindow.pinningSuspended;
   const properties = new Map<string, string>();
+  // CSSOM preview updates do not mutate the scroll owner's style attribute.
+  // That attribute also owns direction/environment observation, so using it
+  // for every drag frame would force unrelated native-scroll reconciliation.
+  const previewSheet = grid.ownerDocument.createElement("style");
+  const root = grid.getRootNode();
+  const owner = grid.ownerDocument.defaultView!;
+  (root instanceof owner.ShadowRoot ? root : grid.ownerDocument.head).append(previewSheet);
+  const previousPreview = grid.getAttribute("data-astryx-reorder-preview");
+  grid.setAttribute("data-astryx-reorder-preview", adapter.instanceId);
+  const sheet = previewSheet.sheet!;
+  sheet.insertRule(`[data-astryx-reorder-preview="${owner.CSS.escape(adapter.instanceId)}"] {}`);
+  const previewStyle = (sheet.cssRules[0] as CSSStyleRule).style;
   let ownsFocus = true;
   const onFocus = (event: FocusEvent) => {
     if (event.target !== origin && event.target !== grid) ownsFocus = false;
@@ -101,7 +113,7 @@ export function createColumnReorder({
       );
       for (const property of properties.keys()) {
         if (mountedProperties.has(property)) continue;
-        grid.style.removeProperty(property);
+        previewStyle.removeProperty(property);
         properties.delete(property);
         if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__)
           recordAstryxTableClientColumnPreviewStyleWrite(property);
@@ -141,7 +153,7 @@ export function createColumnReorder({
   };
   const clear = () => {
     for (const property of properties.keys()) {
-      grid.style.removeProperty(property);
+      previewStyle.removeProperty(property);
       if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__)
         recordAstryxTableClientColumnPreviewStyleWrite(property);
     }
@@ -216,7 +228,7 @@ export function createColumnReorder({
         const value = delta === 0 ? "none" : `translate3d(${delta}px, 0, 0)`;
         const property = astryxTableColumnCssVariable("transform", column.columnId);
         if (properties.get(property) === value) continue;
-        grid.style.setProperty(property, value);
+        previewStyle.setProperty(property, value);
         properties.set(property, value);
         if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__)
           recordAstryxTableClientColumnPreviewStyleWrite(property);
@@ -227,19 +239,25 @@ export function createColumnReorder({
       detachFrame();
       grid.ownerDocument.removeEventListener("focusin", onFocus, true);
       grid.ownerDocument.defaultView?.removeEventListener("blur", onBlur);
-      if (commit && (x !== startX || grid.scrollLeft !== initialScrollLeft)) {
-        // A stationary click is not a drop. Autoscroll can still change the
-        // logical destination when physical X returns to its starting coordinate.
-        this.preview(x, false);
-        if (targetIndex !== sourceIndex || targetPinned !== source.pinned)
-          runtime.dispatchGridCommand({
-            type: "column.reorder.commit",
-            columnId,
-            targetIndex,
-            pinned: targetPinned,
-          });
+      try {
+        if (commit && (x !== startX || grid.scrollLeft !== initialScrollLeft)) {
+          // A stationary click is not a drop. Autoscroll can still change the
+          // logical destination when physical X returns to its starting coordinate.
+          this.preview(x, false);
+          if (targetIndex !== sourceIndex || targetPinned !== source.pinned)
+            runtime.dispatchGridCommand({
+              type: "column.reorder.commit",
+              columnId,
+              targetIndex,
+              pinned: targetPinned,
+            });
+        }
+      } finally {
+        clear();
+        previewSheet.remove();
+        if (previousPreview === null) grid.removeAttribute("data-astryx-reorder-preview");
+        else grid.setAttribute("data-astryx-reorder-preview", previousPreview);
       }
-      clear();
       return ownsFocus;
     },
   };

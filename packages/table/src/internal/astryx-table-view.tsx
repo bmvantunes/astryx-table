@@ -9,9 +9,11 @@ import {
   nativeTableAppearance,
   useNativeTablePresentation,
   cellDomId,
+  headerDomId,
   type NativePinnedPresentation,
 } from "./native-table-presentation";
 import { Divider } from "@astryxdesign/core/Divider";
+import { useAstryxTableHotkeyWorkflowAction } from "./hotkey-adapter";
 import { useColumnInteractions } from "./column-interactions";
 import { Button } from "@astryxdesign/core/Button";
 import { DropdownMenu } from "@astryxdesign/core/DropdownMenu";
@@ -215,6 +217,8 @@ const GridSurface = memo(function GridSurface({
   }, []);
   const interactions = useColumnInteractions({
     tableId,
+    findRowIndex: (rowId) =>
+      (snapshot.rowSpace.identitySource?.getSnapshot() ?? snapshot.rowSpace).findRowIndex(rowId),
     queryGeneration: snapshot.queryGeneration,
     totalRows: snapshot.rowSpace.totalRows,
     adapter,
@@ -335,6 +339,7 @@ const Header = memo(function Header({
           {[
             ...layout.pinnedStart.map((column, index) => (
               <HeaderCell
+                instanceId={adapter.instanceId}
                 key={column.columnId}
                 runtime={runtime}
                 navigation={navigation}
@@ -353,6 +358,7 @@ const Header = memo(function Header({
             />,
             ...window.center.map((column, index) => (
               <HeaderCell
+                instanceId={adapter.instanceId}
                 key={column.columnId}
                 runtime={runtime}
                 navigation={navigation}
@@ -379,6 +385,7 @@ const Header = memo(function Header({
             />,
             ...layout.pinnedEnd.map((column, index) => (
               <HeaderCell
+                instanceId={adapter.instanceId}
                 key={column.columnId}
                 runtime={runtime}
                 navigation={navigation}
@@ -630,6 +637,15 @@ const Cell = memo(function Cell({
   const row = "row" in cell ? cell.row : undefined;
   const value = cell.kind === "available" ? cell.value : undefined;
   const customClass = resolveAstryxTableCellClassName(column, row, value);
+  const content = resolveAstryxTableCellContent(column, row, value);
+  const managedContent =
+    column.cellRenderer === undefined ? (
+      content
+    ) : (
+      <span data-astryx-custom-cell="" style={{ display: "contents" }}>
+        {content}
+      </span>
+    );
   return (
     <TableCell
       {...presentation?.body.htmlProps}
@@ -638,6 +654,7 @@ const Cell = memo(function Cell({
       id={id}
       className={customClass}
       role="gridcell"
+      data-astryx-row-id={rowId}
       data-astryx-column-id={column.columnId}
       aria-colindex={columnIndex + 1}
       style={{
@@ -658,11 +675,9 @@ const Cell = memo(function Cell({
       }}
     >
       {presentation === undefined ? (
-        resolveAstryxTableCellContent(column, row, value)
+        managedContent
       ) : (
-        <div {...stylex.props(styles.pinnedContent)}>
-          {resolveAstryxTableCellContent(column, row, value)}
-        </div>
+        <div {...stylex.props(styles.pinnedContent)}>{managedContent}</div>
       )}
     </TableCell>
   );
@@ -683,6 +698,7 @@ function columnMoveTarget(
 }
 
 const HeaderCell = memo(function HeaderCell({
+  instanceId,
   announce,
   navigation,
   runtime,
@@ -692,6 +708,7 @@ const HeaderCell = memo(function HeaderCell({
   onColumnResize,
   onColumnReorder,
 }: GestureProps & {
+  readonly instanceId: string;
   readonly presentation?: NativePinnedPresentation | undefined;
   readonly announce: (message: string) => void;
   readonly navigation: AstryxTableNavigationRuntime;
@@ -699,6 +716,8 @@ const HeaderCell = memo(function HeaderCell({
   readonly column: CompiledColumn;
   readonly columnIndex: number;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useAstryxTableHotkeyWorkflowAction(() => setMenuOpen(true));
   const subscribe = useCallback(
     (listener: () => void) => runtime.subscribeColumnCommands(column.columnId, listener),
     [runtime, column.columnId],
@@ -748,15 +767,6 @@ const HeaderCell = memo(function HeaderCell({
       );
     }
   };
-  const subscribeActive = useCallback(
-    (listener: () => void) => navigation.subscribeColumn(column.columnId, listener),
-    [navigation, column.columnId],
-  );
-  const getActive = useCallback(() => {
-    const active = navigation.getSnapshot();
-    return active?.region === "header" && active.columnId === column.columnId;
-  }, [navigation, column.columnId]);
-  const isActive = useSyncExternalStore(subscribeActive, getActive, getActive);
   const direction =
     command.sortDirection === "asc"
       ? "ascending"
@@ -768,11 +778,20 @@ const HeaderCell = memo(function HeaderCell({
       {...presentation?.header.htmlProps}
       xstyle={presentation?.header.xstyle}
       scope="col"
+      id={headerDomId(instanceId, column.columnId)}
       role="columnheader"
       aria-label={column.headerName}
       data-astryx-column-id={column.columnId}
       aria-colindex={columnIndex + 1}
       aria-sort={command.sortPriority === 1 ? direction : undefined}
+      onContextMenu={(event) => {
+        if (event.defaultPrevented) return;
+        event.preventDefault();
+        event.currentTarget
+          .querySelector<HTMLElement>("[data-astryx-column-menu-trigger]")
+          ?.focus({ preventScroll: true });
+        setMenuOpen(true);
+      }}
       style={{
         ...presentation?.header.htmlProps.style,
         position: presentation === undefined ? "relative" : "sticky",
@@ -794,7 +813,7 @@ const HeaderCell = memo(function HeaderCell({
         size="sm"
         variant="ghost"
         icon={<span aria-hidden="true">⠿</span>}
-        tabIndex={isActive ? 0 : -1}
+        tabIndex={-1}
         style={{ cursor: "grab", touchAction: "none" }}
         onFocus={() => navigation.activateHeader(column.columnId)}
         onPointerDown={(event) => onColumnReorder(event, column.columnId)}
@@ -803,10 +822,15 @@ const HeaderCell = memo(function HeaderCell({
         {column.headerName}
       </span>
       <DropdownMenu
+        isMenuOpen={menuOpen}
+        onOpenChange={setMenuOpen}
         presentation="popover"
         hasChevron={false}
         button={{
           label: `${column.headerName} column menu`,
+          ref: menuRef,
+          "data-astryx-column-menu-trigger": "",
+          tabIndex: -1,
           onFocus: () => navigation.activateHeader(column.columnId),
           icon: <span aria-hidden="true">⋮</span>,
           isIconOnly: true,
@@ -871,7 +895,7 @@ const HeaderCell = memo(function HeaderCell({
         aria-valuemax={command.maxWidth}
         aria-keyshortcuts="ArrowLeft ArrowRight Home End"
         data-astryx-resize-column={column.columnId}
-        tabIndex={isActive ? 0 : -1}
+        tabIndex={-1}
         onFocus={() => navigation.activateHeader(column.columnId)}
         onPointerDown={(event) => onColumnResize(event, column.columnId)}
         xstyle={styles.resizeHandle}

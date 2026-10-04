@@ -152,3 +152,59 @@ transform. The same tests protect both source kinds and body/header alignment.
 Pin announcements now also require the runtime to accept the command before
 checking its resulting state. Both are local integration corrections, with no
 additional Astryx Core patch.
+
+## Keyboard integration work (not an upstream defect)
+
+The new navigation boundary reuses the retained logical runtime, TanStack Hotkeys,
+Pacer handoff and native controlled menus. Loading Pacer lazily in the production
+profiling harness caused dependency re-optimization and an invalid React instance;
+explicit prebundling fixes the harness configuration. That failed run is not
+performance evidence and adds no Astryx Core patch.
+
+Complete accounting exposed 9.4ms p99 reorder autoscroll after adding asynchronous
+focus observers. The boundary now suppresses tab stops only inside custom cell
+renderers (native header controls declare their own `tabIndex=-1`) and avoids
+rewriting an unchanged active-descendant attribute. The unchanged workload then
+passed with observer work still included. This is a local integration optimization;
+clean-commit publication and independent review are still pending.
+
+Public navigation tests also reproduced two missing Adapter behaviors: a header
+context-menu gesture did not open its native menu, and SVG pointer targets did not
+activate their containing cell. The header now opens the controlled native menu
+and the pointer boundary admits DOM Elements, including SVG. No Core patch is
+needed. Separate tests confirm that native menu-trigger recycling already returns
+focus to the grid while yielding to an external control; that behavior is reused.
+
+Independent local review found retained custom-control contracts missing from the
+new Adapter: focusable SVG descendants, live changes to focusability/usability,
+and restoring the author's latest `tabindex` when a control leaves management.
+The SVG regression failed before correction; the expanded public suite now covers
+SVG entry/Escape/recycling, disabled/hidden/inert controls, newly focusable links
+and contenteditable nodes, and detached-control restoration. These are integration
+corrections, not additional upstream defects.
+
+The same review found gaps between held-navigation performance samples and during
+final key-release cleanup. Samples now retain ownership until the next admission,
+with final keyup and deferred work charged to the last sample. The harness tracks
+scheduled, executed and cancelled frames, waits for quiescence, and rejects unowned
+RAF, React or observer work. Original sample counts and budgets remain unchanged.
+
+The expanded focus observer initially made resize/reorder exceed the original
+production budget. Attribute observation now targets only custom-content roots;
+ordinary grid geometry writes do not wake it, and usability reads occur only for
+relevant focused-control changes outside an active gesture. No accessibility
+cases or performance budgets were removed.
+
+A frame-cost diagnostic then isolated an additional retained integration cost:
+reorder preview variables written to the scroll owner's inline style woke its
+LTR/RTL environment observer, forcing native-scroll reads during DOM updates.
+Temporary preview variables now live in one grid-scoped CSSOM rule, released on
+finish/cancel/unmount, including exceptional command completion. Direction and
+stylesheet observation remain intact. Public reorder regressions pass; the first
+focused production comparison reduced autoscroll p99 from 9.1ms to 4.2ms. These
+are development measurements; the complete clean-commit gate is still required.
+
+A subsequent public regression reproduced lost focus recovery when a live
+`cellClassName` change hid the owning cell while its custom button stayed mounted.
+The bounded observer now includes the owning cell's visibility-related attributes,
+while still excluding its hot geometry style writes. This is an Adapter correction.
