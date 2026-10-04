@@ -58,6 +58,7 @@ export default defineConfig({
       "@astryxdesign/core/Toolbar",
       "@astryxdesign/core/Divider",
       "@astryxdesign/core/Button",
+      "@astryxdesign/core/Text",
       "@astryxdesign/core/TextInput",
       "@astryxdesign/core/Selector",
       "@astryxdesign/core/MultiSelector",

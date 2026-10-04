@@ -92,7 +92,10 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     return instance;
   });
   const [view] = useState(() => runtime.getView());
-  const clientContext = useMemo(() => ({ rows: adapter, runtime: view }), [adapter, view]);
+  const clientContext = useMemo(
+    () => ({ tableId: props.tableId, rows: adapter, resultRows: adapter, runtime: view }),
+    [adapter, view, props.tableId],
+  );
   const [projection] = useState(
     () => new AstryxTableClientProjectionStore(view, adapter, undefined),
   );

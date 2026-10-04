@@ -1,5 +1,7 @@
 import {
   AstryxTableClient,
+  AstryxTableResultRowCount,
+  AstryxTableLoadedRowCount,
   AstryxTableBigIntColumn,
   AstryxTableTextColumn,
   AstryxTableComputedColumn,
@@ -142,3 +144,10 @@ const selectionProps: AstryxTableClientProps<Row, typeof columns> = {
   rowSelection: true,
 };
 void selectionProps;
+
+void (<AstryxTableResultRowCount>{(count) => count.toFixed(0)}</AstryxTableResultRowCount>);
+void (<AstryxTableLoadedRowCount>{(count) => count.toFixed(0)}</AstryxTableLoadedRowCount>);
+// @ts-expect-error Count callbacks receive a number, never a row or string.
+void (<AstryxTableResultRowCount>{(count: string) => count}</AstryxTableResultRowCount>);
+// @ts-expect-error Counts do not expose their private runtime.
+void (<AstryxTableLoadedRowCount runtime={{}} />);

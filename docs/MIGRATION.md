@@ -629,3 +629,19 @@ The original retained pipeline suite runs unchanged, including its requirement f
 zero structural notifications on a label-only replacement. Only the row-pipeline
 optimization moves out of the mechanical provenance exemption; its source and target
 hashes and independent-review requirement are recorded in core-provenance.json.
+
+## Optional Client row-count controls
+
+`AstryxTableResultRowCount` and `AstryxTableLoadedRowCount` compose through existing
+optional toolbar children. Both retain typed numeric render callbacks and named
+status output. Published Astryx Text supplies default typography. The existing
+Client adapter and runtime own separate counts; no copied toolbar engine, extra
+filtering authority or dependency patch is introduced. First Result projection
+remains lazy and SSR-correct. See `research/astryx-row-count-controls.md`.
+
+Public source/installed regressions cover live filtering, source lifecycle and
+custom rendering; source diagnostics cover subscription isolation and cleanup.
+A production scenario adds both counters to 5,000 × 150 cells at 20 Hz with no
+count notifications for unchanged totals. All 33 production scenarios, the clean
+review round and exact-commit evidence are required before publication. Active
+filter/sort count-only controls, Server counts and full parity remain separate.
