@@ -7,6 +7,8 @@ export default defineConfig({
   resolve: { dedupe: ["react", "react-dom"] },
   optimizeDeps: {
     include: [
+      "@astryxdesign/core/MultiSelector",
+      "@astryxdesign/core/VisuallyHidden",
       "react",
       "react-dom",
       "react/jsx-runtime",

@@ -20,7 +20,7 @@ Measured with `git apply --numstat patches/@astryxdesign__core@0.6.5.patch`, cou
 - Earlier corrections: 6 source modules, **81 added / 29 removed lines**.
 - Pinning and sorting corrections: 2 source modules, **11 added / 10 removed lines**, including comments and whitespace.
 - Deferred menu mounting and guarded opening: 2 source modules, **17 added / 15 removed lines**. This is the optimization described below, not an additional confirmed original runtime bug.
-- Total Core source patch: **10 modules, 109 added / 54 removed lines**.
+- Total Core source patch: **10 modules, 112 added / 54 removed lines**.
 
 Tests, documentation, lockfile changes and the mirrored emitted files are additional. These numbers describe the upstream patch, not the work required to deliver full grid parity.
 
@@ -446,6 +446,56 @@ shared text budget while keeping each operand valid. The editor now retains the
 complete draft and subtree position with an accessible error when its column
 version and command epoch are unchanged; changed authority restores the current
 snapshot. Runtime admission remains the sole authority for aggregate budgets.
+
+### Column preference control integration
+
+The published MultiSelector supplies search, selection, disabled options and
+keyboard behavior for one table-level visibility picker. Its complete option list
+is not virtualized and its layer is not lazy by default; this is a documented
+capability/cost, not a confirmed upstream defect. The integration avoids one picker
+per header and measures the actual 150-column list in the production gate. Native
+DropdownMenu owns Reset presentation; command-only Reset has no grid-state
+subscriptions. Adding the new subpath to Vite's
+existing dependency pre-optimization list avoids a mid-test dependency reload.
+
+Local review caught an integration regression that placed these controls in a
+mandatory top toolbar. They now open from a 36px side rail: absent page children
+still mean no top toolbar or extra vertical space. The outer native popover lazily
+mounts the preference controls. Reset announcements use a sequence so repeating
+the same successful action produces a fresh live-region update. These are local
+integration corrections, not additional Astryx Core bugs.
+
+Fresh review found that replacing only a column's header label left the native
+visibility picker and its search stale. Structural snapshots intentionally ignore
+label-only changes. The picker now receives labels from the Table Instance's existing
+memoized compiled definitions through a private prop, while runtime snapshots retain
+ownership of option membership, order and visibility. Public tests cover the open
+picker, search and reopening. Core notification contracts stay unchanged; this was
+an integration defect, not an Astryx Core defect.
+
+### ASTRYX-001 follow-up — nested selector focus fallback
+
+**Reproduction:** Open a native Popover containing a searchable MultiSelector,
+click the same option twice, then press Escape. Our existing patched version left
+focus on the parent dialog instead of the selector trigger. The minimal probe uses
+only published components; the column preference Browser test also reproduced it.
+
+**Cause:** Clicking a non-focusable option can put DOM focus on its containing
+dialog. The ASTRYX-001 focus-return guard treated this ancestor fallback as an
+intentional outside target and declined restoration. This is a correction to our
+previous patch, not a newly discovered unpatched upstream defect.
+
+**Correction:** Permit restoration when the current active element contains the
+selector trigger. Sibling controls remain outside that condition, preserving an
+intentional click's focus. Three source lines (including two explanatory comments)
+and their emitted-JS counterpart extend the existing Selector presentation patch.
+
+**Evidence:** The native nested-selector regression failed before this change;
+[native focus regressions](src/controls/astryx-menu-focus.browser.test.tsx) cover
+Escape after repeated toggles and focus retained on a clicked sibling button.
+The table-level case remains in
+[column preferences](src/column-preferences.browser.test.tsx). Delivery is local
+pending complete validation and review of this slice.
 
 ### Nested multi-value filters exceeded the mounted editor budget
 

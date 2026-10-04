@@ -549,3 +549,43 @@ The suite process watchdog is three minutes because the full 29-scenario run
 exceeds two minutes; individual test timeouts and performance thresholds are unchanged.
 All preceding scenarios and thresholds remain mandatory. Numeric editors,
 remaining preference controls, Server facets and issue #6 publication remain open.
+
+## Column preference controls — issue #6
+
+Every Client has a 36px end-side management rail and a native Button/Popover
+that mounts preference controls on demand. The optional page toolbar still renders
+only when children are supplied, preserving the retained no-extra-height contract.
+The rail contributes one tab stop before the existing single grid tab stop;
+header/body navigation remains one coherent grid space. One searchable MultiSelector controls visibility and a
+separate DropdownMenu dispatches Reset order, widths, visibility, pinning or the
+complete layout. The controls use the retained runtime's commands, baselines and
+versioned persistence; no public controller or duplicate preference store is added.
+The sole visible column is disabled in the picker and remains guarded by admission.
+Hidden sorted columns retain sorting, and Reset layout preserves filters and sorts.
+
+Visibility subscribes only to the structural column source, which excludes hot row
+publications and width-only commits. Reset has no grid-state subscription. Native
+controls own search, keyboard interaction and focus. The one on-demand picker keeps
+a stable anchor when a column header is hidden. Its native list is not virtualized;
+the 150-column production workload measures this actual implementation rather than
+claiming a bounded native list. See [the API investigation](research/astryx-column-preferences.md).
+
+Labels come from the Table Instance's existing memoized compiled definitions through
+a private prop. This keeps an open picker and its search current after label-only
+replacement without changing the retained structural notification contract. Option
+membership, order, visibility and commands remain owned by the runtime snapshot.
+
+Public and installed tests cover persistence restoration, final-column protection,
+individual idempotent resets, complete layout reset, virtualized-column search and
+keyboard selection, and live replacement definitions while the picker remains open.
+All existing production scenarios retain their budgets; the 30th holds the native
+150-option picker open during 5,000 × 150, 20 Hz source publications and requires
+stable visibility/reset render counts. Existing scenarios also assert
+that visibility/reset controls are unmounted while the preference panel is closed.
+Repeated successful resets publish fresh accessible status messages. Numeric editors, the full sort panel, grouped
+eligibility, Server integration and publication remain separate pending work.
+
+The native nested-selector regression also extends the existing ASTRYX-001 patch
+to recognize focus fallback to a containing dialog. Intentional focus on a sibling
+control remains preserved; this corrects our prior patch rather than claiming a
+new defect in unpatched Core. Source and emitted-JS paths are covered.
