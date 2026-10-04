@@ -1,3 +1,4 @@
+import { installAstryxTableColumnSettingsRenderListener } from "../packages/table/src/internal/column-settings-instrumentation";
 import { installAstryxTableActiveFilterRenderListener } from "../packages/table/src/internal/active-filter-instrumentation";
 import { installAstryxTableClientFacetSubscriptionListener } from "../packages/table/src/internal/client-facet";
 import { measureMutationObserverWork } from "./performance-observers";
@@ -324,6 +325,7 @@ test.for([
   "open-active-filters",
   "quick-filter",
   "open-compound-filter",
+  "open-column-visibility",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
@@ -340,6 +342,10 @@ test.for([
       if (event.phase === "subscribe") facetSubscriptions++;
       if (event.phase === "unsubscribe") facetSubscriptions--;
       if (event.phase === "notify") facetNotifications++;
+    });
+    const columnSettingsRenders = { visibility: 0, reset: 0 };
+    const removeColumnSettingsRender = installAstryxTableColumnSettingsRenderListener((part) => {
+      columnSettingsRenders[part]++;
     });
     let quickFilterRenders = 0;
     const removeQuickFilterRender = installAstryxTableClientQuickFilterRenderListener(() => {
@@ -600,7 +606,16 @@ test.for([
       await expect
         .element(screen.getByRole("button", { name: "Stable production command" }))
         .toBeInTheDocument();
-      if (variant === "quick-filter") {
+      if (variant === "open-column-visibility") {
+        await screen.getByRole("button", { name: "Column preferences", exact: true }).click();
+        await screen.getByRole("button", { name: "Visible columns", exact: true }).click();
+        await expect
+          .element(screen.getByRole("combobox", { name: "Search options", exact: true }))
+          .toHaveFocus();
+        expect(
+          screen.getByRole("listbox").element().querySelectorAll('[role="option"]'),
+        ).toHaveLength(150);
+      } else if (variant === "quick-filter") {
         await screen.getByRole("searchbox", { name: "Quick Filter", exact: true }).fill("SYMBOL");
         await expect
           .element(screen.getByRole("button", { name: "Active filters (1)", exact: true }))
@@ -669,6 +684,13 @@ test.for([
       await settleAstryxTableBrowserFrames(2);
       expect(facetSubscriptions).toBe(variant === "open-set-filter" ? 1 : 0);
       const initialFacetNotifications = facetNotifications;
+      const initialColumnSettingsRenders = { ...columnSettingsRenders };
+      if (variant === "open-column-visibility") {
+        expect(initialColumnSettingsRenders.visibility).toBeGreaterThan(0);
+        expect(initialColumnSettingsRenders.reset).toBeGreaterThan(0);
+      } else {
+        expect(initialColumnSettingsRenders).toEqual({ visibility: 0, reset: 0 });
+      }
       const initialQuickFilterRenders = quickFilterRenders;
       const initialActiveFilterRenders = activeFilterRenders;
       const initialFilterRenders = filterRenders;
@@ -752,23 +774,25 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-compound-filter"
-              ? "client-open-compound-filter-live-publication-5000x150-20hz"
-              : variant === "quick-filter"
-                ? "client-quick-filter-live-publication-5000x150-20hz"
-                : variant === "open-active-filters"
-                  ? "client-open-active-filters-live-publication-5000x150-20hz"
-                  : variant === "open-set-filter"
-                    ? "client-open-set-filter-live-publication-5000x150-20hz"
-                    : variant === "open-select-filter"
-                      ? "client-open-select-filter-live-publication-5000x150-20hz"
-                      : variant === "open-boolean-filter"
-                        ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                        : variant === "open-list-filter"
-                          ? "client-open-list-filter-live-publication-5000x150-20hz"
-                          : variant === "open-filter"
-                            ? "client-open-filter-live-publication-5000x150-20hz"
-                            : "client-live-publication-5000x150-20hz",
+            variant === "open-column-visibility"
+              ? "client-open-column-visibility-live-publication-5000x150-20hz"
+              : variant === "open-compound-filter"
+                ? "client-open-compound-filter-live-publication-5000x150-20hz"
+                : variant === "quick-filter"
+                  ? "client-quick-filter-live-publication-5000x150-20hz"
+                  : variant === "open-active-filters"
+                    ? "client-open-active-filters-live-publication-5000x150-20hz"
+                    : variant === "open-set-filter"
+                      ? "client-open-set-filter-live-publication-5000x150-20hz"
+                      : variant === "open-select-filter"
+                        ? "client-open-select-filter-live-publication-5000x150-20hz"
+                        : variant === "open-boolean-filter"
+                          ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                          : variant === "open-list-filter"
+                            ? "client-open-list-filter-live-publication-5000x150-20hz"
+                            : variant === "open-filter"
+                              ? "client-open-filter-live-publication-5000x150-20hz"
+                              : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -801,6 +825,11 @@ test.for([
             .element()
             .querySelectorAll('input[type="text"]'),
         ).toHaveLength(64);
+      expect(columnSettingsRenders).toEqual(initialColumnSettingsRenders);
+      if (variant === "open-column-visibility")
+        expect(
+          screen.getByRole("listbox").element().querySelectorAll('[role="option"]'),
+        ).toHaveLength(150);
       expect(quickFilterRenders).toBe(initialQuickFilterRenders);
       if (variant === "quick-filter")
         await expect
@@ -831,6 +860,7 @@ test.for([
       removeGrid();
       removeView();
       removeReconciliation();
+      removeColumnSettingsRender();
       removeQuickFilterRender();
       removeActiveFilterRender();
       removeFilterRender();

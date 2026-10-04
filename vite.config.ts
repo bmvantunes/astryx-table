@@ -12,6 +12,8 @@ export default defineConfig({
       "@astryxdesign/core/Button",
       "@astryxdesign/core/TextInput",
       "@astryxdesign/core/Selector",
+      "@astryxdesign/core/MultiSelector",
+      "@astryxdesign/core/VisuallyHidden",
       "@astryxdesign/core/CheckboxInput",
       "@astryxdesign/core/Popover",
       "react",

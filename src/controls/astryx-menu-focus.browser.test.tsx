@@ -1,7 +1,8 @@
 import { Button } from "@astryxdesign/core/Button";
 import { ContextMenu, ContextMenuItem } from "@astryxdesign/core/ContextMenu";
 import { Dialog } from "@astryxdesign/core/Dialog";
-import { Popover } from "@astryxdesign/core/Popover";
+import { MultiSelector } from "@astryxdesign/core/MultiSelector";
+import { Popover, usePopover } from "@astryxdesign/core/Popover";
 import {
   DropdownMenu,
   DropdownMenuItem,
@@ -356,4 +357,71 @@ test("DropdownMenu preserves focus on an outside-clicked button", async () => {
   await outside.click();
   await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
   await expect.element(outside).toHaveFocus();
+});
+
+function NestedColumnPickerProbe() {
+  const [value, setValue] = useState(["name", "age"]);
+  const {
+    triggerRef,
+    triggerProps,
+    toggle,
+    isOpen,
+    render: renderPopover,
+  } = usePopover({ lazyMount: true, dialogLabel: "Preferences" });
+  return (
+    <>
+      <Button ref={triggerRef} {...triggerProps} label="Preferences" onClick={toggle} />
+      {renderPopover(
+        isOpen ? (
+          <>
+            <MultiSelector
+              label="Visible columns"
+              isLabelHidden
+              hasSearch
+              presentation="popover"
+              options={[
+                {
+                  value: "name",
+                  label: "Name",
+                  disabled: value.length === 1 && value.includes("name"),
+                },
+                {
+                  value: "age",
+                  label: "Age",
+                  disabled: value.length === 1 && value.includes("age"),
+                },
+              ]}
+              value={value}
+              onChange={setValue}
+            />
+            <div style={{ marginTop: 240 }}>
+              <Button label="Reset columns" />
+            </div>
+          </>
+        ) : null,
+      )}
+    </>
+  );
+}
+
+test("a nested native MultiSelector restores its trigger after toggling an option twice", async () => {
+  await render(<NestedColumnPickerProbe />);
+  await page.getByRole("button", { name: "Preferences", exact: true }).click();
+  const trigger = page.getByRole("button", { name: "Visible columns", exact: true });
+  await trigger.click();
+  await page.getByRole("option", { name: "Name", exact: true }).click();
+  await page.getByRole("option", { name: "Name", exact: true }).click();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(trigger).toHaveFocus();
+});
+
+test("a nested native MultiSelector preserves focus on a clicked sibling control", async () => {
+  await render(<NestedColumnPickerProbe />);
+  await page.getByRole("button", { name: "Preferences", exact: true }).click();
+  const trigger = page.getByRole("button", { name: "Visible columns", exact: true });
+  await trigger.click();
+  const sibling = page.getByRole("button", { name: "Reset columns", exact: true });
+  await sibling.click();
+  await expect.element(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect.element(sibling).toHaveFocus();
 });

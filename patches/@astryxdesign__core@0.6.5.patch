@@ -38,7 +38,7 @@ diff --git a/src/Dialog/Dialog.tsx b/src/Dialog/Dialog.tsx
 diff --git a/src/Selector/useSelectorPresentation.ts b/src/Selector/useSelectorPresentation.ts
 --- a/src/Selector/useSelectorPresentation.ts
 +++ b/src/Selector/useSelectorPresentation.ts
-@@ -77,10 +77,23 @@
+@@ -77,10 +77,26 @@
    onHideRef.current = onHide;
    onShowRef.current = onShow;
  
@@ -54,6 +54,9 @@ diff --git a/src/Selector/useSelectorPresentation.ts b/src/Selector/useSelectorP
 +        active === owner.body ||
 +        active === owner.documentElement ||
 +        active === trigger ||
++        // Non-focusable option clicks can focus a containing dialog.
++        // Rescue that fallback without taking focus from sibling controls.
++        (trigger != null && active.contains(trigger)) ||
 +        popoverRef.current?.contentRef.current?.contains(active));
      onHideRef.current();
 -    triggerRef.current?.focus();
@@ -64,7 +67,7 @@ diff --git a/src/Selector/useSelectorPresentation.ts b/src/Selector/useSelectorP
    }, [prepareFocusReturn, triggerRef]);
    const handlePopoverShow = useCallback(() => {
      didShowPopoverRef.current = true;
-@@ -92,6 +105,7 @@
+@@ -92,6 +108,7 @@
      onHide: handlePopoverHide,
      onShow: handlePopoverShow,
    });
@@ -329,7 +332,7 @@ diff --git a/dist/Dialog/Dialog.js b/dist/Dialog/Dialog.js
 diff --git a/dist/Selector/useSelectorPresentation.js b/dist/Selector/useSelectorPresentation.js
 --- a/dist/Selector/useSelectorPresentation.js
 +++ b/dist/Selector/useSelectorPresentation.js
-@@ -38,10 +38,20 @@
+@@ -38,10 +38,23 @@
    } = useFocusReturnVisibility();
    onHideRef.current = onHide;
    onShowRef.current = onShow;
@@ -341,6 +344,9 @@ diff --git a/dist/Selector/useSelectorPresentation.js b/dist/Selector/useSelecto
 +    const active = owner?.activeElement;
 +    const shouldRestore = owner?.hasFocus() && (
 +      active == null || active === owner.body || active === owner.documentElement ||
++      // Non-focusable option clicks can focus a containing dialog.
++      // Rescue that fallback without taking focus from sibling controls.
++      (trigger != null && active.contains(trigger)) ||
 +      active === trigger || popoverRef.current?.contentRef.current?.contains(active)
 +    );
      onHideRef.current();
@@ -352,7 +358,7 @@ diff --git a/dist/Selector/useSelectorPresentation.js b/dist/Selector/useSelecto
    }, [prepareFocusReturn, triggerRef]);
    const handlePopoverShow = useCallback(() => {
      didShowPopoverRef.current = true;
-@@ -53,6 +63,7 @@
+@@ -53,6 +66,7 @@
      onHide: handlePopoverHide,
      onShow: handlePopoverShow
    });

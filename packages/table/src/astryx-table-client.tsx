@@ -1,4 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
+import { ColumnManagement } from "./internal/column-settings";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { useLayoutEffect, useMemo, useState } from "react";
 import type {
@@ -18,7 +19,12 @@ import { registerAstryxTableIdentity } from "./internal/table-identity-registry"
 import { ClientContext } from "./internal/client-context";
 import { AstryxTableView } from "./internal/astryx-table-view";
 
-const styles = stylex.create({ root: { position: "relative" } });
+const styles = stylex.create({
+  root: { position: "relative" },
+  body: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) 36px", alignItems: "start" },
+  rail: { gridColumn: 2, gridRow: 1 },
+  grid: { gridColumn: 1, gridRow: 1, minWidth: 0 },
+});
 
 /** Current private read-only slice. Selection and grouping configuration arrive in #13/#7. */
 export type AstryxTableClientProps<TRow, TColumns extends AstryxTableColumns<TRow>> = Omit<
@@ -126,14 +132,21 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         {props.children === undefined || props.children === null ? null : (
           <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
         )}
-        <AstryxTableClientRowPipeline
-          runtime={view}
-          tableId={props.tableId}
-          columns={columns}
-          rowPipelineAdapter={adapter}
-        >
-          {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
-        </AstryxTableClientRowPipeline>
+        <div {...stylex.props(styles.body)}>
+          <aside {...stylex.props(styles.rail)} aria-label={`${props.tableId} column management`}>
+            <ColumnManagement runtime={view} columns={columns} />
+          </aside>
+          <div {...stylex.props(styles.grid)}>
+            <AstryxTableClientRowPipeline
+              runtime={view}
+              tableId={props.tableId}
+              columns={columns}
+              rowPipelineAdapter={adapter}
+            >
+              {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
+            </AstryxTableClientRowPipeline>
+          </div>
+        </div>
       </div>
     </ClientContext>
   );
