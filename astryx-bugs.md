@@ -971,3 +971,29 @@ its change is a declaration extension. Earlier focus patches and current Server
 configuration are preserved while integrating the two dependency corrections
 and the compiler repair. Full integration evidence is recorded separately from
 the earlier isolated-branch results; no numeric filter completion is inferred.
+
+### Nested multi-value filters exceeded the mounted editor budget
+
+CodeRabbit identified that compound conditions shared a render budget but each
+`in` leaf still mounted its independent 64-input window. A public regression with
+four groups of four leaves reproduced 1,024 mounted text inputs, exceeding the
+256-input bound. This is an AstryxTable integration defect, not an Astryx Core bug.
+
+Leaf operand windows now use their allocated share of the same budget. Paging,
+status text, add/remove focus and off-window errors use that capacity consistently.
+The regression checks the bound across windows and additions, reaches the final
+operand, and verifies that persistence preserves every operand and sibling leaf.
+The corrected-draft regression also waits for the rendered row count before
+checking persistence, avoiding an assertion racing React's scheduler.
+
+### Iframe grouping focus recovery
+
+Review found that Add Group focus tracking used the parent realm's
+`HTMLButtonElement`. A public same-origin iframe regression reproduced focus
+falling to the iframe body when replacement columns removed the last grouping
+capability. The counterpart with intentional parent-document focus already passed.
+
+The check now uses the region's owning document constructor. Both regressions pass:
+owned focus returns to the surviving grid, while outside focus remains untouched.
+The cases also run against the installed package. This is an AstryxTable integration
+defect, not an additional Astryx Core patch; no shortcut or overlay behavior changes.
