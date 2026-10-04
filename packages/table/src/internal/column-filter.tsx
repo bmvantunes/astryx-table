@@ -1,4 +1,12 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  memo,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import * as stylex from "@stylexjs/stylex";
 import { ClientSetFilter } from "./client-set-filter";
 import { isAstryxTableSetFilterExpression } from "./client-facet";
@@ -19,6 +27,8 @@ import {
   normalizeAstryxTableFilterText,
   ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH,
   ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_OPERANDS,
+  ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_NODES,
+  ASTRYX_TABLE_CLIENT_FILTER_MAX_DEPTH,
 } from "./grid-query";
 
 const styles = stylex.create({
@@ -247,6 +257,125 @@ function filterCandidate(
   };
 }
 
+type Expression =
+  | (Draft & { readonly kind: "leaf" })
+  | { readonly kind: "AND"; readonly conditions: readonly Expression[] }
+  | { readonly kind: "OR"; readonly conditions: readonly Expression[] }
+  | { readonly kind: "NOT"; readonly condition: Expression }
+  | { readonly kind: "opaque"; readonly filter: Readonly<Record<string, unknown>> };
+type Path = readonly (number | "not")[];
+type Candidate = ReturnType<typeof filterCandidate> & { readonly invalidLeaf?: Expression };
+const candidateCaches = new WeakMap<CompiledColumn, WeakMap<Expression, Candidate>>();
+function restoreExpression(column: CompiledColumn, value: unknown): Expression {
+  if (value !== null && typeof value === "object") {
+    const node = value as Readonly<Record<string, unknown>>;
+    if ((node["type"] === "AND" || node["type"] === "OR") && Array.isArray(node["conditions"]))
+      return {
+        kind: node["type"],
+        conditions: node["conditions"].map((child) => restoreExpression(column, child)),
+      };
+    if (node["type"] === "NOT")
+      return { kind: "NOT", condition: restoreExpression(column, node["condition"]) };
+    const leaf = restoredDraft(column, value);
+    return leaf === undefined ? { kind: "opaque", filter: node } : { ...leaf, kind: "leaf" };
+  }
+  return { ...restoredDraft(column, undefined)!, kind: "leaf" };
+}
+function expressionCandidate(column: CompiledColumn, draft: Expression): Candidate {
+  let cache = candidateCaches.get(column);
+  if (cache === undefined) {
+    cache = new WeakMap();
+    candidateCaches.set(column, cache);
+  }
+  const cached = cache.get(draft);
+  if (cached !== undefined) return cached;
+  let result: Candidate;
+  if (draft.kind === "leaf") {
+    const leaf = filterCandidate(column, draft);
+    result = leaf.filter === undefined ? { ...leaf, invalidLeaf: draft } : leaf;
+  } else if (draft.kind === "opaque") result = { filter: draft.filter };
+  else if (draft.kind === "NOT") {
+    const child = expressionCandidate(column, draft.condition);
+    result =
+      child.filter === undefined ? child : { filter: { type: "NOT", condition: child.filter } };
+  } else {
+    const conditions: Readonly<Record<string, unknown>>[] = [];
+    for (const child of draft.conditions) {
+      const candidate = expressionCandidate(column, child);
+      if (candidate.filter === undefined) return candidate;
+      conditions.push(candidate.filter);
+    }
+    result = { filter: { type: draft.kind, conditions } };
+  }
+  if (result.filter !== undefined) cache.set(draft, result);
+  return result;
+}
+function replaceExpression(
+  draft: Expression,
+  path: Path,
+  transform: (node: Expression) => Expression,
+): Expression {
+  const [first, ...rest] = path;
+  if (first === undefined) return transform(draft);
+  if (first === "not" && draft.kind === "NOT")
+    return { ...draft, condition: replaceExpression(draft.condition, rest, transform) };
+  if (typeof first === "number" && (draft.kind === "AND" || draft.kind === "OR"))
+    return {
+      ...draft,
+      conditions: draft.conditions.map((child, index) =>
+        index === first ? replaceExpression(child, rest, transform) : child,
+      ),
+    };
+  return draft;
+}
+
+function expressionAt(draft: Expression, path: Path): Expression | undefined {
+  let current = draft;
+  for (const segment of path) {
+    if (segment === "not" && current.kind === "NOT") current = current.condition;
+    else if (typeof segment === "number" && (current.kind === "AND" || current.kind === "OR")) {
+      const child = current.conditions[segment];
+      if (child === undefined) return undefined;
+      current = child;
+    } else return undefined;
+  }
+  return current;
+}
+
+type Composition = {
+  readonly column: CompiledColumn;
+  readonly version: number;
+  readonly epoch: number;
+  readonly revision: number;
+  readonly path: Path;
+  readonly index: number;
+  readonly before: Draft["operands"][number];
+  readonly input: HTMLInputElement;
+};
+type EditorContext = {
+  readonly column: CompiledColumn;
+  readonly error: Candidate;
+  readonly composition: { current: Composition | undefined };
+  readonly revision: { current: number };
+  readonly version: number;
+  readonly epoch: number;
+  readonly cancel: () => void;
+  readonly navigate: (path: Path) => void;
+  readonly compositionIsCurrent: (input?: HTMLInputElement) => boolean;
+  readonly canAddOperand: () => boolean;
+  readonly canAddCondition: (path: Path) => boolean;
+  readonly change: (
+    path: Path,
+    transform: (node: Expression) => Expression,
+    immediate: boolean,
+    localOnly?: boolean,
+    command?: boolean,
+    viewPath?: Path,
+  ) => void;
+};
+type EditorActions = Omit<EditorContext, "version" | "epoch" | "error"> & {
+  readonly getIdentity: () => Pick<Composition, "version" | "epoch">;
+};
 const ScalarFilterEditor = memo(function ScalarFilterEditor({
   column,
   runtime,
@@ -270,54 +399,48 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
   );
   const version = useSyncExternalStore(subscribe, getVersion, getVersion);
   const epoch = useSyncExternalStore(subscribeEpoch, getEpoch, getEpoch);
+  const getCommitted = useCallback(
+    () => runtime.getColumnFilterSnapshot(column.columnId),
+    [runtime, column.columnId],
+  );
+  const committed = useSyncExternalStore(subscribe, getCommitted, getCommitted);
+  const baseline = useMemo(() => restoreExpression(column, committed), [column, committed]);
   const [local, setLocal] = useState(() => ({
     column,
     version,
     epoch,
-    draft: restoredDraft(column, runtime.getColumnFilterSnapshot(column.columnId)),
-    error: undefined as string | undefined,
-    invalidIndex: undefined as number | undefined,
+    draft: baseline,
+    viewPath: ROOT_PATH,
+    error: {} as Candidate,
   }));
   const current =
     local.column === column && local.version === version && local.epoch === epoch
       ? local
-      : {
-          column,
-          version,
-          epoch,
-          draft: restoredDraft(column, runtime.getColumnFilterSnapshot(column.columnId)),
-          error: undefined,
-          invalidIndex: undefined,
-        };
-  const [windowStart, setWindowStart] = useState(0);
+      : { column, version, epoch, draft: baseline, viewPath: ROOT_PATH, error: {} as Candidate };
   const conditionsHost = useRef<HTMLDivElement | null>(null);
   const focusConditions = useRef(false);
-  const inputNodes = useRef(new Map<number, HTMLInputElement>());
-  const focusRequest = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     if (focusConditions.current) {
       focusConditions.current = false;
-      conditionsHost.current
-        ?.querySelector<HTMLElement>('input, [role="combobox"]')
-        ?.focus({ preventScroll: true });
+      (
+        conditionsHost.current?.querySelector<HTMLElement>("input") ??
+        conditionsHost.current?.querySelector<HTMLElement>('[role="combobox"]')
+      )?.focus({ preventScroll: true });
     }
-    const index = focusRequest.current;
-    focusRequest.current = undefined;
-    if (index !== undefined) inputNodes.current.get(index)?.focus();
   }, [local, column, version, epoch]);
   const latestColumn = useRef(column);
   useLayoutEffect(() => {
     latestColumn.current = column;
   }, [column]);
   const publish = useCallback(
-    (candidate: { column: CompiledColumn; version: number; epoch: number; draft: Draft }) => {
+    (candidate: { column: CompiledColumn; version: number; epoch: number; draft: Expression }) => {
       if (
         candidate.column !== latestColumn.current ||
         candidate.version !== getVersion() ||
         candidate.epoch !== getEpoch()
       )
         return;
-      const result = filterCandidate(column, candidate.draft);
+      const result = expressionCandidate(column, candidate.draft);
       if (result.filter === undefined) return;
       let accepted = false;
       try {
@@ -329,33 +452,172 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
       } catch {
         /* Admission preserves the last coherent runtime state. */
       }
-      if (!accepted)
-        setLocal({
+      if (accepted) {
+        const acceptedVersion = getVersion();
+        const acceptedEpoch = getEpoch();
+        setLocal((previous) => ({
           column,
-          version: getVersion(),
-          epoch: getEpoch(),
-          draft: restoredDraft(column, runtime.getColumnFilterSnapshot(column.columnId)),
-          error: "This filter could not be applied.",
-          invalidIndex: undefined,
-        });
+          version: acceptedVersion,
+          epoch: acceptedEpoch,
+          draft: candidate.draft,
+          viewPath: previous.viewPath,
+          error: {},
+        }));
+      } else {
+        const rejectedVersion = getVersion();
+        const rejectedEpoch = getEpoch();
+        const unchanged =
+          candidate.column === latestColumn.current &&
+          candidate.version === rejectedVersion &&
+          candidate.epoch === rejectedEpoch;
+        setLocal((previous) => ({
+          column,
+          version: rejectedVersion,
+          epoch: rejectedEpoch,
+          draft: unchanged
+            ? candidate.draft
+            : restoreExpression(column, runtime.getColumnFilterSnapshot(column.columnId)),
+          viewPath: unchanged ? previous.viewPath : ROOT_PATH,
+          error: { error: "This filter could not be applied." },
+        }));
+      }
     },
     [column, runtime, getVersion, getEpoch],
   );
-  const shapeRevision = useRef(0);
-  const composition = useRef<
-    | {
-        column: CompiledColumn;
-        version: number;
-        epoch: number;
-        shapeRevision: number;
-        index: number;
-        input: HTMLInputElement;
-        before: Draft["operands"][number];
-      }
-    | undefined
-  >(undefined);
   const debouncer = useDebouncer(publish, { wait: 150 });
   useLayoutEffect(() => () => debouncer.cancel(), [debouncer, column, version, epoch]);
+  const revision = useRef(0);
+  const composition = useRef<Composition | undefined>(undefined);
+  const compositionIsCurrent = (input?: HTMLInputElement) => {
+    const session = composition.current;
+    return (
+      session === undefined ||
+      (input !== undefined && session.input !== input) ||
+      (session.column === column &&
+        session.version === getVersion() &&
+        session.epoch === getEpoch() &&
+        session.revision === revision.current)
+    );
+  };
+  const context: EditorContext = {
+    column,
+    version,
+    epoch,
+    revision,
+    composition,
+    compositionIsCurrent,
+    error: current.error,
+    cancel: () => debouncer.cancel(),
+    navigate: (path) => {
+      focusConditions.current = true;
+      if (composition.current !== undefined && compositionIsCurrent())
+        context.change(ROOT_PATH, (node) => node, false, true, true, path);
+      else setLocal({ ...current, viewPath: path });
+    },
+    canAddOperand: () => {
+      const committed = runtime.getColumnFilterSnapshot(column.columnId);
+      const oldCount = committed === undefined ? 0 : expressionOperands(baseline);
+      return (
+        runtime.getFilterComplexitySnapshot().operands -
+          oldCount +
+          expressionOperands(current.draft) <
+        ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_OPERANDS
+      );
+    },
+    canAddCondition: (path) => {
+      const total = runtime.getFilterComplexitySnapshot();
+      const oldNodes = committed === undefined ? 0 : expressionShape(baseline).nodes;
+      const oldOperands = committed === undefined ? 0 : expressionOperands(baseline);
+      return (
+        path.length < ASTRYX_TABLE_CLIENT_FILTER_MAX_DEPTH &&
+        total.nodes - oldNodes + expressionShape(current.draft).nodes <
+          ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_NODES &&
+        total.operands - oldOperands + expressionOperands(current.draft) <
+          ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_OPERANDS
+      );
+    },
+    change: (path, transform, immediate, localOnly = false, command = false, viewPath) => {
+      let next = current.draft;
+      const session = composition.current;
+      if (command) {
+        if (session !== undefined && compositionIsCurrent())
+          next = replaceExpression(next, session.path, (node) =>
+            node.kind === "leaf"
+              ? {
+                  ...node,
+                  operands: node.operands.map((operand, index) =>
+                    index === session.index ? session.before : operand,
+                  ),
+                }
+              : node,
+          );
+        revision.current++;
+      }
+      const proposed = replaceExpression(next, path, transform);
+      const total = runtime.getFilterComplexitySnapshot();
+      const previousShape =
+        committed === undefined ? { nodes: 0, height: 0 } : expressionShape(baseline);
+      const proposedShape = expressionShape(proposed);
+      if (
+        proposedShape.height > ASTRYX_TABLE_CLIENT_FILTER_MAX_DEPTH ||
+        total.nodes - previousShape.nodes + proposedShape.nodes >
+          ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_NODES ||
+        total.operands -
+          (committed === undefined ? 0 : expressionOperands(baseline)) +
+          expressionOperands(proposed) >
+          ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_OPERANDS
+      ) {
+        debouncer.cancel();
+        setLocal({
+          column,
+          version,
+          epoch,
+          draft: next,
+          viewPath: current.viewPath,
+          error: { error: "This filter has reached its complexity limit." },
+        });
+        return;
+      }
+      next = proposed;
+      const candidate = expressionCandidate(column, next);
+      setLocal({
+        column,
+        version,
+        epoch,
+        draft: next,
+        viewPath: viewPath ?? current.viewPath,
+        error: candidate,
+      });
+      debouncer.cancel();
+      if (!localOnly && candidate.filter !== undefined) {
+        const pending = { column, version, epoch, draft: next };
+        if (immediate) publish(pending);
+        else debouncer.maybeExecute(pending);
+      }
+    },
+  };
+  const latestActions = useRef(context);
+  useLayoutEffect(() => {
+    latestActions.current = context;
+  }, [context]);
+  const actions = useMemo<EditorActions>(
+    () => ({
+      column,
+      composition,
+      revision,
+      getIdentity: () => ({
+        version: latestActions.current.version,
+        epoch: latestActions.current.epoch,
+      }),
+      navigate: (path) => latestActions.current.navigate(path),
+      cancel: () => latestActions.current.cancel(),
+      compositionIsCurrent: (input) => latestActions.current.compositionIsCurrent(input),
+      canAddOperand: () => latestActions.current.canAddOperand(),
+      canAddCondition: (path) => latestActions.current.canAddCondition(path),
+      change: (...args) => latestActions.current.change(...args),
+    }),
+    [column],
+  );
   if (
     column.semantics.filterFamily !== "text" &&
     column.valueType !== "boolean" &&
@@ -386,86 +648,360 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
         />
       </>
     );
-  if (current.draft === undefined)
-    return <p>This expression is preserved. Its editor is not available yet.</p>;
-  const update = (draft: Draft, immediate: boolean, localOnly = false) => {
-    const candidate = filterCandidate(column, draft);
-    setLocal({
-      column,
-      version,
-      epoch,
-      draft,
-      error: candidate.error,
-      invalidIndex: candidate.invalidIndex,
-    });
-    debouncer.cancel();
-    if (!localOnly && candidate.filter !== undefined) {
-      const next = { column, version, epoch, draft };
-      if (immediate) publish(next);
-      else debouncer.maybeExecute(next);
-    }
+  const viewed = expressionAt(current.draft, current.viewPath);
+  const viewPath = viewed === undefined ? ROOT_PATH : current.viewPath;
+  return (
+    <div ref={conditionsHost} {...stylex.props(styles.controls)}>
+      {viewPath.length > 0 ? (
+        <Button
+          label="Back to full expression"
+          variant="ghost"
+          size="sm"
+          onClick={() => actions.navigate(ROOT_PATH)}
+        />
+      ) : null}
+      <ExpressionControls
+        key={JSON.stringify(viewPath)}
+        context={context}
+        actions={actions}
+        draft={viewed ?? current.draft}
+        path={viewPath}
+      />
+      {current.error.error !== undefined ? (
+        <p role="status" aria-label="Filter draft status">
+          {current.error.error}
+        </p>
+      ) : null}
+    </div>
+  );
+});
+const operandCounts = new WeakMap<Expression, number>();
+function expressionOperands(draft: Expression): number {
+  const cached = operandCounts.get(draft);
+  if (cached !== undefined) return cached;
+  let count: number;
+  if (draft.kind === "NOT") count = expressionOperands(draft.condition);
+  else if (draft.kind === "AND" || draft.kind === "OR")
+    count = draft.conditions.reduce((total, child) => total + expressionOperands(child), 0);
+  else if (draft.kind === "leaf")
+    count =
+      draft.operator === "blank" || draft.operator === "notBlank"
+        ? 0
+        : draft.operator === "in"
+          ? draft.operands.length
+          : 1;
+  else
+    count =
+      draft.filter["type"] === "blank" ||
+      draft.filter["type"] === "notBlank" ||
+      draft.filter["type"] === "matchNone"
+        ? 0
+        : Array.isArray(draft.filter["filter"])
+          ? draft.filter["filter"].length
+          : Number(draft.filter["filter"] !== undefined) +
+            Number(draft.filter["filterTo"] !== undefined);
+  operandCounts.set(draft, count);
+  return count;
+}
+const ROOT_PATH: Path = [];
+const expressionModes = [
+  { value: "leaf", label: "Single condition" },
+  { value: "AND", label: "All conditions (AND)" },
+  { value: "OR", label: "Any condition (OR)" },
+  { value: "NOT", label: "Not (NOT)" },
+];
+function changeExpressionMode(column: CompiledColumn, draft: Expression, mode: string): Expression {
+  if (mode === draft.kind) return draft;
+  if (mode === "leaf") {
+    if (draft.kind === "NOT") return changeExpressionMode(column, draft.condition, "leaf");
+    if (draft.kind === "AND" || draft.kind === "OR")
+      return changeExpressionMode(column, draft.conditions[0]!, "leaf");
+    return restoreExpression(column, undefined);
+  }
+  if (mode === "NOT") return { kind: "NOT", condition: draft };
+  if (mode === "AND" || mode === "OR")
+    return draft.kind === "AND" || draft.kind === "OR"
+      ? { ...draft, kind: mode }
+      : { kind: mode, conditions: [draft, restoreExpression(column, undefined)] };
+  return draft;
+}
+const shapeCounts = new WeakMap<Expression, { nodes: number; height: number }>();
+function expressionShape(draft: Expression): { nodes: number; height: number } {
+  const cached = shapeCounts.get(draft);
+  if (cached !== undefined) return cached;
+  const children =
+    draft.kind === "NOT"
+      ? [draft.condition]
+      : draft.kind === "AND" || draft.kind === "OR"
+        ? draft.conditions
+        : [];
+  let nodes = 1;
+  let height = 0;
+  for (const child of children) {
+    const shape = expressionShape(child);
+    nodes += shape.nodes;
+    height = Math.max(height, shape.height + 1);
+  }
+  const result = { nodes, height };
+  shapeCounts.set(draft, result);
+  return result;
+}
+function expressionLabel(path: Path) {
+  return path.length === 0
+    ? ""
+    : ` (${path.map((segment) => (segment === "not" ? "not" : `condition ${String(segment + 1)}`)).join(" / ")})`;
+}
+function ExpressionControls({
+  context,
+  actions,
+  draft,
+  path,
+  budget = 256,
+}: {
+  readonly context: EditorContext;
+  readonly actions: EditorActions;
+  readonly draft: Expression;
+  readonly path: Path;
+  readonly budget?: number;
+}) {
+  const column = context.column;
+  const [windowStart, setWindowStart] = useState(0);
+  const hosts = useRef(new Map<number, HTMLDivElement>());
+  const removeButtons = useRef(new Map<number, HTMLButtonElement>());
+  const focusRequest = useRef<{ index: number; input: boolean } | undefined>(undefined);
+  const compound = draft.kind === "AND" || draft.kind === "OR";
+  const length = compound ? draft.conditions.length : 0;
+  const visibleLimit = Math.min(64, Math.max(0, budget - 1));
+  const maxStart = Math.max(0, length - visibleLimit);
+  const start = Math.min(windowStart, maxStart);
+  const end = Math.min(length, start + visibleLimit);
+  const childBudget = Math.floor((budget - 1) / Math.max(1, end - start));
+  const suffix = expressionLabel(path);
+  const childPaths = useMemo(
+    () => Array.from({ length: end - start }, (_, offset) => [...path, start + offset]),
+    [path, start, end],
+  );
+  const notPath = useMemo(() => [...path, "not"] as const, [path]);
+  useLayoutEffect(() => {
+    const request = focusRequest.current;
+    focusRequest.current = undefined;
+    if (request === undefined) return;
+    const target = request.input
+      ? hosts.current.get(request.index)?.querySelector<HTMLElement>('input, [role="combobox"]')
+      : (removeButtons.current.get(request.index) ??
+        hosts.current.get(request.index)?.querySelector<HTMLElement>('input, [role="combobox"]'));
+    target?.focus({ preventScroll: true });
+  }, [draft, start]);
+  const moveWindow = (next: number) => {
+    if (actions.composition.current !== undefined && actions.compositionIsCurrent())
+      actions.change(path, (node) => node, false, true, true);
+    setWindowStart(next);
   };
-  const draft = current.draft;
-  const invalidIndex = current.invalidIndex;
+  return (
+    <div {...stylex.props(styles.controls)}>
+      {draft.kind === "leaf" ? (
+        <LeafControls
+          context={actions}
+          draft={draft}
+          path={path}
+          operandWindow={Math.max(1, Math.min(VISIBLE_OPERANDS, budget))}
+          candidateError={context.error.invalidLeaf === draft ? context.error : undefined}
+          mayAddOperand={context.canAddOperand()}
+        />
+      ) : null}
+      {draft.kind === "opaque" ? (
+        <p>This expression is preserved. Choose Single condition to replace it.</p>
+      ) : null}
+      <Selector
+        key="expression-mode"
+        label={`Filter expression for ${column.headerName}${suffix}`}
+        value={draft.kind === "opaque" ? "" : draft.kind}
+        options={expressionModes}
+        onChange={(mode) =>
+          actions.change(
+            path,
+            (node) => changeExpressionMode(column, node, mode),
+            true,
+            false,
+            true,
+          )
+        }
+      />
+      {draft.kind === "NOT" && budget > 1 ? (
+        <div role="group" aria-label={`Filter negation for ${column.headerName}${suffix}`}>
+          <ExpressionControls
+            context={context}
+            actions={actions}
+            draft={draft.condition}
+            path={notPath}
+            budget={budget - 1}
+          />
+        </div>
+      ) : null}
+      {compound ? (
+        <>
+          {draft.conditions.slice(start, end).map((child, offset) => {
+            const index = start + offset;
+            return (
+              <div
+                key={index}
+                ref={(node) => {
+                  if (node === null) hosts.current.delete(index);
+                  else hosts.current.set(index, node);
+                }}
+                role="group"
+                aria-label={`Filter condition ${String(index + 1)} for ${column.headerName}${suffix}`}
+              >
+                <ExpressionControls
+                  context={context}
+                  actions={actions}
+                  draft={child}
+                  path={childPaths[offset]!}
+                  budget={childBudget}
+                />
+                {length > 1 ? (
+                  <Button
+                    ref={(node) => {
+                      if (node === null) removeButtons.current.delete(index);
+                      else removeButtons.current.set(index, node);
+                    }}
+                    label={`Remove condition ${String(index + 1)} for ${column.headerName}${suffix}`}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      actions.change(
+                        path,
+                        (node) => {
+                          if (node.kind !== "AND" && node.kind !== "OR") return node;
+                          focusRequest.current = {
+                            index: Math.min(index, node.conditions.length - 2),
+                            input: false,
+                          };
+                          return {
+                            ...node,
+                            conditions: node.conditions.filter((_, at) => at !== index),
+                          };
+                        },
+                        true,
+                        false,
+                        true,
+                      )
+                    }
+                  />
+                ) : null}
+              </div>
+            );
+          })}
+          {length > visibleLimit && visibleLimit > 0 ? (
+            <>
+              <span role="status">{`Showing conditions ${String(start + 1)}–${String(end)} of ${String(length)}`}</span>
+              <Button
+                label={`Previous conditions for ${column.headerName}${suffix}`}
+                variant="ghost"
+                size="sm"
+                isDisabled={start === 0}
+                onClick={() => moveWindow(Math.max(0, start - visibleLimit))}
+              />
+              <Button
+                label={`Next conditions for ${column.headerName}${suffix}`}
+                variant="ghost"
+                size="sm"
+                isDisabled={end === length}
+                onClick={() => moveWindow(Math.min(maxStart, start + visibleLimit))}
+              />
+            </>
+          ) : null}
+          <Button
+            label={`Add condition for ${column.headerName}${suffix}`}
+            variant="ghost"
+            size="sm"
+            isDisabled={visibleLimit === 0 || !context.canAddCondition(path)}
+            onClick={() => {
+              if (visibleLimit === 0 || !actions.canAddCondition(path)) return;
+              actions.change(
+                path,
+                (node) => {
+                  if (node.kind !== "AND" && node.kind !== "OR") return node;
+                  focusRequest.current = { index: node.conditions.length, input: true };
+                  setWindowStart(Math.max(0, node.conditions.length + 1 - visibleLimit));
+                  return {
+                    ...node,
+                    conditions: [...node.conditions, restoreExpression(column, undefined)],
+                  };
+                },
+                true,
+                false,
+                true,
+              );
+            }}
+          />
+        </>
+      ) : null}
+      {(compound || draft.kind === "NOT") && budget <= 1 ? (
+        <Button
+          label={`Open conditions for ${column.headerName}${suffix}`}
+          variant="ghost"
+          size="sm"
+          onClick={() => actions.navigate(path)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+const LeafControls = memo(function LeafControls({
+  context,
+  draft,
+  path,
+  operandWindow,
+  candidateError,
+  mayAddOperand,
+}: {
+  readonly context: EditorActions;
+  readonly draft: Extract<Expression, { kind: "leaf" }>;
+  readonly path: Path;
+  readonly operandWindow: number;
+  readonly candidateError: Candidate | undefined;
+  readonly mayAddOperand: boolean;
+}) {
+  const { column, composition, compositionIsCurrent, canAddOperand } = context;
+  const error = candidateError?.error;
+  const invalidIndex = candidateError?.invalidIndex;
+  const [windowStart, setWindowStart] = useState(0);
+  const inputNodes = useRef(new Map<number, HTMLInputElement>());
+  const focusRequest = useRef<number | undefined>(undefined);
+  useLayoutEffect(() => {
+    const index = focusRequest.current;
+    focusRequest.current = undefined;
+    if (index !== undefined) inputNodes.current.get(index)?.focus({ preventScroll: true });
+  }, [draft]);
+  const update = (next: Draft, immediate: boolean, localOnly = false) =>
+    context.change(path, () => ({ ...next, kind: "leaf" }), immediate, localOnly);
+  const command = (transform: (leaf: Draft) => Draft) =>
+    context.change(
+      path,
+      (node) => (node.kind === "leaf" ? { ...transform(node), kind: "leaf" } : node),
+      true,
+      false,
+      true,
+    );
   const changeOperand = (index: number, text: string): Draft => ({
     ...draft,
     operands: draft.operands.map((operand, at) =>
       at === index ? { text, authored: true } : operand,
     ),
   });
-  const maxWindowStart = Math.max(0, draft.operands.length - VISIBLE_OPERANDS);
+  const maxWindowStart = Math.max(0, draft.operands.length - operandWindow);
   const start = Math.min(windowStart, maxWindowStart);
-  const canAddOperand = () => {
-    const raw = runtime.getColumnFilterSnapshot(column.columnId);
-    const expression = raw as Readonly<Record<string, unknown>> | undefined;
-    const filter = expression?.["filter"];
-    const committedCount =
-      expression === undefined ||
-      expression["type"] === "blank" ||
-      expression["type"] === "notBlank"
-        ? 0
-        : expression["type"] === "in" && Array.isArray(filter)
-          ? filter.length
-          : 1;
-    return (
-      runtime.getFilterComplexitySnapshot().operands - committedCount + draft.operands.length <
-      ASTRYX_TABLE_CLIENT_FILTER_MAX_TOTAL_OPERANDS
-    );
-  };
-  const compositionIsCurrent = (input?: HTMLInputElement) => {
-    const session = composition.current;
-    return (
-      session === undefined ||
-      (input !== undefined && session.input !== input) ||
-      (session.column === column &&
-        session.version === getVersion() &&
-        session.epoch === getEpoch() &&
-        session.shapeRevision === shapeRevision.current)
-    );
-  };
-  const commandDraft = (): Draft => {
-    const session = composition.current;
-    const currentSession = compositionIsCurrent();
-    shapeRevision.current++;
-    // A discrete command cancels composition before changing the complete expression.
-    return session !== undefined && currentSession
-      ? {
-          ...draft,
-          operands: draft.operands.map((operand, index) =>
-            index === session.index ? session.before : operand,
-          ),
-        }
-      : draft;
-  };
   return (
-    <div ref={conditionsHost} {...stylex.props(styles.controls)}>
+    <div {...stylex.props(styles.controls)}>
       {draft.operator === "blank" || draft.operator === "notBlank" ? null : column.selectOptions !==
         undefined ? (
         <SelectFilterOperand
           column={column}
           selected={draft.selectIndex}
-          error={current.error}
-          onChange={(selectIndex) => update({ ...draft, selectIndex }, true)}
+          error={error}
+          onChange={(selectIndex) => command((leaf) => ({ ...leaf, selectIndex }))}
         />
       ) : column.valueType === "boolean" ? (
         <Selector
@@ -473,16 +1009,15 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
           placeholder="Choose a value"
           value={draft.operands[0]?.authored ? draft.operands[0].text : ""}
           options={booleanOptions}
-          status={
-            current.error === undefined ? undefined : { type: "error", message: current.error }
-          }
+          status={error === undefined ? undefined : { type: "error", message: error }}
           onChange={(value) => {
-            if (value === "true" || value === "false") update(changeOperand(0, value), true);
+            if (value === "true" || value === "false")
+              command((leaf) => ({ ...leaf, operands: [{ text: value, authored: true }] }));
           }}
         />
       ) : (
         (draft.operator === "in"
-          ? draft.operands.slice(start, start + VISIBLE_OPERANDS)
+          ? draft.operands.slice(start, start + operandWindow)
           : draft.operands.slice(0, 1)
         ).map((operand, offset) => {
           const index = draft.operator === "in" ? start + offset : 0;
@@ -497,21 +1032,21 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
                 value={operand.text}
                 maxLength={ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH}
                 status={
-                  current.error === undefined || invalidIndex !== index
+                  error === undefined || invalidIndex !== index
                     ? undefined
-                    : { type: "error", message: current.error }
+                    : { type: "error", message: error }
                 }
                 onCompositionStart={(event) => {
                   composition.current = {
                     column,
-                    version,
-                    epoch,
-                    shapeRevision: shapeRevision.current,
+                    ...context.getIdentity(),
+                    revision: context.revision.current,
+                    path,
                     index,
                     before: operand,
                     input: event.currentTarget as HTMLInputElement,
                   };
-                  debouncer.cancel();
+                  context.cancel();
                 }}
                 onCompositionEnd={(event) => {
                   const input = event.currentTarget as HTMLInputElement;
@@ -540,10 +1075,11 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
                   size="sm"
                   variant="ghost"
                   onClick={() => {
-                    const next = commandDraft();
-                    const operands = next.operands.filter((_, at) => at !== index);
-                    focusRequest.current = Math.min(index, operands.length - 1);
-                    update({ ...next, operands }, true);
+                    command((leaf) => {
+                      const operands = leaf.operands.filter((_, at) => at !== index);
+                      focusRequest.current = Math.min(index, operands.length - 1);
+                      return { ...leaf, operands };
+                    });
                   }}
                 />
               ) : null}
@@ -551,9 +1087,9 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
           );
         })
       )}
-      {draft.operator === "in" && draft.operands.length > VISIBLE_OPERANDS ? (
+      {draft.operator === "in" && draft.operands.length > operandWindow ? (
         <>
-          <span role="status">{`Showing values ${String(start + 1)}–${String(Math.min(start + VISIBLE_OPERANDS, draft.operands.length))} of ${String(draft.operands.length)}`}</span>
+          <span role="status">{`Showing values ${String(start + 1)}–${String(Math.min(start + operandWindow, draft.operands.length))} of ${String(draft.operands.length)}`}</span>
           <Button
             label="Previous filter values"
             size="sm"
@@ -561,8 +1097,8 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
             isDisabled={start === 0}
             onClick={() => {
               if (composition.current !== undefined && compositionIsCurrent())
-                update(commandDraft(), false, true);
-              setWindowStart(Math.max(0, start - VISIBLE_OPERANDS));
+                context.change(path, (node) => node, false, true, true);
+              setWindowStart(Math.max(0, start - operandWindow));
             }}
           />
           <Button
@@ -572,8 +1108,8 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
             isDisabled={start === maxWindowStart}
             onClick={() => {
               if (composition.current !== undefined && compositionIsCurrent())
-                update(commandDraft(), false, true);
-              setWindowStart(Math.min(maxWindowStart, start + VISIBLE_OPERANDS));
+                context.change(path, (node) => node, false, true, true);
+              setWindowStart(Math.min(maxWindowStart, start + operandWindow));
             }}
           />
         </>
@@ -581,23 +1117,24 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
       {draft.operator === "in" ? (
         <Button
           label="Add filter value"
-          isDisabled={!canAddOperand()}
+          isDisabled={!mayAddOperand}
           size="sm"
           variant="ghost"
           onClick={() => {
             if (!canAddOperand()) return;
-            const next = commandDraft();
-            focusRequest.current = next.operands.length;
-            setWindowStart(Math.max(0, draft.operands.length - VISIBLE_OPERANDS + 1));
-            update({ ...next, operands: [...next.operands, { text: "", authored: false }] }, true);
+            command((leaf) => {
+              focusRequest.current = leaf.operands.length;
+              setWindowStart(Math.max(0, leaf.operands.length - operandWindow + 1));
+              return { ...leaf, operands: [...leaf.operands, { text: "", authored: false }] };
+            });
           }}
         />
       ) : null}
-      {current.error !== undefined &&
+      {error !== undefined &&
       (invalidIndex === undefined ||
         invalidIndex < start ||
-        invalidIndex >= start + VISIBLE_OPERANDS) ? (
-        <p role="status">{current.error}</p>
+        invalidIndex >= start + operandWindow) ? (
+        <p role="status">{error}</p>
       ) : null}
       <Selector
         label="Operator"
@@ -606,7 +1143,7 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
         onChange={(value) => {
           const operator = filterOperators(column).find((option) => option.value === value)?.value;
           if (operator !== undefined) {
-            update({ ...commandDraft(), operator }, true);
+            command((leaf) => ({ ...leaf, operator }));
           }
         }}
       />
@@ -615,12 +1152,12 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
           <CheckboxInput
             label="Case sensitive"
             value={draft.caseSensitive}
-            onChange={(caseSensitive) => update({ ...commandDraft(), caseSensitive }, true)}
+            onChange={(caseSensitive) => command((leaf) => ({ ...leaf, caseSensitive }))}
           />
           <CheckboxInput
             label="Accent sensitive"
             value={draft.accentSensitive}
-            onChange={(accentSensitive) => update({ ...commandDraft(), accentSensitive }, true)}
+            onChange={(accentSensitive) => command((leaf) => ({ ...leaf, accentSensitive }))}
           />
         </>
       ) : null}

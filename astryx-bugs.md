@@ -422,3 +422,41 @@ native arrow-key dismissal before recording removes the unrelated interaction.
 The focused production scenario then passes with the original zero-unowned-commit
 assertion and 8.33 ms budget. No dependency patch, disabled hint, arbitrary sleep
 or relaxed accounting was introduced. This is benchmark setup, not an Astryx bug.
+
+### Compound filter integration
+
+AND/OR/NOT authoring uses native Selector, TextInput, CheckboxInput and Button
+controls over one atomic column draft. No new Astryx defect or Core patch was
+required. The integration preserves unchanged leaf references and stable event
+callbacks to avoid redundant native-control renders. Temporary Browser tracing
+also identified expensive repeated accessible-name enumeration in mounted-input
+count assertions; those bounds now measure native inputs within the role-located
+dialog, while user interactions retain role-based locators. The original limits,
+assertions and test timeouts remain unchanged.
+
+Local review found that the initial shared render budget hid deep descendants
+without a way to edit them. A public regression now reaches the hidden operand
+through a bounded subtree view, edits it atomically and returns to the full tree
+without changing sibling expressions. This was an integration defect, not an
+additional Astryx Core defect.
+
+Fresh integration review also found that aggregate filter admission rejection
+discarded an authored compound draft. A public regression crosses the runtime's
+shared text budget while keeping each operand valid. The editor now retains the
+complete draft and subtree position with an accessible error when its column
+version and command epoch are unchanged; changed authority restores the current
+snapshot. Runtime admission remains the sole authority for aggregate budgets.
+
+### Nested multi-value filters exceeded the mounted editor budget
+
+CodeRabbit identified that compound conditions shared a render budget but each
+`in` leaf still mounted its independent 64-input window. A public regression with
+four groups of four leaves reproduced 1,024 mounted text inputs, exceeding the
+256-input bound. This is an AstryxTable integration defect, not an Astryx Core bug.
+
+Leaf operand windows now use their allocated share of the same budget. Paging,
+status text, add/remove focus and off-window errors use that capacity consistently.
+The regression checks the bound across windows and additions, reaches the final
+operand, and verifies that persistence preserves every operand and sibling leaf.
+The corrected-draft regression also waits for the rendered row count before
+checking persistence, avoiding an assertion racing React's scheduler.

@@ -341,7 +341,7 @@ test("opening an existing compound expression preserves it without a lossy draft
   await expect
     .element(page.getByRole("dialog", { name: "Filter Name", exact: true }))
     .toBeVisible();
-  expect(page.getByRole("textbox").all()).toHaveLength(0);
+  expect(page.getByRole("textbox").all()).toHaveLength(2);
   await userEvent.keyboard("{Escape}");
   expect(persisted).toHaveLength(0);
   expect(page.getByRole("gridcell").all()).toHaveLength(2);

@@ -323,6 +323,7 @@ test.for([
   "open-set-filter",
   "open-active-filters",
   "quick-filter",
+  "open-compound-filter",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
@@ -515,33 +516,47 @@ test.for([
           initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
           quickFilterFields={variant === "quick-filter" ? ["symbol"] : undefined}
           initialFilters={
-            variant === "open-active-filters"
-              ? Array.from({ length: 70 }, (_, index) => ({
-                  columnId: `COL_ID_C${index + 1}` as `COL_ID_C${Uppercase<`${number}`>}`,
-                  type: "contains" as const,
-                  filter: "SYMBOL",
-                }))
-              : variant === "open-boolean-filter"
-                ? [{ columnId: "COL_ID_BOOLEAN", type: "equals", filter: true }]
-                : variant === "open-list-filter"
-                  ? [
-                      {
-                        columnId: "COL_ID_FILTER",
-                        type: "in",
-                        filter: [
-                          "SYMBOL-0",
-                          ...Array.from(
-                            { length: 499 },
-                            (_, index) => `SYMBOL-${String(index + 1)}`,
-                          ),
-                          ...Array.from(
-                            { length: LIVE_PUBLICATION_SAMPLE_COUNT },
-                            (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
-                          ),
-                        ],
-                      },
-                    ]
-                  : undefined
+            variant === "open-compound-filter"
+              ? [
+                  {
+                    type: "OR",
+                    conditions: [
+                      { columnId: "COL_ID_FILTER", type: "contains", filter: "SYMBOL" },
+                      ...Array.from({ length: 69 }, (_, index) => ({
+                        columnId: "COL_ID_FILTER" as const,
+                        type: "equals" as const,
+                        filter: `unused-${String(index)}`,
+                      })),
+                    ],
+                  },
+                ]
+              : variant === "open-active-filters"
+                ? Array.from({ length: 70 }, (_, index) => ({
+                    columnId: `COL_ID_C${index + 1}` as `COL_ID_C${Uppercase<`${number}`>}`,
+                    type: "contains" as const,
+                    filter: "SYMBOL",
+                  }))
+                : variant === "open-boolean-filter"
+                  ? [{ columnId: "COL_ID_BOOLEAN", type: "equals", filter: true }]
+                  : variant === "open-list-filter"
+                    ? [
+                        {
+                          columnId: "COL_ID_FILTER",
+                          type: "in",
+                          filter: [
+                            "SYMBOL-0",
+                            ...Array.from(
+                              { length: 499 },
+                              (_, index) => `SYMBOL-${String(index + 1)}`,
+                            ),
+                            ...Array.from(
+                              { length: LIVE_PUBLICATION_SAMPLE_COUNT },
+                              (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
+                            ),
+                          ],
+                        },
+                      ]
+                    : undefined
           }
           clientSource={{
             rows: publication.rows,
@@ -610,6 +625,21 @@ test.for([
             .all(),
         ).toHaveLength(64);
         expect(activeFilterRenders).toBeGreaterThan(0);
+      } else if (variant === "open-compound-filter") {
+        await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
+        await expect
+          .element(
+            screen.getByRole("combobox", { name: "Filter expression for Column 1", exact: true }),
+          )
+          .toHaveFocus();
+        expect(
+          screen
+            .getByRole("dialog", { name: "Filter Column 1", exact: true })
+            .element()
+            .querySelectorAll('input[type="text"]'),
+        ).toHaveLength(64);
+        expect(filterRenders).toBeGreaterThan(0);
+        expect(filterTriggers).toBeGreaterThan(0);
       } else if (variant !== "plain") {
         await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
         await expect
@@ -722,21 +752,23 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "quick-filter"
-              ? "client-quick-filter-live-publication-5000x150-20hz"
-              : variant === "open-active-filters"
-                ? "client-open-active-filters-live-publication-5000x150-20hz"
-                : variant === "open-set-filter"
-                  ? "client-open-set-filter-live-publication-5000x150-20hz"
-                  : variant === "open-select-filter"
-                    ? "client-open-select-filter-live-publication-5000x150-20hz"
-                    : variant === "open-boolean-filter"
-                      ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                      : variant === "open-list-filter"
-                        ? "client-open-list-filter-live-publication-5000x150-20hz"
-                        : variant === "open-filter"
-                          ? "client-open-filter-live-publication-5000x150-20hz"
-                          : "client-live-publication-5000x150-20hz",
+            variant === "open-compound-filter"
+              ? "client-open-compound-filter-live-publication-5000x150-20hz"
+              : variant === "quick-filter"
+                ? "client-quick-filter-live-publication-5000x150-20hz"
+                : variant === "open-active-filters"
+                  ? "client-open-active-filters-live-publication-5000x150-20hz"
+                  : variant === "open-set-filter"
+                    ? "client-open-set-filter-live-publication-5000x150-20hz"
+                    : variant === "open-select-filter"
+                      ? "client-open-select-filter-live-publication-5000x150-20hz"
+                      : variant === "open-boolean-filter"
+                        ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                        : variant === "open-list-filter"
+                          ? "client-open-list-filter-live-publication-5000x150-20hz"
+                          : variant === "open-filter"
+                            ? "client-open-filter-live-publication-5000x150-20hz"
+                            : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -762,6 +794,13 @@ test.for([
           .element(screen.getByRole("checkbox", { name: "Select SYMBOL-LIVE-112, 1", exact: true }))
           .toBeChecked();
       }
+      if (variant === "open-compound-filter")
+        expect(
+          screen
+            .getByRole("dialog", { name: "Filter Column 1", exact: true })
+            .element()
+            .querySelectorAll('input[type="text"]'),
+        ).toHaveLength(64);
       expect(quickFilterRenders).toBe(initialQuickFilterRenders);
       if (variant === "quick-filter")
         await expect

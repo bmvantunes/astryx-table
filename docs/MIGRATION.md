@@ -503,3 +503,49 @@ adds a mounted active Quick Filter during the original 5,000 × 150, 20 Hz proto
 including stable render counts. All previous 27 scenarios and thresholds remain.
 Numeric/compound editors, remaining preference controls and Server facets remain
 pending, along with complete validation and review before publication of this slice.
+
+## Compound filter editor slice — issue #6
+
+The native filter editor now restores and edits one complete AND/OR/NOT expression
+per column. Creating a compound adds an unauthored condition; until every operand
+is valid, all changes remain local and the previous committed expression remains
+active. Changing an operator, Boolean/Select choice or expression structure applies
+a valid complete draft immediately; continuous text still uses Pacer's 150 ms delay.
+
+Condition add/remove and expression mode changes cancel an active composition before
+changing the tree. Late input from that session remains invalid until composition
+ends. Closing the overlay cancels its pending publication. The editor observes its
+own column's committed snapshot, version and command epoch, not row publications.
+
+Each compound mounts at most 64 conditions and nested editors share a 256-node
+render budget. Multi-value leaves share that budget too: their operand windows
+shrink to their allocated capacity instead of each mounting 64 inputs.
+Windows retain off-screen condition drafts and canonical values.
+Budget-exhausted branches expose an Open conditions command with a bounded subtree
+view and a Back to full expression control; every retained operand remains reachable.
+Global node/operand and depth limits govern structural commands. Native controls
+own selection and overlay behavior; structural removals/additions transfer focus
+to surviving controls. A global draft status keeps errors discoverable even when
+the invalid condition is outside the current window.
+
+Aggregate admission failures, including the shared text budget, retain the complete
+authored draft and subtree position with an accessible error. A changed column
+version or command epoch restores the authoritative expression instead. The
+runtime owns aggregate admission; the editor does not duplicate its accounting.
+
+Immutable draft and candidate caches retain unchanged branches. Stable event
+callbacks delegate only to the last committed React projection; memoized native
+leaf boundaries avoid re-rendering unrelated operand controls. Accepted local
+publications keep authored draft references; external column changes still restore
+from the authoritative runtime snapshot. This is reviewed integration work, not a
+mechanical import or an upstream Astryx workaround.
+
+Public and installed-package regressions cover restored edits, persistence, atomic
+invalid drafts, Boolean expression modes, IME cancellation, bounded windows,
+structural focus, nested rendering and shared complexity/depth limits. The 29th
+production scenario holds a 70-condition editor open during the unchanged 5,000 ×
+150, 20 Hz workload, including full accounting and stable filter render counts.
+The suite process watchdog is three minutes because the full 29-scenario run
+exceeds two minutes; individual test timeouts and performance thresholds are unchanged.
+All preceding scenarios and thresholds remain mandatory. Numeric editors,
+remaining preference controls, Server facets and issue #6 publication remain open.

@@ -7,6 +7,7 @@ import {
   type AstryxTableClientProps,
   type AstryxTableQuickFilterField,
   type AstryxTableQuickFilterFields,
+  type AstryxTableFilterExpression,
 } from "../src";
 
 type Row = { id: string; name: string; amount: bigint };
@@ -58,6 +59,41 @@ void (<AstryxTableClient {...props} quickFilterFields={["amount"]} />);
 void (<AstryxTableClient {...props} quickFilterFields={["naem"]} />);
 // @ts-expect-error Column Identities are not source fields.
 void (<AstryxTableClient {...props} quickFilterFields={["COL_ID_NAME"]} />);
+const compoundFilter = {
+  type: "AND",
+  conditions: [
+    { columnId: "COL_ID_NAME", type: "startsWith", filter: "A" },
+    {
+      type: "OR",
+      conditions: [
+        { columnId: "COL_ID_NAME", type: "equals", filter: "Ada" },
+        { type: "NOT", condition: { columnId: "COL_ID_NAME", type: "blank" } },
+      ],
+    },
+  ],
+} as const satisfies AstryxTableFilterExpression<Row, typeof columns>;
+void (<AstryxTableClient {...props} initialFilters={[compoundFilter]} />);
+const emptyCompound = {
+  type: "OR",
+  // @ts-expect-error Every compound expression requires a non-empty conditions tuple.
+  conditions: [],
+} satisfies AstryxTableFilterExpression<Row, typeof columns>;
+void emptyCompound;
+const mixedColumnCompound = {
+  type: "AND",
+  // @ts-expect-error Every leaf in a compound belongs to the same Column Identity.
+  conditions: [
+    { columnId: "COL_ID_NAME", type: "equals", filter: "Ada" },
+    { columnId: "COL_ID_AMOUNT", type: "equals", filter: 1n },
+  ],
+} satisfies AstryxTableFilterExpression<Row, typeof columns>;
+void mixedColumnCompound;
+const wrongNestedOperand = {
+  type: "NOT",
+  // @ts-expect-error Nested leaves retain the exact value domain of their column.
+  condition: { columnId: "COL_ID_AMOUNT", type: "equals", filter: 1 },
+} satisfies AstryxTableFilterExpression<Row, typeof columns>;
+void wrongNestedOperand;
 const missingSort = { tableId: "types", columns, clientSource, getRowId: props.getRowId };
 const missingId = { tableId: "types", columns, clientSource, initialOrderBy: props.initialOrderBy };
 const missingTable = {
