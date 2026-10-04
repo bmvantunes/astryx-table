@@ -163,7 +163,9 @@ if (code === 0) {
       'import "@astryxdesign/core/reset.css";\nimport "@astryxdesign/core/astryx.css";\nimport "@astryxdesign/theme-neutral/theme.css";\nimport "@bmvantunes/astryx-table/styles.css";',
     ),
   );
-  run("pnpm", ["install", "--ignore-scripts"]);
+  // This temporary consumer intentionally gains dependencies after the Effect-free phase.
+  // Refresh its generated lockfile even when the outer runner sets CI=true.
+  run("pnpm", ["install", "--ignore-scripts", "--no-frozen-lockfile"]);
   run("vp", ["run", "typecheck"]);
   process.chdir(directory);
   const serverCode = await runBrowserValidation("vp", [

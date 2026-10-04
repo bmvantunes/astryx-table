@@ -889,3 +889,21 @@ their imported dependency entry points, and the installed Server phase uses its
 own configuration after the root consumer has already passed without Effect.
 This is local test setup, not an upstream defect; no runtime fallback or
 performance threshold is changed.
+
+### Server installed-consumer setup under CI
+
+GitHub passed all 250 Effect-free installed cases, then rejected the second
+installation with `ERR_PNPM_OUTDATED_LOCKFILE`. That phase intentionally adds
+Effect and View Server to the generated consumer manifest, but CI makes pnpm
+freeze the existing lockfile by default. The second installation now explicitly
+refreshes this temporary fixture's lockfile. The repository's frozen install and
+the first Effect-free consumer check remain intact. This is test setup, not an
+upstream or runtime defect; validation now exercises the package script with
+`CI=true` as well.
+
+A separate CI run could not find Column 79 after the preferences test scrolled
+immediately after mounting. A local 6× CPU probe passed, so its precise cause is
+not established. The test now lets the initial measured window commit, confirms
+the first header and horizontal overflow, then performs the same scroll and
+keyboard assertions. This follows the other geometry tests' frame-based setup;
+the 15-second timeout is unchanged. Temporary throttling configuration was removed.
