@@ -38,7 +38,7 @@ async function settleAstryxTableBrowserFrames(count = 2) {
   for (let i = 0; i < count; i++) await nextFrame();
 }
 const columns = Array.from({ length: 150 }, (_, index) => ({
-  columnId: `COL_ID_C${index}` as AstryxTableColumnId,
+  columnId: `COL_ID_C${index}` as Uppercase<`COL_ID_C${number}`>,
   headerName: `Column ${index}`,
   field: "sequence" as const,
   valueType: "number" as const,
@@ -307,7 +307,7 @@ test.for(["raw", "pinned", "filters"] as const)(
   },
 );
 
-test.for(["plain", "open-filter"] as const)(
+test.for(["plain", "open-filter", "open-list-filter"] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
   async (variant, { annotate }) => {
@@ -366,10 +366,15 @@ test.for(["plain", "open-filter"] as const)(
               return row.symbol;
             },
           }
-        : variant === "open-filter" && index === 1
-          ? { ...column, field: "symbol", valueType: "text" }
+        : variant !== "plain" && index === 1
+          ? {
+              ...column,
+              columnId: "COL_ID_FILTER" as const,
+              field: "symbol" as const,
+              valueType: "text" as const,
+            }
           : column,
-    ) as AstryxTableColumns<ProductionWorkloadRow>;
+    ) satisfies AstryxTableColumns<ProductionWorkloadRow>;
     function ToolbarProbe() {
       useEffect(() => {
         toolbarCommits();
@@ -447,6 +452,24 @@ test.for(["plain", "open-filter"] as const)(
           getRowId={(row: ProductionWorkloadRow) => row.id}
           columns={instrumentedColumns}
           initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
+          initialFilters={
+            variant === "open-list-filter"
+              ? [
+                  {
+                    columnId: "COL_ID_FILTER",
+                    type: "in",
+                    filter: [
+                      "SYMBOL-0",
+                      ...Array.from({ length: 499 }, (_, index) => `SYMBOL-${String(index + 1)}`),
+                      ...Array.from(
+                        { length: LIVE_PUBLICATION_SAMPLE_COUNT },
+                        (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
+                      ),
+                    ],
+                  },
+                ]
+              : undefined
+          }
           clientSource={{
             rows: publication.rows,
             totalRows: publication.rows.length,
@@ -485,11 +508,13 @@ test.for(["plain", "open-filter"] as const)(
       await expect
         .element(screen.getByRole("button", { name: "Stable production command" }))
         .toBeInTheDocument();
-      if (variant === "open-filter") {
-        await screen.getByRole("button", { name: "Filter Column 1", exact: true }).click();
+      if (variant !== "plain") {
+        await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
         await expect
           .element(screen.getByRole("textbox", { name: "Filter value", exact: true }))
           .toHaveFocus();
+        if (variant === "open-list-filter")
+          expect(screen.getByRole("textbox").all()).toHaveLength(64);
         expect(filterRenders).toBeGreaterThan(0);
         expect(filterTriggers).toBeGreaterThan(0);
       }
@@ -575,9 +600,11 @@ test.for(["plain", "open-filter"] as const)(
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-filter"
-              ? "client-open-filter-live-publication-5000x150-20hz"
-              : "client-live-publication-5000x150-20hz",
+            variant === "open-list-filter"
+              ? "client-open-list-filter-live-publication-5000x150-20hz"
+              : variant === "open-filter"
+                ? "client-open-filter-live-publication-5000x150-20hz"
+                : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );

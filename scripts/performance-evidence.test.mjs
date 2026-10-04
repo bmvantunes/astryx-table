@@ -28,6 +28,12 @@ function report() {
           {
             evidence: [
               [
+                "client-open-list-filter-live-publication-5000x150-20hz",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+              ],
+              [
                 "client-filters-two-axis-custom-renderer-work-5000x150",
                 "chromium-capable-hardware-v1",
                 8.33,
@@ -173,7 +179,7 @@ function report() {
   };
 }
 test("accepts complete evidence for the exact clean commit", () => {
-  assert.equal(validatePerformanceEvidence(report(), commit).length, 22);
+  assert.equal(validatePerformanceEvidence(report(), commit).length, 23);
 });
 for (const [name, change] of [
   [

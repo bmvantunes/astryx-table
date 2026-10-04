@@ -247,3 +247,46 @@ scheduling while admitting the draft and closing/recycling its owner, then advan
 past the unchanged debounce. Native focus, animation frames, real controls and
 query/persistence assertions remain active. This corrects the test clock boundary;
 it does not lengthen production debounce or retry a failed assertion.
+
+## Text operand-list integration (not an upstream defect)
+
+The native filter editor now represents `in` operands as separate exact text
+values. It validates the complete list before publication, keeps unfinished or
+normalized-empty operands local, and preserves the committed expression on close.
+Add/remove controls restore focus to the appropriate operand. A 64-control window
+bounds mounting, while the existing collection-wide operand budget limits growth.
+
+A public regression reproduced an integration error when removing an operand
+while an IME session and an invalid draft were active. No filter version changed,
+so the old composition events could overwrite the value that moved into that
+position. Local list/operator shape changes now invalidate the composition token
+independently of runtime command/version changes. This adds no Astryx Core patch.
+
+The public source and installed-package suites cover these contracts. The new
+production workload keeps a 612-value list open (64 mounted inputs) during the
+original 5,000 × 150, 20 Hz publication protocol. Its performance gate and review
+must pass before publication; this does not certify typing a maximum-size list,
+compound editing, other filter families or live facets.
+
+Independent review found a second IME path: removing a different operand could
+publish the composing value even after invalidating its token. Discrete commands
+now restore that operand's pre-composition draft before applying their change.
+Window movement cancels and restores composition locally; subsequent input in a
+different operand remains usable. Public regressions reproduced both failures
+before correction. The production probe also caught list navigation preceding
+the first operand in native autofocus order; navigation now follows the inputs.
+These remain integration corrections with no additional Core patch.
+
+The window regression also covers returning to an earlier operand after its input
+was unmounted. The composition token is tied to its actual input element, so a
+newly mounted input at the same ordinal is usable while late events from the old
+input remain invalid. This prevents an invalidated session from locking new input.
+
+Two further public regressions reproduce adjacent composition lifetime errors.
+A cancelled token could cancel a later valid operand's pending publication when
+paging again before 150 ms; paging now cancels only a current composition session.
+Conversely, editing another visible input during a still-active composition could
+publish the unfinished composing value. Whole-expression updates now remain local
+until that active session completes or a discrete command restores and cancels it.
+The tests control only timeout scheduling and verify query and persistence effects.
+These are integration fixes, not defects attributed to Astryx Core.

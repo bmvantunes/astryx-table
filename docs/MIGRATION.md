@@ -356,3 +356,28 @@ Production diagnostics now add three scenarios to the existing nineteen: a
 filter editor and trigger retain their render counts through unrelated value
 updates. Original budgets, sample counts and earlier scenarios remain unchanged.
 This does not certify filter typing, compound editing, facets or deferred families.
+
+### Text operand-list editor
+
+The native text filter now includes `in` alongside the first eight scalar
+operators. Its operand list is one atomic local draft: adding an unauthored value
+or clearing a required value publishes nothing and preserves the committed
+expression. Each value parses through the compiled Column Value Semantics;
+text emptiness uses the same case/accent normalization as runtime admission.
+Spaces are not silently trimmed into a different text value.
+
+Native buttons add/remove values with focus recovery. The editor mounts at most
+64 operand inputs and exposes previous/next controls for larger admitted lists.
+The Add control respects the shared 16,384-operand admission allowance, including
+other columns. Removing or adding operands and changing the operator invalidate
+old composition sessions even when the draft cannot yet produce a runtime command.
+Interrupting commands first restore the composing operand's pre-composition draft;
+window movement does this locally without a query publication. Input events from
+that invalidated session cannot overwrite a different operand.
+
+Public Browser and installed-package regressions exercise restoration, invalid
+whole drafts, add/remove focus, bounded mounting, composition invalidation and the
+shared limit. A required 23rd production scenario keeps a 612-value list open
+while preserving the original 20 Hz update accounting and editor/trigger render
+isolation. Performance and review remain publication gates. Compound conditions,
+other value families, facets and the Server matrix remain required for #6.
