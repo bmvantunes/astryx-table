@@ -13,6 +13,7 @@ export default defineConfig({
       "@astryxdesign/core/TextInput",
       "@astryxdesign/core/Selector",
       "@astryxdesign/core/MultiSelector",
+      "@astryxdesign/core/List",
       "@astryxdesign/core/VisuallyHidden",
       "@astryxdesign/core/CheckboxInput",
       "@astryxdesign/core/Popover",

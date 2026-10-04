@@ -27,6 +27,7 @@ import {
   type AstryxTableClientRowsStore,
 } from "./client-source-adapter";
 import { useClientRowIds } from "./client-adapter";
+import { ClientSortStability } from "./client-sort-stability";
 import { createAstryxTableClientRowComparator } from "./client-row-model";
 import { recordAstryxTableClientRowOrderPlanning } from "./render-instrumentation";
 import {
@@ -181,6 +182,22 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
     () => compileClientFilterPlan(columns, filters, filterCollection),
     [columns, filterCollection, filters],
   );
+  const sortStability = useMemo(
+    () =>
+      new ClientSortStability(
+        createAstryxTableClientRowComparator<AstryxTableClientAdmittedRow>(
+          columns,
+          orderBy,
+          (column, row) => {
+            const value = row.values.read(row.raw, row.rowId, row.rowIndex, column);
+            if (isAstryxTableInvalidCellValue(value)) throw value.invalid;
+            return value;
+          },
+          (row) => row.rowIndex,
+        ),
+      ),
+    [columns, filterPlan, orderBy, queryGeneration],
+  );
   const createDetector = useMemo(
     () => () =>
       createRowOrderChangeDetector(
@@ -191,8 +208,9 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
         quickFilterFields,
         orderBy,
         filterPlan,
+        sortStability,
       ),
-    [columns, filterPlan, filters, orderBy, quickFilter, quickFilterFields, tableId],
+    [columns, filterPlan, filters, orderBy, quickFilter, quickFilterFields, sortStability, tableId],
   );
   const rowsStore = useMemo(
     () => rowPipelineAdapter.createRowsStore(runtime, createDetector, tableId),
@@ -235,6 +253,7 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
     if (invalid === undefined) {
       const acceptance = rowPipelineAdapter.acceptRows(rows);
       if (acceptance === "invalid-source" || acceptance === "stale-snapshot") return;
+      if (rowModel.kind === "ready") sortStability.commit(rows, rowModel.rowIds);
     } else {
       const fallback = rowPipelineAdapter.rejectQueryRows(rows, invalid);
       if (fallback !== undefined) {
@@ -248,7 +267,16 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
       rowSelection?.leaveGroupedProjection(sourceRowIds.rowIds);
       rowSelection?.reconcile(sourceRowIds.rowIds, rowModel.rowIds, sourceRowIds.token);
     }
-  }, [invalid, rowModel, rowPipelineAdapter, rowSelection, rows, runtime, sourceRowIds]);
+  }, [
+    invalid,
+    rowModel,
+    rowPipelineAdapter,
+    rowSelection,
+    rows,
+    runtime,
+    sortStability,
+    sourceRowIds,
+  ]);
   return children(
     invalid !== undefined
       ? Object.freeze({
@@ -1125,6 +1153,7 @@ function createRowOrderChangeDetector(
   quickFilterFields: readonly string[],
   orderBy: ClientResolvedRowOrderProps["orderBy"],
   filterPlan: ClientFilterPlan | undefined,
+  sortStability: ClientSortStability<AstryxTableClientAdmittedRow>,
 ): AstryxTableClientRowOrderChangeDetector {
   if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__) {
     recordAstryxTableClientRowOrderPlanning(tableId);
@@ -1138,7 +1167,7 @@ function createRowOrderChangeDetector(
     filterPlan,
   );
   return (previousRows, nextRows, change) =>
-    rowOrderChanged(previousRows, nextRows, change, orderedColumns, filterPredicate);
+    rowOrderChanged(previousRows, nextRows, change, orderedColumns, filterPredicate, sortStability);
 }
 
 function rowOrderChanged(
@@ -1150,13 +1179,13 @@ function rowOrderChanged(
   }>,
   orderedColumns: readonly CompiledColumn[],
   filterPredicate: ((row: AstryxTableClientAdmittedRow) => boolean) | undefined,
+  sortStability: ClientSortStability<AstryxTableClientAdmittedRow>,
 ): boolean {
   if (change.rowIdsChanged) return true;
   if (orderedColumns.length === 0 && filterPredicate === undefined) return false;
   for (const index of change.changedIndexes) {
     const previousRow = previousRows[index];
     const nextRow = nextRows[index];
-    if (previousRow === nextRow) continue;
     if (previousRow === undefined || nextRow === undefined) return true;
     if (filterPredicate !== undefined) {
       try {
@@ -1178,30 +1207,17 @@ function rowOrderChanged(
       const nextValue = nextRow.values.read(nextRow.raw, nextRow.rowId, nextRow.rowIndex, column);
       if (
         isAstryxTableInvalidCellValue(previousValue) ||
-        isAstryxTableInvalidCellValue(nextValue) ||
-        !equivalentOrderedValue(column, previousValue, nextValue)
+        isAstryxTableInvalidCellValue(nextValue)
       ) {
         return true;
       }
     }
+    // Prior retained publications may have changed neighbours, even when this row
+    // returns to its original value/reference. Validate every changed included row.
+    if (orderedColumns.length > 0 && !sortStability.preserves(previousRows, nextRows, index))
+      return true;
   }
   return false;
-}
-
-function equivalentOrderedValue(
-  column: CompiledColumn,
-  previousValue: unknown,
-  nextValue: unknown,
-): boolean {
-  if (
-    previousValue === null ||
-    previousValue === undefined ||
-    nextValue === null ||
-    nextValue === undefined
-  ) {
-    return previousValue == null && nextValue == null;
-  }
-  return column.semantics.compare(previousValue, nextValue) === 0;
 }
 
 export class ClientRowOrderStore {

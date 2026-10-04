@@ -48,6 +48,7 @@ for (const name of [
   "quick-filter.browser.test.tsx",
   "compound-filters.browser.test.tsx",
   "column-preferences.browser.test.tsx",
+  "sort-controls.browser.test.tsx",
 ]) {
   writeFileSync(
     join(directory, name),

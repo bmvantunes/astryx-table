@@ -1,3 +1,4 @@
+import { installAstryxTableSortControlRenderListener } from "../packages/table/src/internal/sort-control-instrumentation";
 import { installAstryxTableColumnSettingsRenderListener } from "../packages/table/src/internal/column-settings-instrumentation";
 import { installAstryxTableActiveFilterRenderListener } from "../packages/table/src/internal/active-filter-instrumentation";
 import { installAstryxTableClientFacetSubscriptionListener } from "../packages/table/src/internal/client-facet";
@@ -326,6 +327,8 @@ test.for([
   "quick-filter",
   "open-compound-filter",
   "open-column-visibility",
+  "open-sort-controls",
+  "open-sort-picker",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
@@ -342,6 +345,10 @@ test.for([
       if (event.phase === "subscribe") facetSubscriptions++;
       if (event.phase === "unsubscribe") facetSubscriptions--;
       if (event.phase === "notify") facetNotifications++;
+    });
+    const sortRenders = { trigger: 0, review: 0 };
+    const removeSortRender = installAstryxTableSortControlRenderListener((part) => {
+      sortRenders[part]++;
     });
     const columnSettingsRenders = { visibility: 0, reset: 0 };
     const removeColumnSettingsRender = installAstryxTableColumnSettingsRenderListener((part) => {
@@ -519,7 +526,16 @@ test.for([
           tableId={tableId}
           getRowId={(row: ProductionWorkloadRow) => row.id}
           columns={instrumentedColumns}
-          initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
+          initialOrderBy={
+            variant === "open-sort-controls"
+              ? [
+                  { columnId: "COL_ID_C0", direction: "asc" },
+                  ...instrumentedColumns
+                    .slice(1)
+                    .map((column) => ({ columnId: column.columnId, direction: "asc" as const })),
+                ]
+              : [{ columnId: "COL_ID_C0", direction: "asc" }]
+          }
           quickFilterFields={variant === "quick-filter" ? ["symbol"] : undefined}
           initialFilters={
             variant === "open-compound-filter"
@@ -606,7 +622,29 @@ test.for([
       await expect
         .element(screen.getByRole("button", { name: "Stable production command" }))
         .toBeInTheDocument();
-      if (variant === "open-column-visibility") {
+      if (variant === "open-sort-controls" || variant === "open-sort-picker") {
+        await screen
+          .getByRole("button", {
+            name:
+              variant === "open-sort-controls" ? "Sort rows, 150 active" : "Sort rows, 1 active",
+            exact: true,
+          })
+          .click();
+        if (variant === "open-sort-controls") {
+          expect(
+            await screen
+              .getByRole("list", { name: "Active sorts", exact: true })
+              .getByRole("listitem")
+              .all(),
+          ).toHaveLength(64);
+        } else {
+          await screen.getByRole("button", { name: "Add sort column", exact: true }).click();
+          await expect
+            .element(screen.getByRole("combobox", { name: "Search options", exact: true }))
+            .toHaveFocus();
+          expect(await screen.getByRole("option").all()).toHaveLength(149);
+        }
+      } else if (variant === "open-column-visibility") {
         await screen.getByRole("button", { name: "Column preferences", exact: true }).click();
         await screen.getByRole("button", { name: "Visible columns", exact: true }).click();
         await expect
@@ -684,6 +722,11 @@ test.for([
       await settleAstryxTableBrowserFrames(2);
       expect(facetSubscriptions).toBe(variant === "open-set-filter" ? 1 : 0);
       const initialFacetNotifications = facetNotifications;
+      const initialSortRenders = { ...sortRenders };
+      expect(initialSortRenders.trigger).toBeGreaterThan(0);
+      if (variant === "open-sort-controls" || variant === "open-sort-picker")
+        expect(initialSortRenders.review).toBeGreaterThan(0);
+      else expect(initialSortRenders.review).toBe(0);
       const initialColumnSettingsRenders = { ...columnSettingsRenders };
       if (variant === "open-column-visibility") {
         expect(initialColumnSettingsRenders.visibility).toBeGreaterThan(0);
@@ -774,25 +817,29 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-column-visibility"
-              ? "client-open-column-visibility-live-publication-5000x150-20hz"
-              : variant === "open-compound-filter"
-                ? "client-open-compound-filter-live-publication-5000x150-20hz"
-                : variant === "quick-filter"
-                  ? "client-quick-filter-live-publication-5000x150-20hz"
-                  : variant === "open-active-filters"
-                    ? "client-open-active-filters-live-publication-5000x150-20hz"
-                    : variant === "open-set-filter"
-                      ? "client-open-set-filter-live-publication-5000x150-20hz"
-                      : variant === "open-select-filter"
-                        ? "client-open-select-filter-live-publication-5000x150-20hz"
-                        : variant === "open-boolean-filter"
-                          ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                          : variant === "open-list-filter"
-                            ? "client-open-list-filter-live-publication-5000x150-20hz"
-                            : variant === "open-filter"
-                              ? "client-open-filter-live-publication-5000x150-20hz"
-                              : "client-live-publication-5000x150-20hz",
+            variant === "open-sort-controls"
+              ? "client-open-sort-controls-live-publication-5000x150-20hz"
+              : variant === "open-sort-picker"
+                ? "client-open-sort-picker-live-publication-5000x150-20hz"
+                : variant === "open-column-visibility"
+                  ? "client-open-column-visibility-live-publication-5000x150-20hz"
+                  : variant === "open-compound-filter"
+                    ? "client-open-compound-filter-live-publication-5000x150-20hz"
+                    : variant === "quick-filter"
+                      ? "client-quick-filter-live-publication-5000x150-20hz"
+                      : variant === "open-active-filters"
+                        ? "client-open-active-filters-live-publication-5000x150-20hz"
+                        : variant === "open-set-filter"
+                          ? "client-open-set-filter-live-publication-5000x150-20hz"
+                          : variant === "open-select-filter"
+                            ? "client-open-select-filter-live-publication-5000x150-20hz"
+                            : variant === "open-boolean-filter"
+                              ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                              : variant === "open-list-filter"
+                                ? "client-open-list-filter-live-publication-5000x150-20hz"
+                                : variant === "open-filter"
+                                  ? "client-open-filter-live-publication-5000x150-20hz"
+                                  : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -825,6 +872,16 @@ test.for([
             .element()
             .querySelectorAll('input[type="text"]'),
         ).toHaveLength(64);
+      expect(sortRenders).toEqual(initialSortRenders);
+      if (variant === "open-sort-controls")
+        expect(
+          await screen
+            .getByRole("list", { name: "Active sorts", exact: true })
+            .getByRole("listitem")
+            .all(),
+        ).toHaveLength(64);
+      if (variant === "open-sort-picker")
+        expect(await screen.getByRole("option").all()).toHaveLength(149);
       expect(columnSettingsRenders).toEqual(initialColumnSettingsRenders);
       if (variant === "open-column-visibility")
         expect(
@@ -860,6 +917,7 @@ test.for([
       removeGrid();
       removeView();
       removeReconciliation();
+      removeSortRender();
       removeColumnSettingsRender();
       removeQuickFilterRender();
       removeActiveFilterRender();

@@ -1,4 +1,5 @@
 import * as stylex from "@stylexjs/stylex";
+import { SortControls } from "./internal/sort-controls";
 import { ColumnManagement } from "./internal/column-settings";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import { useLayoutEffect, useMemo, useState } from "react";
@@ -22,7 +23,7 @@ import { AstryxTableView } from "./internal/astryx-table-view";
 const styles = stylex.create({
   root: { position: "relative" },
   body: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) 36px", alignItems: "start" },
-  rail: { gridColumn: 2, gridRow: 1 },
+  rail: { gridColumn: 2, gridRow: 1, display: "flex", flexDirection: "column", gap: 4 },
   grid: { gridColumn: 1, gridRow: 1, minWidth: 0 },
 });
 
@@ -135,6 +136,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         <div {...stylex.props(styles.body)}>
           <aside {...stylex.props(styles.rail)} aria-label={`${props.tableId} column management`}>
             <ColumnManagement runtime={view} columns={columns} />
+            <SortControls runtime={view} columns={columns} />
           </aside>
           <div {...stylex.props(styles.grid)}>
             <AstryxTableClientRowPipeline

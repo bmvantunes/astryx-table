@@ -497,6 +497,54 @@ The table-level case remains in
 [column preferences](src/column-preferences.browser.test.tsx). Delivery is local
 pending complete validation and review of this slice.
 
+### Sort control integration and live-update optimization
+
+The native List/ListItem, Selector, Button and existing lazy Popover support the
+sort panel without another Core patch. Active entries are bounded to 64 per review
+window; native add search receives the complete eligible option list. This slice
+does not change the upstream patch totals above.
+
+Two integration defects were reproduced and corrected: open controls ignored a
+header-label/sortability-only column replacement, and focus could disappear when a
+focused sort's column was removed by new definitions. Current compiled definitions now supply that metadata directly, preserving the
+retained structural-notification contract, and focus recovers to a surviving sort only when the removed
+control owned focus. Public Browser regressions cover both cases.
+
+A production scenario with 150 active sorts found a separate retained-core cost:
+a secondary value change rebuilt and sorted all 5,000 rows even when no position
+changed (p99 12.6 ms). A private neighbour proof retains the committed TanStack order
+only while current affected edges remain ordered. Actual moves, membership or
+identity changes still reproject. A regression also caught and fixed the initial
+optimization's failure when a row returned to its original reference after its
+neighbours had changed. These are our grid corrections, not new Astryx defects.
+
+The focused production rerun passed at p99 4.9 ms for the active review and 4.4 ms
+for the 149-option add picker, with 100 measured samples each and zero over-budget
+samples. The 8.33 ms limit, 5,000 × 150 workload and 20 Hz cadence are unchanged.
+Differential tests and public live-update regressions cover the proof; full local
+validation, independent review and clean-commit measurement remain required before
+publication.
+
+The three independent reviewers identified one additional focus gap: Remove was
+missing from the registered controls, so replacement definitions could leave focus
+on the document body when that button disappeared. The public regression failed
+for Remove while passing for Direction and both Move buttons. Remove now registers
+its identity too, and the public/installed case covers all four controls.
+
+The first complete 32-scenario development run passed every Client work scenario
+but failed start-resize presentation cadence with three dropped frames (maximum
+two). The unchanged isolated start/end resize run then passed. The cause of that
+cadence failure is unconfirmed; both records are retained outside the checkout,
+and a fresh complete run remains required after the focus fix. No budget, sample
+count, timing assertion or measurement boundary was relaxed.
+
+A fresh review also caught the conditional Previous/Next controls: shrinking the
+sort list to 64 or fewer entries removes them. They now retain focus ownership
+with the current review window as their fallback position. Two public regressions
+failed before the fix and cover 65→64 and 65→2 replacement transitions. The same
+surviving-sort recovery handles these controls without moving intentional outside
+focus. This is another local integration correction, not an Astryx patch.
+
 ### Nested multi-value filters exceeded the mounted editor budget
 
 CodeRabbit identified that compound conditions shared a render budget but each
