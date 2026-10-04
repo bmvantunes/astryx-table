@@ -1,3 +1,5 @@
+import { SourceBody } from "./internal/source-body";
+import { SourceLifecycle } from "./internal/source-lifecycle-view";
 import { GroupingControls } from "./internal/grouping-controls";
 import { hasToolbarContent } from "./toolbar";
 import { createGridFilterCommands } from "./internal/filter-commands";
@@ -135,25 +137,43 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   );
   return (
     <ClientContext value={clientContext}>
-      <div ref={scope} {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
+      <div
+        ref={scope}
+        {...stylex.props(styles.root)}
+        data-astryx-table={props.tableId}
+        role="region"
+        aria-label={props.tableId}
+        tabIndex={-1}
+      >
         {!hasToolbarContent(props.children) ? null : (
           <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
         )}
         <GroupingControls runtime={view} scope={scope} />
+        <SourceLifecycle runtime={view} scope={scope} />
         <div {...stylex.props(styles.body)}>
           <aside {...stylex.props(styles.rail)} aria-label={`${props.tableId} column management`}>
             <ColumnManagement runtime={view} columns={columns} />
             <SortControls runtime={view} columns={columns} />
           </aside>
           <div {...stylex.props(styles.grid)}>
-            <AstryxTableClientRowPipeline
-              runtime={view}
-              tableId={props.tableId}
-              columns={columns}
-              rowPipelineAdapter={adapter}
-            >
-              {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
-            </AstryxTableClientRowPipeline>
+            <SourceBody runtime={view} columns={columns} scope={scope} tableId={props.tableId}>
+              {(showRows) => (
+                <AstryxTableClientRowPipeline
+                  runtime={view}
+                  tableId={props.tableId}
+                  columns={columns}
+                  rowPipelineAdapter={adapter}
+                >
+                  {(snapshot) =>
+                    showRows ? (
+                      <AstryxTableView tableId={props.tableId} snapshot={snapshot} />
+                    ) : (
+                      <></>
+                    )
+                  }
+                </AstryxTableClientRowPipeline>
+              )}
+            </SourceBody>
           </div>
         </div>
       </div>

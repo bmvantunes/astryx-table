@@ -1,3 +1,4 @@
+import { installAstryxTableSourceLifecycleRenderListener } from "../packages/table/src/internal/source-lifecycle-instrumentation";
 import { installAstryxTableToolbarSubscriptionListener } from "../packages/table/src/internal/toolbar-instrumentation";
 import { installAstryxTableSortControlRenderListener } from "../packages/table/src/internal/sort-control-instrumentation";
 import { installAstryxTableColumnSettingsRenderListener } from "../packages/table/src/internal/column-settings-instrumentation";
@@ -380,6 +381,8 @@ test.for([
   async (variant, { annotate }) => {
     const tableId = "TABLE_ID_PRODUCTION_20_HZ";
     const reconciliationEvents: AstryxTableClientReconciliationEvent[] = [];
+    const sourceRenders = vi.fn();
+    const removeSourceRenders = installAstryxTableSourceLifecycleRenderListener(sourceRenders);
     const viewRenders = vi.fn();
     const gridSurfaceRenders = vi.fn();
     const toolbarCommits = vi.fn();
@@ -844,6 +847,8 @@ test.for([
           .querySelector('[role="row"][aria-rowindex="3"] [role="gridcell"][aria-colindex="1"]') ??
         undefined;
       expect(observedCell).toBeDefined();
+      const initialSourceRenders = sourceRenders.mock.calls.length;
+      expect(initialSourceRenders).toBeGreaterThan(0);
       const initialViewRenders = viewRenders.mock.calls.length;
       const initialGridRenders = gridSurfaceRenders.mock.calls.length;
       const initialUnchangedCellRenders = cellRenderCounts.get(unchangedRow.id);
@@ -953,6 +958,7 @@ test.for([
       expect(evidence.summary.sampleCount).toBe(
         ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
       );
+      expect(sourceRenders).toHaveBeenCalledTimes(initialSourceRenders);
       expect(viewRenders).toHaveBeenCalledTimes(initialViewRenders);
       expect(gridSurfaceRenders).toHaveBeenCalledTimes(initialGridRenders);
       expect(toolbarCommits).toHaveBeenCalledOnce();
@@ -1024,6 +1030,7 @@ test.for([
       recordingPublications = false;
       restoreFrameProbe?.();
       publicationObservers.restore();
+      removeSourceRenders();
       removeGrid();
       removeView();
       removeReconciliation();

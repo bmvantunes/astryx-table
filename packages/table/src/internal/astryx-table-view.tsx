@@ -1,3 +1,4 @@
+import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { prepareAstryxTableGroupingRemovalFocus } from "./client-grouping-focus";
 import { memo, useCallback, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
@@ -280,9 +281,12 @@ const GridSurface = memo(function GridSurface({
         </TableContext>
       </div>
       {snapshot.rowSpace.totalRows === 0 ? (
-        <div role="status" aria-label={`${tableId} status`}>
-          No rows
-        </div>
+        <EmptyState
+          aria-label={`${tableId} status`}
+          title="No rows"
+          description="No rows match the current filters."
+          isCompact
+        />
       ) : null}
       <div
         {...stylex.props(styles.announcement)}
