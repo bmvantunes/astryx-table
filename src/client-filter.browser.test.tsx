@@ -390,3 +390,308 @@ test("an active filter is announced by its header control", async () => {
     .element(page.getByRole("button", { name: "Filter Name (active)", exact: true }))
     .toBeVisible();
 });
+
+test("text operand lists restore exact values and publish only complete valid drafts", async () => {
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="filter-list"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "in", filter: ["Ada", "Alan"] }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  const first = page.getByRole("textbox", { name: "Filter value", exact: true });
+  const second = page.getByRole("textbox", { name: "Filter value 2", exact: true });
+  await expect.element(first).toHaveValue("Ada");
+  await expect.element(second).toHaveValue("Alan");
+  await second.fill("Grace");
+  await expect.poll(() => persisted.length).toBe(1);
+  await expect.element(page.getByRole("gridcell", { name: "Grace", exact: true })).toBeVisible();
+  expect(page.getByRole("gridcell").all()).toHaveLength(2);
+  expect(persisted[0]?.filters).toEqual([
+    {
+      columnId: "COL_ID_NAME",
+      type: "in",
+      filter: [
+        { $astryxTableValue: "text", version: 1, value: "Ada" },
+        { $astryxTableValue: "text", version: 1, value: "Grace" },
+      ],
+      codecId: "@bruno/table/text",
+      codecVersion: 1,
+    },
+  ]);
+  await second.fill("");
+  await expect.element(second).toHaveAttribute("aria-invalid", "true");
+  await first.fill("Alan");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  expect(persisted).toHaveLength(1);
+  await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  await expect.element(first).toHaveValue("Ada");
+  await expect.element(second).toHaveValue("Grace");
+});
+
+test("list values can be added and removed without publishing an unfinished expression or losing focus", async () => {
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="filter-list-controls"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "contains", filter: "Ada" }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  await page.getByRole("combobox", { name: "Operator", exact: true }).click();
+  await page.getByRole("option", { name: "Is one of", exact: true }).click();
+  await expect.poll(() => persisted.length).toBe(1);
+  await page.getByRole("button", { name: "Add filter value", exact: true }).click();
+  const second = page.getByRole("textbox", { name: "Filter value 2", exact: true });
+  await expect.element(second).toHaveFocus();
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  expect(persisted).toHaveLength(1);
+  await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+  await second.fill("Grace");
+  await expect.poll(() => persisted.length).toBe(2);
+  await page.getByRole("button", { name: "Remove filter value 1", exact: true }).click();
+  const first = page.getByRole("textbox", { name: "Filter value", exact: true });
+  await expect.element(first).toHaveFocus();
+  await expect.element(first).toHaveValue("Grace");
+  expect(persisted).toHaveLength(3);
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  await expect.element(page.getByRole("gridcell", { name: "Grace", exact: true })).toBeVisible();
+  expect(page.getByRole("button", { name: /^Remove filter value/ }).all()).toHaveLength(0);
+});
+
+test("large restored lists mount a bounded operand window and reveal an added value", async () => {
+  const values = [
+    "Ada",
+    ...Array.from({ length: 69 }, (_, index) => `Item ${String(index)}`),
+  ] as const;
+  await render(
+    <AstryxTableClient
+      tableId="filter-list-window"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "in", filter: values }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Filter value", exact: true }))
+    .toHaveFocus();
+  expect(page.getByRole("textbox").all()).toHaveLength(64);
+  await page.getByRole("button", { name: "Next filter values", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Filter value 70", exact: true }))
+    .toHaveValue("Item 68");
+  expect(page.getByRole("textbox").all()).toHaveLength(64);
+  await page.getByRole("button", { name: "Add filter value", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Filter value 71", exact: true }))
+    .toHaveFocus();
+  expect(page.getByRole("textbox").all()).toHaveLength(64);
+  await page.getByRole("button", { name: "Previous filter values", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Filter value", exact: true }))
+    .toHaveValue("Ada");
+});
+
+test("a local list-shape change invalidates IME events even before a new filter can commit", async () => {
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="filter-list-ime"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "in", filter: ["Ada", "Alan"] }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  await page.getByRole("button", { name: "Add filter value", exact: true }).click();
+  const first = page.getByRole("textbox", { name: "Filter value", exact: true });
+  first.element().focus();
+  first.element().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  await first.fill("Gr");
+  await page.getByRole("button", { name: "Remove filter value 1", exact: true }).click();
+  await expect.element(first).toHaveValue("Alan");
+  await first.fill("Grace");
+  await expect.element(first).toHaveValue("Alan");
+  first
+    .element()
+    .dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "Grace" }));
+  await expect.element(first).toHaveValue("Alan");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  expect(persisted).toHaveLength(0);
+});
+
+test.for([false, true])(
+  "the list editor respects the shared operand limit with another column: %s",
+  async (otherFilter) => {
+    const budgetColumns = [
+      ...columns,
+      { columnId: "COL_ID_ID", headerName: "Identity", field: "id", valueType: "text" },
+    ] as const satisfies AstryxTableColumns<Row>;
+    const values = [
+      "Ada",
+      ...Array.from(
+        { length: otherFilter ? 16_382 : 16_383 },
+        (_, index) => `Item ${String(index)}`,
+      ),
+    ] as const;
+    await render(
+      <AstryxTableClient
+        tableId="filter-list-budget"
+        columns={budgetColumns}
+        getRowId={(row: Row) => row.id}
+        initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+        initialFilters={[
+          { columnId: "COL_ID_NAME", type: "in", filter: values },
+          ...(otherFilter
+            ? [{ columnId: "COL_ID_ID", type: "equals", filter: "ada" } as const]
+            : []),
+        ]}
+        clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      />,
+    );
+    await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+    expect(page.getByRole("textbox").all()).toHaveLength(64);
+    await expect
+      .element(page.getByRole("button", { name: "Add filter value", exact: true }))
+      .toBeDisabled();
+    await page.getByRole("button", { name: "Remove filter value 1", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Add filter value", exact: true }))
+      .toBeEnabled();
+  },
+);
+
+test("removing another operand during composition never publishes intermediate text", async () => {
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="filter-list-interrupted-ime"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "in", filter: ["Ada", "Alan"] }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  const first = page.getByRole("textbox", { name: "Filter value", exact: true });
+  first.element().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  await first.fill("Gr");
+  await page.getByRole("button", { name: "Remove filter value 2", exact: true }).click();
+  await expect.element(first).toHaveValue("Ada");
+  await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+  expect(persisted).toHaveLength(1);
+  expect(persisted[0]?.filters).toEqual([
+    {
+      columnId: "COL_ID_NAME",
+      type: "in",
+      filter: [{ $astryxTableValue: "text", version: 1, value: "Ada" }],
+      codecId: "@bruno/table/text",
+      codecVersion: 1,
+    },
+  ]);
+  await first.fill("Grace");
+  first
+    .element()
+    .dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "Grace" }));
+  await expect.element(first).toHaveValue("Ada");
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  expect(persisted).toHaveLength(1);
+});
+
+test("moving the operand window cancels composition without blocking another value", async () => {
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  const values = [
+    "Ada",
+    ...Array.from({ length: 69 }, (_, index) => `Item ${String(index)}`),
+  ] as const;
+  await render(
+    <AstryxTableClient
+      tableId="filter-list-window-ime"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "in", filter: values }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  const first = page.getByRole("textbox", { name: "Filter value", exact: true });
+  first.element().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  await first.fill("Gr");
+  await page.getByRole("button", { name: "Next filter values", exact: true }).click();
+  expect(persisted).toHaveLength(0);
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await page.getByRole("textbox", { name: "Filter value 70", exact: true }).fill("Alan");
+    await page.getByRole("button", { name: "Previous filter values", exact: true }).click();
+    await vi.advanceTimersByTimeAsync(220);
+    expect(persisted).toHaveLength(1);
+  } finally {
+    vi.useRealTimers();
+  }
+  expect(page.getByRole("gridcell").all()).toHaveLength(2);
+  await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+  await expect.element(page.getByRole("gridcell", { name: "Alan", exact: true })).toBeVisible();
+  await first.fill("Grace");
+  await expect.poll(() => persisted.length).toBe(2);
+  await expect.element(page.getByRole("gridcell", { name: "Grace", exact: true })).toBeVisible();
+  expect(page.getByRole("gridcell", { name: "Ada", exact: true }).all()).toHaveLength(0);
+});
+
+test("editing another operand keeps the whole expression local during composition", async () => {
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="filter-list-concurrent-ime"
+      columns={columns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_NAME", type: "in", filter: ["Ada", "Alan"] }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
+  const first = page.getByRole("textbox", { name: "Filter value", exact: true });
+  first.element().dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+  await first.fill("Gr");
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await page.getByRole("textbox", { name: "Filter value 2", exact: true }).fill("Ada");
+    await vi.advanceTimersByTimeAsync(220);
+    expect(persisted).toHaveLength(0);
+    await first.fill("Grace");
+    first
+      .element()
+      .dispatchEvent(new CompositionEvent("compositionend", { bubbles: true, data: "Grace" }));
+    await vi.advanceTimersByTimeAsync(220);
+    expect(persisted).toHaveLength(1);
+    await expect.element(page.getByRole("gridcell", { name: "Grace", exact: true })).toBeVisible();
+    await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+    expect(page.getByRole("gridcell", { name: "Alan", exact: true }).all()).toHaveLength(0);
+  } finally {
+    vi.useRealTimers();
+  }
+});
