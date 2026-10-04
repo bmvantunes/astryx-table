@@ -808,6 +808,7 @@ function ExpressionControls({
           context={actions}
           draft={draft}
           path={path}
+          operandWindow={Math.max(1, Math.min(VISIBLE_OPERANDS, budget))}
           candidateError={context.error.invalidLeaf === draft ? context.error : undefined}
           mayAddOperand={context.canAddOperand()}
         />
@@ -956,12 +957,14 @@ const LeafControls = memo(function LeafControls({
   context,
   draft,
   path,
+  operandWindow,
   candidateError,
   mayAddOperand,
 }: {
   readonly context: EditorActions;
   readonly draft: Extract<Expression, { kind: "leaf" }>;
   readonly path: Path;
+  readonly operandWindow: number;
   readonly candidateError: Candidate | undefined;
   readonly mayAddOperand: boolean;
 }) {
@@ -992,7 +995,7 @@ const LeafControls = memo(function LeafControls({
       at === index ? { text, authored: true } : operand,
     ),
   });
-  const maxWindowStart = Math.max(0, draft.operands.length - VISIBLE_OPERANDS);
+  const maxWindowStart = Math.max(0, draft.operands.length - operandWindow);
   const start = Math.min(windowStart, maxWindowStart);
   return (
     <div {...stylex.props(styles.controls)}>
@@ -1018,7 +1021,7 @@ const LeafControls = memo(function LeafControls({
         />
       ) : (
         (draft.operator === "in"
-          ? draft.operands.slice(start, start + VISIBLE_OPERANDS)
+          ? draft.operands.slice(start, start + operandWindow)
           : draft.operands.slice(0, 1)
         ).map((operand, offset) => {
           const index = draft.operator === "in" ? start + offset : 0;
@@ -1088,9 +1091,9 @@ const LeafControls = memo(function LeafControls({
           );
         })
       )}
-      {draft.operator === "in" && draft.operands.length > VISIBLE_OPERANDS ? (
+      {draft.operator === "in" && draft.operands.length > operandWindow ? (
         <>
-          <span role="status">{`Showing values ${String(start + 1)}–${String(Math.min(start + VISIBLE_OPERANDS, draft.operands.length))} of ${String(draft.operands.length)}`}</span>
+          <span role="status">{`Showing values ${String(start + 1)}–${String(Math.min(start + operandWindow, draft.operands.length))} of ${String(draft.operands.length)}`}</span>
           <Button
             label="Previous filter values"
             size="sm"
@@ -1099,7 +1102,7 @@ const LeafControls = memo(function LeafControls({
             onClick={() => {
               if (composition.current !== undefined && compositionIsCurrent())
                 context.change(path, (node) => node, false, true, true);
-              setWindowStart(Math.max(0, start - VISIBLE_OPERANDS));
+              setWindowStart(Math.max(0, start - operandWindow));
             }}
           />
           <Button
@@ -1110,7 +1113,7 @@ const LeafControls = memo(function LeafControls({
             onClick={() => {
               if (composition.current !== undefined && compositionIsCurrent())
                 context.change(path, (node) => node, false, true, true);
-              setWindowStart(Math.min(maxWindowStart, start + VISIBLE_OPERANDS));
+              setWindowStart(Math.min(maxWindowStart, start + operandWindow));
             }}
           />
         </>
@@ -1125,7 +1128,7 @@ const LeafControls = memo(function LeafControls({
             if (!canAddOperand()) return;
             command((leaf) => {
               focusRequest.current = leaf.operands.length;
-              setWindowStart(Math.max(0, leaf.operands.length - VISIBLE_OPERANDS + 1));
+              setWindowStart(Math.max(0, leaf.operands.length - operandWindow + 1));
               return { ...leaf, operands: [...leaf.operands, { text: "", authored: false }] };
             });
           }}
@@ -1134,7 +1137,7 @@ const LeafControls = memo(function LeafControls({
       {error !== undefined &&
       (invalidIndex === undefined ||
         invalidIndex < start ||
-        invalidIndex >= start + VISIBLE_OPERANDS) ? (
+        invalidIndex >= start + operandWindow) ? (
         <p role="status">{error}</p>
       ) : null}
       <Selector

@@ -157,7 +157,7 @@ test("aggregate admission rejection retains the complete authored draft until co
     await first.fill("Grace");
     await vi.advanceTimersByTimeAsync(200);
     await expect.element(first).toHaveValue("Grace");
-    expect(page.getByRole("gridcell").all()).toHaveLength(1);
+    await vi.waitFor(() => expect(page.getByRole("gridcell").elements()).toHaveLength(1));
     expect(persisted).toHaveLength(1);
   } finally {
     vi.useRealTimers();
@@ -346,6 +346,74 @@ test("nested condition trees share one bounded mounted editor budget", async () 
     dialog.querySelectorAll('[role="group"][aria-label^="Filter "]').length,
   ).toBeLessThanOrEqual(255);
   expect(dialog.querySelectorAll('input[type="text"]').length).toBeLessThanOrEqual(256);
+  await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+});
+
+test("nested in leaves share the input budget and retain every operand across windows", async () => {
+  const values = [
+    "Ada",
+    ...Array.from({ length: 69 }, (_, index) => `Item ${String(index + 1)}`),
+  ] as const;
+  const leaf = { columnId: "COL_ID_NAME", type: "in", filter: values } as const;
+  const group = { type: "OR", conditions: [leaf, leaf, leaf, leaf] } as const;
+  const persisted: AstryxTablePersistedState<Row, typeof columns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      {...props}
+      initialFilters={[{ type: "AND", conditions: [group, group, group, group] }]}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Name (active)", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Filter Name", exact: true });
+  const assertBounded = () =>
+    expect(dialog.element().querySelectorAll('input[type="text"]').length).toBeLessThanOrEqual(256);
+  assertBounded();
+  const first = page.getByRole("group", {
+    name: "Filter condition 1 for Name (condition 1)",
+    exact: true,
+  });
+  for (let window = 0; window < 4; window++) {
+    await first.getByRole("button", { name: "Next filter values", exact: true }).click();
+    assertBounded();
+  }
+  await expect
+    .element(first.getByRole("textbox", { name: "Filter value 70", exact: true }))
+    .toHaveValue("Item 69");
+  await expect
+    .element(first.getByRole("button", { name: "Next filter values", exact: true }))
+    .toBeDisabled();
+  await first.getByRole("button", { name: "Add filter value", exact: true }).click();
+  const added = first.getByRole("textbox", { name: "Filter value 71", exact: true });
+  await expect.element(added).toHaveFocus();
+  assertBounded();
+  await added.fill("Grace");
+  await vi.waitFor(() => expect(persisted).toHaveLength(1));
+  expect(persisted[0]?.filters).toMatchObject([
+    {
+      type: "AND",
+      conditions: Array.from({ length: 4 }, (_, groupIndex) => ({
+        type: "OR",
+        conditions: Array.from({ length: 4 }, (_, leafIndex) => ({
+          columnId: "COL_ID_NAME",
+          type: "in",
+          filter: (groupIndex === 0 && leafIndex === 0 ? [...values, "Grace"] : values).map(
+            (value) => ({
+              $astryxTableValue: "text",
+              version: 1,
+              value,
+            }),
+          ),
+        })),
+      })),
+    },
+  ]);
+  await first.getByRole("button", { name: "Remove filter value 71", exact: true }).click();
+  await expect
+    .element(first.getByRole("textbox", { name: "Filter value 70", exact: true }))
+    .toHaveFocus();
+  await first.getByRole("button", { name: "Previous filter values", exact: true }).click();
+  assertBounded();
   await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
 });
 
