@@ -239,3 +239,11 @@ sent navigation keys before the native menu's animation-frame focus transfer.
 The test now observes focus on the first action and then on Pin to end before
 activation. It still verifies the same trigger identity, returned focus and
 logical column index. This is test synchronization, not a reproduced Core defect.
+
+A separate CI run exposed a test racing its own 150 ms debounce: the awaited
+Browser fill and outside-click commands could take longer than that interval.
+The dismissal and header-recycling cancellation tests now freeze only timeout
+scheduling while admitting the draft and closing/recycling its owner, then advance
+past the unchanged debounce. Native focus, animation frames, real controls and
+query/persistence assertions remain active. This corrects the test clock boundary;
+it does not lengthen production debounce or retry a failed assertion.

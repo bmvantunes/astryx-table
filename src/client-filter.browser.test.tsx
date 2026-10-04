@@ -1,4 +1,4 @@
-import { afterEach, expect, test } from "vite-plus/test";
+import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
@@ -97,12 +97,17 @@ test("Alt+Enter opens the active header filter; invalid input and dismissed pend
   await input.fill("");
   await expect.element(input).toHaveAttribute("aria-invalid", "true");
   expect(persisted).toHaveLength(0);
-  await input.fill("Grace");
-  await page.getByRole("button", { name: "Outside", exact: true }).click();
-  await expect.element(page.getByRole("button", { name: "Outside", exact: true })).toHaveFocus();
-  await new Promise((resolve) => setTimeout(resolve, 220));
-  expect(persisted).toHaveLength(0);
-  await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await input.fill("Grace");
+    await page.getByRole("button", { name: "Outside", exact: true }).click();
+    await expect.element(page.getByRole("button", { name: "Outside", exact: true })).toHaveFocus();
+    await vi.advanceTimersByTimeAsync(220);
+    expect(persisted).toHaveLength(0);
+    await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
   await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
   await expect.element(input).toHaveValue("Ada");
 });
@@ -227,17 +232,22 @@ test("a recycled open filter cancels its draft and returns focus without reveali
     </div>,
   );
   await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
-  await page.getByRole("textbox", { name: "Filter value", exact: true }).fill("Grace");
-  const grid = page.getByRole("grid");
-  grid.element().scrollLeft = grid.element().scrollWidth;
-  grid.element().dispatchEvent(new Event("scroll"));
-  await expect
-    .element(page.getByRole("columnheader", { name: "Name", exact: true }))
-    .not.toBeInTheDocument();
-  await expect.element(grid).toHaveFocus();
-  expect(grid.element().scrollLeft).toBeGreaterThan(1000);
-  await new Promise((resolve) => setTimeout(resolve, 220));
-  expect(persisted).toHaveLength(0);
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await page.getByRole("textbox", { name: "Filter value", exact: true }).fill("Grace");
+    const grid = page.getByRole("grid");
+    grid.element().scrollLeft = grid.element().scrollWidth;
+    grid.element().dispatchEvent(new Event("scroll"));
+    await expect
+      .element(page.getByRole("columnheader", { name: "Name", exact: true }))
+      .not.toBeInTheDocument();
+    await expect.element(grid).toHaveFocus();
+    expect(grid.element().scrollLeft).toBeGreaterThan(1000);
+    await vi.advanceTimersByTimeAsync(220);
+    expect(persisted).toHaveLength(0);
+  } finally {
+    vi.useRealTimers();
+  }
 });
 
 test("column commands clear and restore the baseline filter without opening an editor", async () => {
