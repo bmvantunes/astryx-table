@@ -310,3 +310,22 @@ This is a React diagnostic bug, **not an Astryx defect**. A narrowly scoped prop
 patch would stringify bigint only in the diagnostic description in the two React
 DOM development builds. It is awaiting user confirmation; no React patch is applied
 and numeric filtering is not yet validated or shipped.
+
+## Configured Select integration (no additional upstream patch)
+
+Select filters now reuse published Selector with exact configured option values.
+Its current implementation renders every supplied option, so the retained grid
+window bounds the supplied set to 64 plus an off-window selected option. This is
+an integration requirement, not a claim that Selector's documented API is broken.
+Zero and empty-string choices retain their exact codecs; an empty display label
+receives a visible `Empty value` label without changing the operand.
+
+## Separate compiler observation — not an Astryx defect
+
+While isolating the React bigint diagnostic error, a minimal component also exposed
+Oxc React Compiler 0.145.0 replacing bigint literals inside an inferred component
+with `undefined`. A direct `transformSync` of `useState([90071992547409931234567890n])`
+and a state-setting click callback confirmed the emitted substitutions. The final
+React diagnostic reproduction supplies its bigint data from the test body to
+isolate that separate error. No application workaround, compiler opt-out or compiler
+patch has been applied; this observation needs its own toolchain investigation.

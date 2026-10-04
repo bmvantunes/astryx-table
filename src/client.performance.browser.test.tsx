@@ -5,6 +5,7 @@ import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
   AstryxTableClient,
+  AstryxTableSelectColumn,
   type AstryxTableColumns,
   type AstryxTableColumnId,
 } from "../packages/table/src";
@@ -308,7 +309,13 @@ test.for(["raw", "pinned", "filters"] as const)(
   },
 );
 
-test.for(["plain", "open-filter", "open-list-filter", "open-boolean-filter"] as const)(
+test.for([
+  "plain",
+  "open-filter",
+  "open-list-filter",
+  "open-boolean-filter",
+  "open-select-filter",
+] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
   async (variant, { annotate }) => {
@@ -358,6 +365,22 @@ test.for(["plain", "open-filter", "open-list-filter", "open-boolean-filter"] as 
       tableId,
       gridSurfaceRenders,
     );
+    const selectColumns = [
+      AstryxTableSelectColumn({
+        columnId: "COL_ID_SELECT",
+        headerName: "Column 1",
+        field: "symbol",
+        width: 120,
+        options: [
+          "SYMBOL-0",
+          ...Array.from({ length: 499 }, (_, index) => `SYMBOL-${String(index + 1)}`),
+          ...Array.from(
+            { length: LIVE_PUBLICATION_SAMPLE_COUNT },
+            (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
+          ),
+        ],
+      }),
+    ] as const satisfies AstryxTableColumns<ProductionWorkloadRow>;
     const instrumentedColumns = columns.map((column, index) =>
       index === 0
         ? {
@@ -367,21 +390,23 @@ test.for(["plain", "open-filter", "open-list-filter", "open-boolean-filter"] as 
               return row.symbol;
             },
           }
-        : variant === "open-boolean-filter" && index === 1
-          ? {
-              ...column,
-              columnId: "COL_ID_BOOLEAN" as const,
-              field: "ready" as const,
-              valueType: "boolean" as const,
-            }
-          : variant !== "plain" && index === 1
+        : variant === "open-select-filter" && index === 1
+          ? selectColumns[0]
+          : variant === "open-boolean-filter" && index === 1
             ? {
                 ...column,
-                columnId: "COL_ID_FILTER" as const,
-                field: "symbol" as const,
-                valueType: "text" as const,
+                columnId: "COL_ID_BOOLEAN" as const,
+                field: "ready" as const,
+                valueType: "boolean" as const,
               }
-            : column,
+            : variant !== "plain" && index === 1
+              ? {
+                  ...column,
+                  columnId: "COL_ID_FILTER" as const,
+                  field: "symbol" as const,
+                  valueType: "text" as const,
+                }
+              : column,
     ) satisfies AstryxTableColumns<ProductionWorkloadRow>;
     function ToolbarProbe() {
       useEffect(() => {
@@ -522,14 +547,23 @@ test.for(["plain", "open-filter", "open-list-filter", "open-boolean-filter"] as 
         await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
         await expect
           .element(
-            screen.getByRole(variant === "open-boolean-filter" ? "combobox" : "textbox", {
-              name: "Filter value",
-              exact: true,
-            }),
+            screen.getByRole(
+              variant === "open-boolean-filter" || variant === "open-select-filter"
+                ? "combobox"
+                : "textbox",
+              {
+                name: "Filter value",
+                exact: true,
+              },
+            ),
           )
           .toHaveFocus();
         if (variant === "open-list-filter")
           expect(screen.getByRole("textbox").all()).toHaveLength(64);
+        if (variant === "open-select-filter") {
+          await screen.getByRole("combobox", { name: "Filter value", exact: true }).click();
+          expect(screen.getByRole("option").all()).toHaveLength(64);
+        }
         expect(filterRenders).toBeGreaterThan(0);
         expect(filterTriggers).toBeGreaterThan(0);
       }
@@ -615,13 +649,15 @@ test.for(["plain", "open-filter", "open-list-filter", "open-boolean-filter"] as 
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-boolean-filter"
-              ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-              : variant === "open-list-filter"
-                ? "client-open-list-filter-live-publication-5000x150-20hz"
-                : variant === "open-filter"
-                  ? "client-open-filter-live-publication-5000x150-20hz"
-                  : "client-live-publication-5000x150-20hz",
+            variant === "open-select-filter"
+              ? "client-open-select-filter-live-publication-5000x150-20hz"
+              : variant === "open-boolean-filter"
+                ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                : variant === "open-list-filter"
+                  ? "client-open-list-filter-live-publication-5000x150-20hz"
+                  : variant === "open-filter"
+                    ? "client-open-filter-live-publication-5000x150-20hz"
+                    : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
