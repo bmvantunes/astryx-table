@@ -1,3 +1,5 @@
+import { hasToolbarContent } from "./toolbar";
+import { createGridFilterCommands } from "./internal/filter-commands";
 import * as stylex from "@stylexjs/stylex";
 import { SortControls } from "./internal/sort-controls";
 import { ColumnManagement } from "./internal/column-settings";
@@ -93,7 +95,13 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   });
   const [view] = useState(() => runtime.getView());
   const clientContext = useMemo(
-    () => ({ tableId: props.tableId, rows: adapter, resultRows: adapter, runtime: view }),
+    () => ({
+      tableId: props.tableId,
+      rows: adapter,
+      resultRows: adapter,
+      runtime: view,
+      filterCommands: createGridFilterCommands(view),
+    }),
     [adapter, view, props.tableId],
   );
   const [projection] = useState(
@@ -133,7 +141,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   return (
     <ClientContext value={clientContext}>
       <div {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
-        {props.children === undefined || props.children === null ? null : (
+        {!hasToolbarContent(props.children) ? null : (
           <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
         )}
         <div {...stylex.props(styles.body)}>

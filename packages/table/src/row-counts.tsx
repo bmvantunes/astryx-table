@@ -46,6 +46,34 @@ export const AstryxTableLoadedRowCount = memo(function AstryxTableLoadedRowCount
   return renderCount("Loaded rows", "loaded row", count, children);
 });
 
+/** Committed column filter expressions plus active session-only Quick Filter. */
+export const AstryxTableActiveFilterCount = memo(function AstryxTableActiveFilterCount({
+  children,
+}: CountProps) {
+  const { runtime } = useClientContext();
+  const subscribe = useCountSubscription("active-filter-count", runtime.subscribeActiveFilterCount);
+  const count = useSyncExternalStore(
+    subscribe,
+    runtime.getActiveFilterCountSnapshot,
+    runtime.getActiveFilterCountSnapshot,
+  );
+  return renderCount("Active filters", "active filter", count, children);
+});
+
+/** The number of columns in the active sorting context. */
+export const AstryxTableActiveSortCount = memo(function AstryxTableActiveSortCount({
+  children,
+}: CountProps) {
+  const { runtime } = useClientContext();
+  const subscribe = useCountSubscription("active-sort-count", runtime.subscribeActiveSortCount);
+  const count = useSyncExternalStore(
+    subscribe,
+    runtime.getActiveSortCountSnapshot,
+    runtime.getActiveSortCountSnapshot,
+  );
+  return renderCount("Active sorts", "active sort", count, children);
+});
+
 function renderCount(
   label: string,
   singular: string,

@@ -562,3 +562,17 @@ performance configuration. Vite discovered it during import and reloaded the tes
 so the Client scenarios never ran. Text is now explicitly prebundled there too;
 the failed report is retained and a complete rerun is required. This corrects our
 measurement setup, with no change to budgets or upstream components.
+
+## Toolbar capability completion (no additional upstream patch)
+
+The Client now composes typed command-only filter controls and independent active
+filter/sort counters. Saved commands validate the currently installed schema, so
+removed or disabled columns are rejected without preference changes. There is no
+second column cache, broad public controller or command subscription.
+
+The branded Toolbar reuses the existing native keyboard owner inside a Client;
+standalone use creates one native Toolbar. Spacer growth comes from published
+StackItem. Empty wrappers create no toolbar landmark, and LTR/RTL tests verify one
+arrow-navigation step and authored control order. The first geometry test lacked
+the official stylesheet; loading it fixed the test fixture, not an Astryx defect.
+No additional Core patch was necessary.

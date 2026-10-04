@@ -1,4 +1,15 @@
-export { AstryxTableResultRowCount, AstryxTableLoadedRowCount } from "./row-counts";
+export { AstryxTableToolbar, AstryxTableToolbarSpacer } from "./toolbar";
+export { AstryxTableFilterControl } from "./filter-control";
+export type {
+  AstryxTableFilterControlProps,
+  AstryxTableGridFilterCommandCapability,
+} from "./filter-control";
+export {
+  AstryxTableResultRowCount,
+  AstryxTableLoadedRowCount,
+  AstryxTableActiveFilterCount,
+  AstryxTableActiveSortCount,
+} from "./row-counts";
 export { AstryxTableQuickFilter } from "./quick-filter";
 export { AstryxTableActiveFilters } from "./active-filters";
 export type { AstryxTableClientProps } from "./astryx-table-client";

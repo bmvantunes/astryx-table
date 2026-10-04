@@ -3,6 +3,8 @@ import { renderToString } from "react-dom/server";
 import { expect, test, vi } from "vite-plus/test";
 import {
   AstryxTableClient,
+  AstryxTableActiveFilterCount,
+  AstryxTableActiveSortCount,
   AstryxTableResultRowCount,
   AstryxTableLoadedRowCount,
   type AstryxTableColumns,
@@ -54,11 +56,15 @@ test("SSR initializes the filtered result lazily once and renders truthful initi
           createElement(AstryxTableResultRowCount),
           createElement(AstryxTableResultRowCount),
           createElement(AstryxTableLoadedRowCount),
+          createElement(AstryxTableActiveFilterCount),
+          createElement(AstryxTableActiveSortCount),
         ),
       ),
     );
     expect(html).toContain("1 result row");
     expect(html).toContain("2 loaded rows");
+    expect(html).toContain("1 active filter");
+    expect(html).toContain("1 active sort");
     expect(html).not.toContain("2 result rows");
     expect(
       events.mock.calls.filter(([event]) => event.kind === "result-row-count-initialize"),
