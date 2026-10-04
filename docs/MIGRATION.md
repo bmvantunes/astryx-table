@@ -381,3 +381,19 @@ shared limit. A required 23rd production scenario keeps a 612-value list open
 while preserving the original 20 Hz update accounting and editor/trigger render
 isolation. Performance and review remain publication gates. Compound conditions,
 other value families, facets and the Server matrix remain required for #6.
+
+### Built-in boolean filter editor
+
+Built-in `valueType: "boolean"` columns now expose the native filter trigger and
+menu/header commands. Published Astryx Selector controls choose True or False and
+one of Equals, Not equal, Blank or Not blank. An untouched value is unauthored,
+while choosing False is a real exact boolean operand. Discrete choices commit
+immediately through existing runtime admission and codecs; no text sensitivity
+controls are exposed. Nested Escape and focus restoration remain upstream-owned.
+
+The public Browser regression is also executed against the installed tarball.
+A 24th required production scenario keeps this editor open during the retained
+5,000 × 150, 20 Hz live-publication protocol and checks editor/trigger isolation.
+Custom Boolean-family descriptors, numeric/Select/Set families, compound editing,
+facets and the Server matrix remain pending. Numeric work is preserved separately
+while two concrete dependency-patch approvals remain outstanding; see astryx-bugs.md.

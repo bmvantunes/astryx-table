@@ -290,3 +290,23 @@ publish the unfinished composing value. Whole-expression updates now remain loca
 until that active session completes or a discrete command restores and cancels it.
 The tests control only timeout scheduling and verify query and persistence effects.
 These are integration fixes, not defects attributed to Astryx Core.
+
+## Numeric-filter investigation — pending dependency changes
+
+The next filter slice reproduced a declaration gap: native `type="number"` is
+rejected by TextInput's public type union, and `step` is not declared. NumberInput
+is not equivalent: its published implementation commits validated numbers on blur
+or Enter, rather than exposing the retained continuously validated native draft.
+The proposed compatibility extension adds `number` and `step` only to TextInput's
+source and emitted types. Automatic approval review rejected that concrete patch
+and requires another explicit confirmation; it has **not** been applied. This is
+an API compatibility extension, not evidence that NumberInput violates its own API.
+
+A separate public Client test reproduced a React DOM 19.2.8 development-profiler
+failure on bigint arrays: `addValueToProperties` classifies the array as primitive
+and calls `JSON.stringify`, which throws for bigint. A minimal React-only Browser
+reproduction confirms the same unhandled error when an array prop is introduced.
+This is a React diagnostic bug, **not an Astryx defect**. A narrowly scoped proposed
+patch would stringify bigint only in the diagnostic description in the two React
+DOM development builds. It is awaiting user confirmation; no React patch is applied
+and numeric filtering is not yet validated or shipped.
