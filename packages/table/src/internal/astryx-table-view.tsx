@@ -12,6 +12,7 @@ import {
   headerDomId,
   type NativePinnedPresentation,
 } from "./native-table-presentation";
+import { ColumnFilter } from "./column-filter";
 import { Divider } from "@astryxdesign/core/Divider";
 import { useAstryxTableHotkeyWorkflowAction } from "./hotkey-adapter";
 import { useColumnInteractions } from "./column-interactions";
@@ -717,6 +718,8 @@ const HeaderCell = memo(function HeaderCell({
   readonly columnIndex: number;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterable = column.enableFilter && column.semantics.filterFamily === "text";
   const menuRef = useAstryxTableHotkeyWorkflowAction(() => setMenuOpen(true));
   const subscribe = useCallback(
     (listener: () => void) => runtime.subscribeColumnCommands(column.columnId, listener),
@@ -846,6 +849,43 @@ const HeaderCell = memo(function HeaderCell({
                 },
               ]
             : []),
+          ...(filterable
+            ? [{ id: "filter", label: "Filter column", onClick: () => setFilterOpen(true) }]
+            : []),
+          ...(command.filterActive
+            ? [
+                {
+                  id: "clear-filter",
+                  label: "Clear column filter",
+                  onClick: () => {
+                    if (
+                      runtime.dispatchGridCommand({
+                        type: "column.filter.clear",
+                        columnId: column.columnId,
+                      })
+                    )
+                      announce(`${column.headerName} filter cleared`);
+                  },
+                },
+              ]
+            : []),
+          ...(command.filterBaselineAvailable
+            ? [
+                {
+                  id: "reset-filter",
+                  label: "Restore initial column filter",
+                  onClick: () => {
+                    if (
+                      runtime.dispatchGridCommand({
+                        type: "column.filter.reset",
+                        columnId: column.columnId,
+                      })
+                    )
+                      announce(`${column.headerName} filter reset`);
+                  },
+                },
+              ]
+            : []),
           ...(command.pinned !== "start"
             ? [
                 {
@@ -887,6 +927,16 @@ const HeaderCell = memo(function HeaderCell({
           },
         ]}
       />
+      {filterable ? (
+        <ColumnFilter
+          column={column}
+          runtime={runtime}
+          active={command.filterActive}
+          open={filterOpen}
+          onOpenChange={setFilterOpen}
+          activate={() => navigation.activateHeader(column.columnId)}
+        />
+      ) : null}
       <Divider
         orientation="vertical"
         aria-label={`Resize ${column.headerName}`}

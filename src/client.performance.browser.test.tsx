@@ -15,6 +15,8 @@ import {
 } from "../packages/table/src/internal/benchmark-budget";
 import { getAstryxTableBenchmarkEnvironment } from "../packages/table/src/internal/benchmark-profile";
 import {
+  installAstryxTableClientColumnFilterRenderListener,
+  installAstryxTableClientColumnFilterTriggerRenderListener,
   installAstryxTableClientViewRenderListenerForTable,
   installAstryxTableClientGridSurfaceRenderListenerForTable,
 } from "../packages/table/src/internal/render-instrumentation";
@@ -54,7 +56,7 @@ const nextFrame = () => new Promise<number>((resolve) => nativeFrame(resolve));
 type Work = { callbackDurationMs: number; reactDurationMs: number };
 afterEach(cleanup);
 
-test.for(["raw", "pinned"] as const)(
+test.for(["raw", "pinned", "filters"] as const)(
   "production Client accounts for complete two-axis frame work over 5,000 × 150 rows (%s)",
   { timeout: 30_000 },
   async (layout, { annotate }) => {
@@ -66,8 +68,9 @@ test.for(["raw", "pinned"] as const)(
     const columns = Array.from({ length: 150 }, (_, index) => ({
       columnId: `COL_ID_C${index}` as AstryxTableColumnId,
       headerName: `Column ${index}`,
-      field: "sequence" as const,
-      valueType: "number" as const,
+      ...(layout === "filters"
+        ? { field: "symbol" as const, valueType: "text" as const }
+        : { field: "sequence" as const, valueType: "number" as const }),
       width: 120,
       ...(index === (layout === "pinned" ? 24 : 10) ? { cellRenderer: customRenderer } : {}),
       ...(layout === "pinned" && index === 0
@@ -304,15 +307,24 @@ test.for(["raw", "pinned"] as const)(
   },
 );
 
-test(
-  "keeps 20 Hz publications bounded and isolated with stable row references",
-  async ({ annotate }) => {
+test.for(["plain", "open-filter"] as const)(
+  "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
+  { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
+  async (variant, { annotate }) => {
     const tableId = "TABLE_ID_PRODUCTION_20_HZ";
     const reconciliationEvents: AstryxTableClientReconciliationEvent[] = [];
     const viewRenders = vi.fn();
     const gridSurfaceRenders = vi.fn();
     const toolbarCommits = vi.fn();
     const cellRenderCounts = new Map<string, number>();
+    let filterRenders = 0;
+    let filterTriggers = 0;
+    const removeFilterRender = installAstryxTableClientColumnFilterRenderListener(() => {
+      filterRenders++;
+    });
+    const removeFilterTrigger = installAstryxTableClientColumnFilterTriggerRenderListener(() => {
+      filterTriggers++;
+    });
     type PublicationSample = {
       readonly index: number;
       admissionDurationMs: number;
@@ -354,7 +366,9 @@ test(
               return row.symbol;
             },
           }
-        : column,
+        : variant === "open-filter" && index === 1
+          ? { ...column, field: "symbol", valueType: "text" }
+          : column,
     ) as AstryxTableColumns<ProductionWorkloadRow>;
     function ToolbarProbe() {
       useEffect(() => {
@@ -471,7 +485,17 @@ test(
       await expect
         .element(screen.getByRole("button", { name: "Stable production command" }))
         .toBeInTheDocument();
+      if (variant === "open-filter") {
+        await screen.getByRole("button", { name: "Filter Column 1", exact: true }).click();
+        await expect
+          .element(screen.getByRole("textbox", { name: "Filter value", exact: true }))
+          .toHaveFocus();
+        expect(filterRenders).toBeGreaterThan(0);
+        expect(filterTriggers).toBeGreaterThan(0);
+      }
       await settleAstryxTableBrowserFrames(2);
+      const initialFilterRenders = filterRenders;
+      const initialFilterTriggers = filterTriggers;
       observedCell =
         screen
           .getByRole("grid")
@@ -550,7 +574,10 @@ test(
           maxDroppedFrameCount: 2,
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
-          scenario: "client-live-publication-5000x150-20hz",
+          scenario:
+            variant === "open-filter"
+              ? "client-open-filter-live-publication-5000x150-20hz"
+              : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -564,6 +591,8 @@ test(
       expect(viewRenders).toHaveBeenCalledTimes(initialViewRenders);
       expect(gridSurfaceRenders).toHaveBeenCalledTimes(initialGridRenders);
       expect(toolbarCommits).toHaveBeenCalledOnce();
+      expect(filterRenders).toBe(initialFilterRenders);
+      expect(filterTriggers).toBe(initialFilterTriggers);
       expect(cellRenderCounts.get(unchangedRow.id)).toBe(initialUnchangedCellRenders);
       expect(cellRenderCounts.get(rows[1]!.id)).toBe(
         (initialChangedCellRenders ?? 0) + LIVE_PUBLICATION_SAMPLE_COUNT,
@@ -575,7 +604,8 @@ test(
       removeGrid();
       removeView();
       removeReconciliation();
+      removeFilterRender();
+      removeFilterTrigger();
     }
   },
-  LIVE_PUBLICATION_TEST_TIMEOUT_MS,
 );

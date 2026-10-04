@@ -208,3 +208,28 @@ A subsequent public regression reproduced lost focus recovery when a live
 `cellClassName` change hid the owning cell while its custom button stayed mounted.
 The bounded observer now includes the owning cell's visibility-related attributes,
 while still excluding its hot geometry style writes. This is an Adapter correction.
+
+## Filter integration work (not an upstream defect)
+
+The first menu-to-filter slice consumes published TextInput, Selector,
+CheckboxInput and usePopover controls while retaining grid-owned query, exact
+value and preference semantics. Native nested Escape and recycled-header focus
+recovery pass the public Client regressions without another Core patch.
+
+React Compiler initially classified the complete usePopover result as a ref-like
+object when its members were read during render. Destructuring the public return
+fields directly removes that compiler diagnostic; no compiler opt-out or upstream
+patch is needed. This is an integration correction, not a reproduced Core bug.
+
+A public IME regression reproduced our initial editor publishing intermediate
+composition text after the debounce. Composition drafts now stay local until
+compositionend, and a replaced column invalidates the entire old session. The
+regressions also protect deferred-draft cancellation, committed-only persistence,
+restoration and nested overlay ownership. The filter work remains in progress;
+these focused tests do not establish full filtering parity or publication readiness.
+
+Further public regressions caught two missing retained header behaviors: Enter
+on an unsortable text column did not open its filter, and active filters lacked
+a visible/accessible trigger indication. Both are corrected locally; F2 remains
+a body-cell action, while Alt+Enter opens a header filter and Alt+Shift+Enter
+clears/restores the initial expression. No additional Core patch is involved.
