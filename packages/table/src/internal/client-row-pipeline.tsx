@@ -31,7 +31,8 @@ import { ClientSortStability } from "./client-sort-stability";
 import { createAstryxTableClientRowComparator } from "./client-row-model";
 import { recordAstryxTableClientRowOrderPlanning } from "./render-instrumentation";
 import {
-  deriveAstryxTableClientGroupedProjection,
+  deriveAstryxTableClientGroupedProjectionFromRows,
+  AstryxTableClientGroupingInputCache,
   type AstryxTableClientGroupedProjection,
   type AstryxTableClientGroupedRow,
 } from "./client-grouping";
@@ -412,6 +413,7 @@ export class AstryxTableClientProjectionPlanCompiler {
 }
 
 export class AstryxTableClientProjectionStore {
+  private readonly groupingInputCache = new AstryxTableClientGroupingInputCache();
   private coordinator: AstryxTableClientProjectionCoordinator | undefined;
   private readonly defaultGroupRowsColumn = compileAstryxTableGroupRowsColumn(undefined);
   private activation = 0;
@@ -449,6 +451,7 @@ export class AstryxTableClientProjectionStore {
       this.unsubscribeProjectionInput = undefined;
       this.unsubscribeQuery = undefined;
       this.unsubscribeColumnStructure = undefined;
+      this.groupingInputCache.clear();
     };
   }
 
@@ -588,6 +591,7 @@ export class AstryxTableClientProjectionStore {
     } else {
       this.adapter.acceptRows(projectionInput.rows);
       candidate = createClientProjectionCandidate({
+        inputCache: this.groupingInputCache,
         columns: projectionInput.columns,
         columnLayout: configuration.columnLayout,
         groupBy: configuration.groupBy,
@@ -917,6 +921,7 @@ function isInvalidValueEvidence(input: unknown): input is AstryxTableInvalidCell
 
 function createClientProjectionCandidate(
   input: Readonly<{
+    readonly inputCache: AstryxTableClientGroupingInputCache;
     readonly columns: readonly CompiledColumn[];
     readonly columnLayout: AstryxTableColumnLayoutSnapshot;
     readonly groupBy: readonly string[];
@@ -937,6 +942,7 @@ function createClientProjectionCandidate(
   }>,
 ): AstryxTableClientProjectionCandidate {
   if (input.groupBy.length === 0) {
+    input.inputCache.clear();
     return createAstryxTableRawProjectionCandidate({
       columns: input.rowModel.visibleColumns,
       presentationKey: clientProjectionPresentationKey(
@@ -964,13 +970,12 @@ function createClientProjectionCandidate(
     groupedColumns,
     input.queryGeneration,
   );
-  const projection = deriveAstryxTableClientGroupedProjection({
-    rows: input.rowModel.filteredRows.map((row) => ({
-      raw: row.raw,
-      rowId: row.rowId,
-      rowIndex: row.rowIndex,
-      readValue: (column) => row.values.read(row.raw, row.rowId, row.rowIndex, column),
-    })),
+  const projection = deriveAstryxTableClientGroupedProjectionFromRows({
+    reuseNativeResults: true,
+    inputCache: input.inputCache,
+    rows: input.rowModel.filteredRows,
+    preparationIdentity: (row) => row,
+    readValue: (row, column) => row.values.read(row.raw, row.rowId, row.rowIndex, column),
     columns: input.columns,
     participatingAggregateColumnIds: new Set(
       input.rowModel.visibleColumns.map((column) => column.columnId),

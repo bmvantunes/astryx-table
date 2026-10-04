@@ -52,11 +52,6 @@
       "sha256": "580e9f99dcf601bb956f589730f9ddc544b74013455aa386318a5a77f21b20f3"
     },
     {
-      "source": "migration/table/src/internal/client-grouping.ts",
-      "target": "packages/table/src/internal/client-grouping.ts",
-      "sha256": "75ea1aabc375c5db59bc15f8d0e52a560bd9be054337747e663eb6a21bdf0d17"
-    },
-    {
       "source": "migration/table/src/internal/client-projection.ts",
       "target": "packages/table/src/internal/client-projection.ts",
       "sha256": "2f0d0499568e9f071f116e17473e7ffb95ce33bd2227515d55431eef81628441"
@@ -95,11 +90,6 @@
       "source": "migration/table/src/internal/commit-diagnostic-probes.tsx",
       "target": "packages/table/src/internal/commit-diagnostic-probes.tsx",
       "sha256": "dae05da1fd055fbb110ee80ef7fcccdf7fc55f0a8dab424323fdeb2bbd9e1cc5"
-    },
-    {
-      "source": "migration/table/src/internal/compile-columns.ts",
-      "target": "packages/table/src/internal/compile-columns.ts",
-      "sha256": "b7e4653845bc6bf019a5c93a2d45a7597626dc3f10fc536e3bd07137a631b1c2"
     },
     {
       "source": "migration/table/src/internal/development.d.ts",
@@ -347,10 +337,26 @@
     {
       "source": "migration/table/src/internal/client-row-pipeline.tsx",
       "target": "packages/table/src/internal/client-row-pipeline.tsx",
-      "sha256": "aabf6ba709fd5bb93f0bf63ff0241691d95c50988ff2fe2a4974108c9e5029eb",
+      "sha256": "c9951b650104cdba9ef6f67fef12d60890e14d0bd49010b9e2d302b7e7922636",
       "sourceSha256": "bf2cb6573548346b44082ee7880e02fb98dde770a2802512feb44615f7a221b7",
       "reviewExempt": false,
-      "reason": "Use committed TanStack row order and current neighbour comparisons to retain unchanged sort projections across value-only publications; membership, identity, invalid-value and ordering changes still reproject. Semantic performance optimization requires independent review, differential tests and production measurement."
+      "reason": "Use committed TanStack row order and current neighbour comparisons to retain unchanged sort projections across value-only publications; membership, identity, invalid-value and ordering changes still reproject. Semantic performance optimization requires independent review, differential tests and production measurement. Own the bounded grouped-input cache using immutable admitted-row tokens and clear it on ungrouping/disposal. Use a shared typed row reader to avoid per-publication row wrappers and closures; standalone derivation retains its original entry point. Opt the canonical immutable Client Adapter into bounded native result reuse proven by exact ordered admission membership and compiled plan; custom or altered semantics keep the original executor."
+    },
+    {
+      "source": "migration/table/src/internal/client-grouping.ts",
+      "target": "packages/table/src/internal/client-grouping.ts",
+      "sha256": "b084acd15898fe82bcd6f97e80c43e3d01bf53fdbd8edbc7d06f4ba7593afbf0",
+      "sourceSha256": "75ea1aabc375c5db59bc15f8d0e52a560bd9be054337747e663eb6a21bdf0d17",
+      "reviewExempt": false,
+      "reason": "Bound prepared built-in grouping inputs to 16,384 value slots, invalidate by exact compiled key/aggregate roles, and preserve custom codec and aggregate execution. Avoid transient presence freezes and repeated primitive key encoding. Semantic optimization requires differential tests, independent review and complete production measurements. Built-in distinct counts use exact primitive Set identity and a separate Missing sentinel; custom counts retain canonical encoding and failure behavior. Use a shared typed row reader to avoid per-publication row wrappers and closures; standalone derivation retains its original entry point. Opt the canonical immutable Client Adapter into bounded native result reuse proven by exact ordered admission membership and compiled plan; custom or altered semantics keep the original executor."
+    },
+    {
+      "source": "migration/table/src/internal/compile-columns.ts",
+      "target": "packages/table/src/internal/compile-columns.ts",
+      "sha256": "23e041c5683bd85c055dcf12cc61caf6c1599271b13fb58c8a5e1642c0611a7e",
+      "sourceSha256": "b7e4653845bc6bf019a5c93a2d45a7597626dc3f10fc536e3bd07137a631b1c2",
+      "reviewExempt": false,
+      "reason": "Privately certify exact frozen compiler-owned native columns for bounded native group-result reuse. Cloned or custom semantics cannot acquire this proof. Requires semantic review and native/custom differential tests."
     }
   ]
 }

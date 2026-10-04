@@ -1,10 +1,11 @@
+import { GroupingControls } from "./internal/grouping-controls";
 import { hasToolbarContent } from "./toolbar";
 import { createGridFilterCommands } from "./internal/filter-commands";
 import * as stylex from "@stylexjs/stylex";
 import { SortControls } from "./internal/sort-controls";
 import { ColumnManagement } from "./internal/column-settings";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type {
   AstryxTableColumns,
   AstryxTableReadOnlyClientProps,
@@ -29,13 +30,12 @@ const styles = stylex.create({
   grid: { gridColumn: 1, gridRow: 1, minWidth: 0 },
 });
 
-/** Current private read-only slice. Selection and grouping configuration arrive in #13/#7. */
+/** Read-only Client; Row Selection remains owned by the #13 delivery. */
 export type AstryxTableClientProps<TRow, TColumns extends AstryxTableColumns<TRow>> = Omit<
   AstryxTableReadOnlyClientProps<TRow, TColumns>,
-  "rowSelection" | "groupRowsColumn"
+  "rowSelection"
 > & {
   readonly rowSelection?: never;
-  readonly groupRowsColumn?: never;
 };
 
 export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumns<TRow>>(
@@ -47,9 +47,6 @@ export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumn
   if (props.rowSelection !== undefined) {
     throw new TypeError("Row Selection is not available in this Client slice (issue #13).");
   }
-  if (props.groupRowsColumn !== undefined) {
-    throw new TypeError("Grouping is not available in this Client slice (issue #7).");
-  }
   if (props.editable) {
     throw new TypeError("Editing is not available in this Client slice (issues #11–#12).");
   }
@@ -59,6 +56,7 @@ export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumn
 function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColumns<TRow>>(
   props: AstryxTableClientProps<TRow, TColumns>,
 ) {
+  const scope = useRef<HTMLDivElement>(null);
   const columns = useMemo(() => compileColumns(props.columns), [props.columns]);
   const groupRowsColumn = useMemo(
     () => compileAstryxTableGroupRowsColumn(props.groupRowsColumn),
@@ -88,9 +86,6 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         groupRowsWidth: groupRowsColumn.width,
       },
     );
-    if (instance.getQuerySnapshot().groupBy.length > 0) {
-      throw new TypeError("Grouping is not available in this Client slice (issue #7).");
-    }
     return instance;
   });
   const [view] = useState(() => runtime.getView());
@@ -140,10 +135,11 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   );
   return (
     <ClientContext value={clientContext}>
-      <div {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
+      <div ref={scope} {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
         {!hasToolbarContent(props.children) ? null : (
           <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
         )}
+        <GroupingControls runtime={view} scope={scope} />
         <div {...stylex.props(styles.body)}>
           <aside {...stylex.props(styles.rail)} aria-label={`${props.tableId} column management`}>
             <ColumnManagement runtime={view} columns={columns} />

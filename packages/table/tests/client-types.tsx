@@ -196,3 +196,43 @@ void AstryxTableFilterControl(invalidExternal);
 const invalidGrid = { ownership: "grid" as const, children: "Plain children" };
 // @ts-expect-error Grid ownership requires a command callback.
 void AstryxTableFilterControl<Row, typeof columns>(invalidGrid);
+
+const groupedColumns = [
+  AstryxTableTextColumn({
+    columnId: "COL_ID_NAME",
+    headerName: "Name",
+    field: "name",
+    groupBy: true,
+  }),
+  AstryxTableBigIntColumn({
+    columnId: "COL_ID_AMOUNT",
+    headerName: "Amount",
+    field: "amount",
+    aggFunc: "sum",
+  }),
+] as const satisfies AstryxTableColumns<Row>;
+void (
+  <AstryxTableClient
+    {...props}
+    columns={groupedColumns}
+    groupRowsColumn={{
+      headerName: "Records",
+      width: 160,
+      valueFormatter: (context) => {
+        const count: bigint = context.value;
+        const identity: "COL_ID_ASTRYX_TABLE_ROWS" = context.columnId;
+        // @ts-expect-error Rows presentation has no fabricated raw row.
+        void context.row;
+        for (const key of context.groupKeys) {
+          const field: "name" = key.field;
+          if (key._tag === "Present") {
+            const text: string = key.value;
+            void text;
+          }
+          void field;
+        }
+        return `${identity}: ${String(count)}`;
+      },
+    }}
+  />
+);

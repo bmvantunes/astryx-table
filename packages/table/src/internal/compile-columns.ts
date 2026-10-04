@@ -59,10 +59,27 @@ export type CompiledColumn = CompiledFieldColumn | CompiledComputedColumn;
 
 export class ColumnConfigurationError extends TypeError {}
 
+// Only this compiler may certify the frozen semantics it installs. Cloned
+// columns or semantics with overridden callbacks deliberately fail this proof.
+const nativeColumns = new WeakSet<CompiledColumn>();
+export function hasNativeColumnSemantics(column: CompiledColumn): boolean {
+  return nativeColumns.has(column);
+}
+
 export function compileColumns(columns: readonly unknown[]): readonly CompiledColumn[] {
   const seen = new Set<string>();
   const compiled = Array.from(columns, (column, index) => compileColumn(column, index, seen));
 
+  for (const column of compiled) {
+    if (
+      column.valueType === "text" ||
+      column.valueType === "boolean" ||
+      column.valueType === "number" ||
+      column.valueType === "bigint"
+    ) {
+      nativeColumns.add(column);
+    }
+  }
   return Object.freeze(compiled);
 }
 

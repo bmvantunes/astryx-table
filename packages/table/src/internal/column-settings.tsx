@@ -44,15 +44,28 @@ export const ColumnManagement = memo(function ColumnManagement({
         variant="ghost"
         onClick={toggle}
       />
-      {render(
-        isOpen ? (
-          <div {...stylex.props(styles.panel)}>
-            <ColumnVisibility runtime={runtime} columns={columns} />
-            <ResetColumns runtime={runtime} />
-          </div>
-        ) : null,
-      )}
+      {render(isOpen ? <ColumnPreferenceContent runtime={runtime} columns={columns} /> : null)}
     </>
+  );
+});
+
+const ColumnPreferenceContent = memo(function ColumnPreferenceContent({
+  runtime,
+  columns,
+}: {
+  readonly runtime: AstryxTableRuntimeView;
+  readonly columns: readonly CompiledColumn[];
+}) {
+  const grouping = useSyncExternalStore(
+    runtime.subscribeInstalledGroupingStructure,
+    runtime.getInstalledGroupingStructureSnapshot,
+    runtime.getInstalledGroupingStructureSnapshot,
+  );
+  return (
+    <div {...stylex.props(styles.panel)}>
+      <ColumnVisibility runtime={runtime} columns={columns} groupBy={grouping.groupBy} />
+      <ResetColumns runtime={runtime} grouped={grouping.groupBy.length > 0} />
+    </div>
   );
 });
 
@@ -60,9 +73,11 @@ export const ColumnManagement = memo(function ColumnManagement({
 export const ColumnVisibility = memo(function ColumnVisibility({
   runtime,
   columns,
+  groupBy,
 }: {
   readonly runtime: AstryxTableRuntimeView;
   readonly columns: readonly CompiledColumn[];
+  readonly groupBy: readonly string[];
 }) {
   if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__) recordAstryxTableColumnSettingsRender("visibility");
   const snapshot = useSyncExternalStore(
@@ -75,10 +90,11 @@ export const ColumnVisibility = memo(function ColumnVisibility({
     [columns],
   );
   const visible = new Set(snapshot.visibleColumnIds);
+  const forced = new Set(groupBy);
   const options = snapshot.allColumns.map((column) => ({
     value: column.columnId,
     label: labels.get(column.columnId) ?? column.headerName,
-    disabled: visible.size === 1 && visible.has(column.columnId),
+    disabled: forced.has(column.columnId) || (visible.size === 1 && visible.has(column.columnId)),
   }));
   return (
     <MultiSelector
@@ -89,11 +105,14 @@ export const ColumnVisibility = memo(function ColumnVisibility({
       hasSearch
       presentation="popover"
       options={options}
-      value={[...snapshot.visibleColumnIds]}
+      value={[...new Set([...snapshot.visibleColumnIds, ...groupBy])]}
       formatValue={(items) => `Columns (${String(items.length)})`}
       onChange={(next) => {
         const current = runtime.getColumnStructureSnapshot();
-        const before = new Set(current.visibleColumnIds);
+        const before = new Set([
+          ...current.visibleColumnIds,
+          ...runtime.getInstalledGroupingStructureSnapshot().groupBy,
+        ]);
         const after = new Set(next);
         const changed = current.allColumns.filter(
           (column) => before.has(column.columnId) !== after.has(column.columnId),
@@ -114,8 +133,10 @@ export const ColumnVisibility = memo(function ColumnVisibility({
 /** Reset controls dispatch commands without subscribing to grid state. */
 export const ResetColumns = memo(function ResetColumns({
   runtime,
+  grouped,
 }: {
   readonly runtime: AstryxTableRuntimeView;
+  readonly grouped: boolean;
 }) {
   if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__) recordAstryxTableColumnSettingsRender("reset");
   const [announcement, setAnnouncement] = useState({ sequence: 0, message: "" });
@@ -132,14 +153,16 @@ export const ResetColumns = memo(function ResetColumns({
             ["pinning", "Reset column pinning", "Column pinning reset"],
             ["layout", "Reset entire column layout", "Column layout reset"],
           ] as const
-        ).map(([kind, label, message]) => ({
-          id: kind,
-          label,
-          onClick: () => {
-            if (runtime.dispatchGridCommand({ type: `column.reset.${kind}` }))
-              setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
-          },
-        }))}
+        )
+          .filter(([kind]) => !grouped || (kind !== "order" && kind !== "layout"))
+          .map(([kind, label, message]) => ({
+            id: kind,
+            label,
+            onClick: () => {
+              if (runtime.dispatchGridCommand({ type: `column.reset.${kind}` }))
+                setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
+            },
+          }))}
       />
       <VisuallyHidden role="status" aria-label="Column preferences status">
         <span key={announcement.sequence}>{announcement.message}</span>

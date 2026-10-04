@@ -38,6 +38,7 @@ cpSync(
 );
 for (const name of [
   "client-capabilities.browser.test.tsx",
+  "client-grouping.browser.test.tsx",
   "client-toolbar.browser.test.tsx",
   "client-column-layout.browser.test.tsx",
   "client-column-resize.browser.test.tsx",

@@ -21,8 +21,8 @@ import {
 } from "../packages/table/src/internal/render-instrumentation";
 import "./styles.css";
 
-afterEach(() => {
-  cleanup();
+afterEach(async () => {
+  await cleanup();
   vi.restoreAllMocks();
 });
 
@@ -266,7 +266,7 @@ test.for(["preview", "autoscroll"] as const)(
       observers.restore();
       recording = false;
       restoreFrames?.();
-      cleanup();
+      await cleanup();
       for (const dispose of remove) dispose();
     }
   },

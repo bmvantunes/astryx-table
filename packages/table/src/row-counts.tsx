@@ -32,7 +32,7 @@ export const AstryxTableResultRowCount = memo(function AstryxTableResultRowCount
   return renderCount("Result rows", "result row", count, children);
 });
 
-/** The number of resident source rows, before Client filters. */
+/** Resident rows in the current domain: source rows when raw, summaries when grouped. */
 export const AstryxTableLoadedRowCount = memo(function AstryxTableLoadedRowCount({
   children,
 }: CountProps) {

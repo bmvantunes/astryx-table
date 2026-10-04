@@ -86,7 +86,7 @@ test.each(["start", "end"] as const)(
     await expect.element(page.getByRole("gridcell", { name: "ONE", exact: true })).toBeVisible();
   },
 );
-test("restored grouping fails explicitly before raw callbacks receive fabricated rows", async () => {
+test("restored grouping uses Group Key presentation instead of fabricated raw rows", async () => {
   await render(
     <Boundary>
       <AstryxTableClient
@@ -95,9 +95,8 @@ test("restored grouping fails explicitly before raw callbacks receive fabricated
       />
     </Boundary>,
   );
-  await expect
-    .element(page.getByRole("alert"))
-    .toHaveTextContent("Grouping is not available in this Client slice");
+  await expect.element(page.getByRole("gridcell", { name: "One", exact: true })).toBeVisible();
+  await expect.element(page.getByRole("columnheader", { name: "Rows", exact: true })).toBeVisible();
 });
 test("untyped consumers cannot silently enable Row Selection", async () => {
   const untyped = { ...props, rowSelection: true };

@@ -576,3 +576,105 @@ StackItem. Empty wrappers create no toolbar landmark, and LTR/RTL tests verify o
 arrow-navigation step and authored control order. The first geometry test lacked
 the official stylesheet; loading it fixed the test fixture, not an Astryx defect.
 No additional Core patch was necessary.
+
+## Client grouping activation (local integration)
+
+Native Astryx grouping was inspected before implementation. It provides
+collapsible sections and member rows; our retained contract requires flat exact
+summaries. The native plugin is not defective for implementing that different
+model. The grouping executor remains retained, while cells and controls use
+published Astryx components.
+
+The private viewport integration still hardcoded `projectionKind="raw"`, which
+could discard the Rows System Column and grouped presentation semantics during
+layout derivation. Grouping activation now supplies the installed projection
+kind. Public tests exercise exact bigint summaries, raw-callback isolation and
+Group By commands. This is a local integration correction, not another Core
+patch; complete grouping validation is still in progress.
+
+Further activation regressions exposed local seams: a hidden base column that
+becomes a visible group key was rejected by resize's base-visibility guard, and
+countDistinct's bigint presentation could hide the original text filter. Resize
+now checks rendered participation; filter controls subscribe to the original
+field definition rather than the aggregate presentation. Public failing tests
+preceded both corrections. Schema replacement also recovers focus only when a
+previously focused group control disappears. None requires an Astryx patch.
+
+Menu-originated removal now uses the retained focus handoff to the nearest group
+chip or Add Group. Group controls read the installed grouping tuple and current
+canonical column definitions: the layout-only structural snapshot intentionally
+does not publish every semantic capability change. Keyboard and live schema
+replacement regressions cover both focus ownership and filter admission.
+
+The grouped 20 Hz production workload exposed a local performance regression:
+p99 was 15.3 ms against an unchanged 8.33 ms budget. A bounded prepared-input cache
+now reuses unchanged admitted builtin values while executing all aggregate
+operations normally. Focused dirty runs passed; full-suite and clean-commit
+verification remain pending. Differential tests cover exactness, capacity,
+filtering, custom failures and schema replacement. They also caught a local cache
+invalidation bug: changing an aggregate into a group key can leave the combined
+column sequence unchanged, so the key/aggregate boundary is part of the cache
+plan. No dependency patch was added. See the grouping research for retained and
+removed optimization experiments.
+
+Independent review found one more local focus-ownership gap: the Add Group trigger
+was not tracked, so removing all grouping eligibility while that closed picker
+was focused left focus on the document body. The public regression failed before
+the fix; the native trigger now participates in the existing surviving-grid
+fallback. A paired outside-focus case ensures no intentional focus is stolen.
+
+The first complete 37-scenario dirty run passed the other scenarios but failed
+grouped live work at p99 9.0 ms. Earlier focused passes do not override that result;
+further investigation and a complete passing run remain required. No timing limit
+or measurement boundary has changed.
+
+The follow-up removes framed-string allocation from builtin distinct counts by
+using exact primitive identity, with a separate Missing sentinel. Custom codecs
+still own custom distinct equality and execute on every derivation. Five added
+domain cases cover exact native values, presence distinctions and custom encoding
+failure/recovery. The next focused run passed at p99 6.9 ms and maximum 7.2 ms;
+full-suite and clean-commit evidence are still required.
+
+The suspected open-picker variant was also exercised: removing eligibility while
+native search owns focus recovers to the grid, while intentional outside focus
+is retained. Both passed with the existing trigger fix; no additional workaround
+or native overlay patch was necessary.
+
+Subsequent full runs still exceeded grouped-live work (p99 8.8 and 8.4 ms); one
+also failed start-resize cadence, which passed unchanged in focused repetition.
+The cause of the cadence variance is unconfirmed. CPU diagnostics and temporary
+array-state, algebra-call and lazy-identity experiments were removed without
+weakening the measurement protocol. The pipeline now passes immutable admitted
+rows through one shared reader rather than allocating a wrapper and closure per
+resident row on every publication. Standalone derivation keeps its existing API;
+exact operations, error handling and bounded preparation remain unchanged.
+A differential test covers direct-reader identity replacement and failure recovery.
+Focused production passed at p99 7.4 ms; full-suite validation remains required.
+
+The shared-reader full run passed grouped live updates at p99 6.6 ms, maximum
+6.7 ms, and grouped scroll work at p99 4.4 ms. Only start-resize presentation
+cadence failed in that run. Inspection also found unawaited async Browser cleanup
+in the resize/reorder harnesses; teardown now waits for unmount before disposing
+listeners or starting another test. This is a harness correction, not an Astryx
+bug or a proven explanation of the preceding cadence failure. Measured work,
+workloads, warmup, sample counts and budgets remain unchanged.
+
+### Grouped live performance: exact-commit failure and bounded native reuse
+
+The clean `f0b34db` measurement failed grouped-live p99 at 8.5 ms (8.33 ms budget).
+The preceding dirty full-suite pass cannot override it. A follow-up epoch-cache
+experiment failed at 8.6 ms and was set aside without claiming an improvement.
+
+A local refinement now reuses results only for compiler-certified native groups
+with the identical ordered immutable member identities and compiled plan. Changed
+groups keep source-ordered exact arithmetic; custom or altered semantics retain
+normal execution. Membership and result storage are separately bounded, and
+failures cannot install partial cache evidence. This is our aggregation-runtime
+optimization, not an Astryx Core patch. Details and regression coverage are in
+`docs/research/astryx-client-grouping.md`. Full production validation and renewed
+independent review are pending; no performance pass or upstream fix is claimed.
+
+The first full production suite with native result reuse passed all 37 scenarios
+(24 tests), including grouped-live p99 7.3 ms, maximum 7.6 ms and zero over-budget
+samples. This is a dirty development result. Complete functional validation,
+independent review and exact clean-commit production evidence remain required.
