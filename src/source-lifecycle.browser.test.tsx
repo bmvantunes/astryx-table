@@ -217,10 +217,10 @@ test("loading virtualizes both axes and keeps native skeleton cells fixed-height
       0,
     );
   });
-  expect(screen.getByRole("row").all().length).toBeLessThan(100);
-  expect(screen.getByRole("gridcell").all().length).toBeLessThan(1000);
-  for (const row of screen.getByRole("row").all()) {
-    const owned = row.element().getAttribute("aria-owns")?.split(" ") ?? [];
+  expect(screen.getByRole("row").elements().length).toBeLessThan(100);
+  expect(screen.getByRole("gridcell").elements().length).toBeLessThan(1000);
+  for (const row of screen.getByRole("row").elements()) {
+    const owned = row.getAttribute("aria-owns")?.split(" ") ?? [];
     expect(owned.length).toBeGreaterThan(0);
     for (const id of owned) expect(grid.element().querySelectorAll(`[id="${id}"]`)).toHaveLength(1);
   }
@@ -233,7 +233,7 @@ test("loading virtualizes both axes and keeps native skeleton cells fixed-height
   await expect
     .element(screen.getByRole("gridcell", { name: "Loading Column 149", exact: true }).nth(0))
     .toBeInTheDocument();
-  expect(screen.getByRole("gridcell").all().length).toBeLessThan(1000);
+  expect(screen.getByRole("gridcell").elements().length).toBeLessThan(1000);
 });
 
 test.for(["stale", "closed", "error"] as const)(

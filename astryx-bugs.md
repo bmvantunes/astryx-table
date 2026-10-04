@@ -741,3 +741,19 @@ regression passed before changing code: tested Chromium reset that active elemen
 to the iframe body. No reproduced failure is claimed for this concern. Cleanup
 now also requires the owning document to have focus, matching the existing
 recovery guard; the parent-focus regression remains as defensive coverage.
+
+### Loading test enumeration on constrained runners
+
+Both GitHub validation jobs exceeded the loading-geometry test's 15-second
+timeout. A local phase probe attributed about 2.5 seconds to its final cell
+count alone: Vitest `Locator.all()` builds a new element locator for every match,
+although the test only needs a count or the existing row elements. The installed
+implementation confirms that `all()` wraps the same result returned by
+`elements()`.
+
+With temporary 6× CPU throttling, the original test reproduced the timeout; using
+role-based `elements()` for those counts and row iteration passed in 989 ms.
+The temporary timing/throttling probes were removed. All geometry, mounted-window,
+unique ownership, pinned-cell and scroll assertions remain, as does the 15-second
+limit. This is test enumeration overhead, not an Astryx defect or a relaxed grid
+performance gate. A scrollbar-gutter hypothesis did not reproduce the failure.
