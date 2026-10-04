@@ -338,3 +338,18 @@ unmounts the table and restores a fresh instance. The test verifies the native
 Empty value label, the exact filtered row set and no extra persistence callback.
 The same fixture runs against the installed package. This strengthens evidence;
 it does not add an Astryx defect or change the dependency patch.
+
+### Live Set filter integration
+
+The Client Set filter uses native Astryx inputs/buttons over the retained facet
+engine. No additional Astryx defect or Core patch was needed. The search field is
+the first focusable control, allowing the native Popover to own opening focus.
+The grid supplies bounded option windows and exact value intent; those are retained
+grid requirements rather than replacements for generic Astryx control behavior.
+
+The initial open-Set production workload measured p99 12.1 ms against the unchanged
+8.33 ms limit. Stable per-option boundaries plus incremental resident facet counts
+replace redundant native-control renders and full scans after each single-row
+publication. This is a grid integration/performance improvement, not an Astryx
+bug or new dependency patch. The source engine adaptation has independent review
+and differential regression requirements; clean-commit evidence remains required.

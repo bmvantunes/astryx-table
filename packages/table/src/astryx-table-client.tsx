@@ -15,6 +15,7 @@ import {
 } from "./internal/client-row-pipeline";
 import { compileAstryxTableGroupRowsColumn } from "./internal/client-grouping-presentation";
 import { registerAstryxTableIdentity } from "./internal/table-identity-registry";
+import { ClientFacetContext } from "./internal/client-set-filter";
 import { AstryxTableView } from "./internal/astryx-table-view";
 
 const styles = stylex.create({ root: { position: "relative" } });
@@ -84,6 +85,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     return instance;
   });
   const [view] = useState(() => runtime.getView());
+  const facetContext = useMemo(() => ({ rows: adapter, runtime: view }), [adapter, view]);
   const [projection] = useState(
     () => new AstryxTableClientProjectionStore(view, adapter, undefined),
   );
@@ -123,14 +125,16 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
       {props.children === undefined || props.children === null ? null : (
         <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
       )}
-      <AstryxTableClientRowPipeline
-        runtime={view}
-        tableId={props.tableId}
-        columns={columns}
-        rowPipelineAdapter={adapter}
-      >
-        {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
-      </AstryxTableClientRowPipeline>
+      <ClientFacetContext value={facetContext}>
+        <AstryxTableClientRowPipeline
+          runtime={view}
+          tableId={props.tableId}
+          columns={columns}
+          rowPipelineAdapter={adapter}
+        >
+          {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
+        </AstryxTableClientRowPipeline>
+      </ClientFacetContext>
     </div>
   );
 }

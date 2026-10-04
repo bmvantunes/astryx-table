@@ -721,7 +721,8 @@ const HeaderCell = memo(function HeaderCell({
   const [filterOpen, setFilterOpen] = useState(false);
   const filterable =
     column.enableFilter &&
-    (column.semantics.filterFamily === "text" ||
+    (column.enableSetFilter ||
+      column.semantics.filterFamily === "text" ||
       column.valueType === "boolean" ||
       column.selectOptions !== undefined);
   const menuRef = useAstryxTableHotkeyWorkflowAction(() => setMenuOpen(true));

@@ -340,6 +340,14 @@
       "sourceSha256": "a4825a73f333741ba88f5b5385efe0adc82704f5d628ee25bfaba98648c4602b",
       "reviewExempt": false,
       "reason": "Isolate diagnostic listener exceptions so observers cannot interrupt subscriptions or subsequent listeners. Reviewed semantic correction for PR #18 comment 4174121727; not a mechanical import."
+    },
+    {
+      "source": "migration/table/src/internal/client-facet.ts",
+      "target": "packages/table/src/internal/client-facet.ts",
+      "sha256": "33293205ff3e5e150e4ce0a80013b249424c68107b975f410a1e27b99366e9bb",
+      "sourceSha256": "118bb781e92646c25d385051c345f9826a2d0000f649d1a4b3382429c761c53d",
+      "reviewExempt": false,
+      "reason": "Open-facet incremental exact-value contributions under unchanged query, row identity and cardinality, preserving first-source-occurrence ordering and rebuilding for query/structural changes. Requires independent review and differential/performance validation."
     }
   ]
 }
