@@ -128,3 +128,13 @@ and optional search, but this path is not virtualized. Supply the retained bound
 64-option window plus an off-window selected option. Keep configured values in
 the compiled domain and use private UI tokens only to select their exact indexes.
 The grid owns paging; native Selector owns interaction and overlay behavior.
+
+## Client Set filter composition
+
+Use published CheckboxInput for each exact value and TextInput for search. The
+native Table filtering plugin does not own the retained include/exclude, Match
+None or source-admission contracts, so the existing pure facet engine remains the
+authority. Its subscription observes admitted resident rows and other grid filters,
+never the native Table's windowed data. Generic controls remain upstream-owned.
+The search field precedes action buttons so Popover's native first-control focus
+lands there without another focus scheduler or dependency patch.

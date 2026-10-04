@@ -1,5 +1,7 @@
 import { memo, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
+import { ClientSetFilter } from "./client-set-filter";
+import { isAstryxTableSetFilterExpression } from "./client-facet";
 import { Button } from "@astryxdesign/core/Button";
 import { Selector } from "@astryxdesign/core/Selector";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
@@ -20,6 +22,7 @@ import {
 } from "./grid-query";
 
 const styles = stylex.create({
+  controls: { display: "flex", flexDirection: "column", gap: 8 },
   editor: {
     display: "flex",
     flexDirection: "column",
@@ -90,7 +93,14 @@ export const ColumnFilter = memo(function ColumnFilter({
         onFocus={activate}
         onClick={() => onOpenChange(!open)}
       />
-      {renderPopover(isOpen ? <ScalarFilterEditor column={column} runtime={runtime} /> : null)}
+      {renderPopover(
+        isOpen ? (
+          <div {...stylex.props(styles.editor)}>
+            {column.enableSetFilter ? <ClientSetFilter column={column} /> : null}
+            <ScalarFilterEditor column={column} runtime={runtime} />
+          </div>
+        ) : null,
+      )}
     </>
   );
 });
@@ -280,9 +290,17 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
           invalidIndex: undefined,
         };
   const [windowStart, setWindowStart] = useState(0);
+  const conditionsHost = useRef<HTMLDivElement | null>(null);
+  const focusConditions = useRef(false);
   const inputNodes = useRef(new Map<number, HTMLInputElement>());
   const focusRequest = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
+    if (focusConditions.current) {
+      focusConditions.current = false;
+      conditionsHost.current
+        ?.querySelector<HTMLElement>('input, [role="combobox"]')
+        ?.focus({ preventScroll: true });
+    }
     const index = focusRequest.current;
     focusRequest.current = undefined;
     if (index !== undefined) inputNodes.current.get(index)?.focus();
@@ -338,6 +356,36 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
   >(undefined);
   const debouncer = useDebouncer(publish, { wait: 150 });
   useLayoutEffect(() => () => debouncer.cancel(), [debouncer, column, version, epoch]);
+  if (
+    column.semantics.filterFamily !== "text" &&
+    column.valueType !== "boolean" &&
+    column.selectOptions === undefined
+  )
+    return null;
+  if (
+    column.enableSetFilter &&
+    isAstryxTableSetFilterExpression(column, runtime.getColumnFilterSnapshot(column.columnId))
+  )
+    return (
+      <>
+        <p>Values are selected. Switch to conditions to replace this filter.</p>
+        <Button
+          label="Use conditions"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            focusConditions.current = true;
+            if (
+              !runtime.dispatchGridCommand({
+                type: "column.filter.clear",
+                columnId: column.columnId,
+              })
+            )
+              focusConditions.current = false;
+          }}
+        />
+      </>
+    );
   if (current.draft === undefined)
     return <p>This expression is preserved. Its editor is not available yet.</p>;
   const update = (draft: Draft, immediate: boolean, localOnly = false) => {
@@ -410,7 +458,7 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
       : draft;
   };
   return (
-    <div {...stylex.props(styles.editor)}>
+    <div ref={conditionsHost} {...stylex.props(styles.controls)}>
       {draft.operator === "blank" || draft.operator === "notBlank" ? null : column.selectOptions !==
         undefined ? (
         <SelectFilterOperand

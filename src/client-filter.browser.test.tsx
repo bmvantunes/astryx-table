@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -700,7 +701,13 @@ test("editing another operand keeps the whole expression local during compositio
 test("boolean filters use native choices, commit immediately and restore exact false", async () => {
   type BooleanRow = { id: string; enabled: boolean | null };
   const booleanColumns = [
-    { columnId: "COL_ID_ENABLED", headerName: "Enabled", field: "enabled", valueType: "boolean" },
+    {
+      columnId: "COL_ID_ENABLED",
+      headerName: "Enabled",
+      field: "enabled",
+      valueType: "boolean",
+      enableSetFilter: false,
+    },
   ] as const satisfies AstryxTableColumns<BooleanRow>;
   const booleanRows = [
     { id: "yes", enabled: true },
@@ -801,6 +808,7 @@ test("Select filters publish exact configured numbers and restore zero", async (
   type ChoiceRow = { id: string; choice: 0 | 1 | 2 };
   const choiceColumns = [
     AstryxTableSelectColumn({
+      enableSetFilter: false,
       columnId: "COL_ID_CHOICE",
       headerName: "Choice",
       field: "choice",
@@ -874,6 +882,7 @@ test("Select option windows stay bounded and retain an off-window selected value
   ] as const;
   const choiceColumns = [
     AstryxTableSelectColumn({
+      enableSetFilter: false,
       columnId: "COL_ID_CHOICE",
       headerName: "Choice",
       field: "choice",
@@ -926,6 +935,7 @@ test("an empty-string Select option survives persisted restoration in a fresh in
   type ChoiceRow = { id: string; choice: "" | "Filled" };
   const choiceColumns = [
     AstryxTableSelectColumn({
+      enableSetFilter: false,
       columnId: "COL_ID_CHOICE",
       headerName: "Choice",
       field: "choice",
@@ -989,4 +999,253 @@ test("an empty-string Select option survives persisted restoration in a fresh in
     .element(page.getByRole("gridcell", { name: "Filled", exact: true }))
     .not.toBeInTheDocument();
   expect(persisted).toHaveLength(1);
+});
+
+test("Set filters preserve Match None for future values and restore without echo", async () => {
+  const facetColumns = [
+    { ...columns[0], enableSetFilter: true },
+  ] as const satisfies AstryxTableColumns<Row>;
+  const persisted: AstryxTablePersistedState<Row, typeof facetColumns, true>[] = [];
+  const view = await render(
+    <AstryxTableClient
+      tableId="set-none"
+      columns={facetColumns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Name", exact: true }).click();
+  await expect
+    .element(page.getByRole("searchbox", { name: "Search values for Name", exact: true }))
+    .toHaveFocus();
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Ada, 1", exact: true }))
+    .toBeChecked();
+  await page.getByRole("button", { name: "Clear All", exact: true }).click();
+  await expect.poll(() => page.getByRole("gridcell").all().length).toBe(0);
+  expect(persisted).toHaveLength(1);
+  expect(persisted[0]?.filters?.[0]).toMatchObject({ columnId: "COL_ID_NAME", type: "matchNone" });
+  const saved = JSON.parse(JSON.stringify(persisted[0])) as (typeof persisted)[number];
+  await view.unmount();
+  const futureRows = [...rows, { id: "future", name: "Future" }];
+  await render(
+    <AstryxTableClient
+      tableId="set-none"
+      columns={facetColumns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      initialPersistedState={saved}
+      clientSource={{ rows: futureRows, totalRows: futureRows.length, version: 2, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  expect(page.getByRole("gridcell").all()).toHaveLength(0);
+  expect(persisted).toHaveLength(1);
+  await page.getByRole("button", { name: "Filter Name (active)", exact: true }).click();
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Future, 1", exact: true }))
+    .not.toBeChecked();
+  await page.getByRole("checkbox", { name: "Select Ada, 1", exact: true }).click();
+  await expect.poll(() => page.getByRole("gridcell").all().length).toBe(1);
+  expect(persisted).toHaveLength(2);
+  await page.getByRole("button", { name: "Select All", exact: true }).click();
+  await expect.poll(() => page.getByRole("gridcell").all().length).toBe(4);
+  expect(persisted).toHaveLength(3);
+  expect(persisted[2]?.filters).toEqual([]);
+});
+
+test("Set filters retain exclusion intent and live zero-count values beyond the viewport", async () => {
+  const facetColumns = [
+    { ...columns[0], enableSetFilter: true },
+  ] as const satisfies AstryxTableColumns<Row>;
+  let publish: ((next: readonly Row[]) => void) | undefined;
+  const persisted: AstryxTablePersistedState<Row, typeof facetColumns, true>[] = [];
+  const initialRows = Array.from({ length: 90 }, (_, index) => ({
+    id: String(index),
+    name: `Value ${String(index).padStart(2, "0")}`,
+  }));
+  function Harness() {
+    const [source, setSource] = useState({ rows: initialRows as readonly Row[], version: 1 });
+    useEffect(() => {
+      publish = (next) => setSource((current) => ({ rows: next, version: current.version + 1 }));
+      return () => {
+        publish = undefined;
+      };
+    }, []);
+    return (
+      <AstryxTableClient
+        tableId="set-live"
+        columns={facetColumns}
+        getRowId={(row: Row) => row.id}
+        initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+        clientSource={{ ...source, totalRows: source.rows.length, status: "ready" }}
+        onPersistChange={(state) => persisted.push(state)}
+      />
+    );
+  }
+  await render(<Harness />);
+  await page.getByRole("button", { name: "Filter Name", exact: true }).click();
+  const values = page.getByRole("group", { name: "Filter values", exact: true });
+  expect(values.getByRole("checkbox").all()).toHaveLength(64);
+  const search = page.getByRole("searchbox", { name: "Search values for Name", exact: true });
+  await page.getByRole("button", { name: "Next values", exact: true }).click();
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Value 89, 1", exact: true }))
+    .toBeChecked();
+  expect(values.getByRole("checkbox").all()).toHaveLength(64);
+  await search.fill("89");
+  await page.getByRole("checkbox", { name: "Select Value 89, 1", exact: true }).click();
+  expect(persisted).toHaveLength(1);
+  expect(persisted[0]?.filters?.[0]).toMatchObject({
+    type: "NOT",
+    condition: { columnId: "COL_ID_NAME", type: "in" },
+  });
+  publish?.([...initialRows.slice(0, 89), { id: "future", name: "Future" }]);
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Value 89, 0", exact: true }))
+    .not.toBeChecked();
+  expect(persisted).toHaveLength(1);
+  await search.fill("Future");
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Future, 1", exact: true }))
+    .toBeChecked();
+  await expect.element(page.getByRole("gridcell", { name: "Future", exact: true })).toBeVisible();
+  publish?.([...initialRows, { id: "future", name: "Future" }]);
+  await search.fill("89");
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Value 89, 1", exact: true }))
+    .not.toBeChecked();
+  expect(persisted).toHaveLength(1);
+  await page.getByRole("checkbox", { name: "Select Value 89, 1", exact: true }).click();
+  expect(persisted).toHaveLength(2);
+  expect(persisted[1]?.filters).toEqual([]);
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("button", { name: "Filter Name", exact: true }))
+    .toHaveFocus();
+  publish?.([{ id: "new", name: "Reopened" }]);
+  await page.getByRole("button", { name: "Filter Name", exact: true }).click();
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select Reopened, 1", exact: true }))
+    .toBeChecked();
+  expect(values.getByRole("checkbox").all()).toHaveLength(1);
+});
+
+test("default Boolean Set filters exclude their own expression and respect other columns", async () => {
+  type FacetRow = { id: string; enabled: boolean; team: string };
+  const facetColumns = [
+    { columnId: "COL_ID_ENABLED", headerName: "Enabled", field: "enabled", valueType: "boolean" },
+    { columnId: "COL_ID_TEAM", headerName: "Team", field: "team", valueType: "text" },
+  ] as const satisfies AstryxTableColumns<FacetRow>;
+  const facetRows = [
+    { id: "a", enabled: true, team: "A" },
+    { id: "b", enabled: false, team: "A" },
+    { id: "c", enabled: true, team: "B" },
+  ];
+  const persisted: AstryxTablePersistedState<FacetRow, typeof facetColumns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="set-other"
+      columns={facetColumns}
+      getRowId={(row: FacetRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_ENABLED", direction: "asc" }]}
+      initialFilters={[
+        { columnId: "COL_ID_TEAM", type: "equals", filter: "A" },
+        { columnId: "COL_ID_ENABLED", type: "equals", filter: true },
+      ]}
+      clientSource={{ rows: facetRows, totalRows: 3, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Enabled (active)", exact: true }).click();
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select true, 1", exact: true }))
+    .toBeChecked();
+  await expect
+    .element(page.getByRole("checkbox", { name: "Select false, 1", exact: true }))
+    .toBeChecked();
+  await page.getByRole("button", { name: "Clear All", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Select false, 1", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Select true, 1", exact: true }).click();
+  expect(persisted).toHaveLength(3);
+  expect(persisted[2]?.filters).toHaveLength(1);
+  expect(persisted[2]?.filters?.[0]).toMatchObject({ columnId: "COL_ID_TEAM", type: "equals" });
+  expect(page.getByRole("gridcell").all()).toHaveLength(4);
+});
+
+test("default Select Set filters keep exact empty and case-distinct values", async () => {
+  type OptionRow = { id: string; choice: "a" | "" | "A" | "Empty value" };
+  const facetColumns = [
+    AstryxTableSelectColumn({
+      columnId: "COL_ID_CHOICE",
+      headerName: "Choice",
+      field: "choice",
+      options: ["a", "", "A", "Empty value"],
+    }),
+  ] as const satisfies AstryxTableColumns<OptionRow>;
+  const facetRows: OptionRow[] = [
+    { id: "lower", choice: "a" },
+    { id: "empty", choice: "" },
+    { id: "upper", choice: "A" },
+    { id: "label", choice: "Empty value" },
+  ];
+  const persisted: AstryxTablePersistedState<OptionRow, typeof facetColumns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="set-options"
+      columns={facetColumns}
+      getRowId={(row: OptionRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      clientSource={{ rows: facetRows, totalRows: 4, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Choice", exact: true }).click();
+  await page.getByRole("button", { name: "Clear All", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Select a, 1, option 1 of 4", exact: true }).click();
+  expect(persisted[1]?.filters?.[0]).toMatchObject({
+    type: "in",
+    filter: [{ $astryxTableValue: "select", version: 1, value: { type: "string", value: "a" } }],
+  });
+  await page
+    .getByRole("checkbox", { name: "Select Empty value, 1, option 2 of 4", exact: true })
+    .click();
+  await expect.poll(() => page.getByRole("gridcell").all().length).toBe(2);
+  expect(persisted).toHaveLength(3);
+});
+
+test("Set commands cancel pending scalar drafts and return keyboard focus to conditions", async () => {
+  const facetColumns = [
+    { ...columns[0], enableSetFilter: true },
+  ] as const satisfies AstryxTableColumns<Row>;
+  const persisted: AstryxTablePersistedState<Row, typeof facetColumns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="set-draft"
+      columns={facetColumns}
+      getRowId={(row: Row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Name", exact: true }).click();
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  try {
+    await page.getByRole("textbox", { name: "Filter value", exact: true }).fill("Grace");
+    await page.getByRole("button", { name: "Clear All", exact: true }).click();
+    await vi.advanceTimersByTimeAsync(220);
+    expect(persisted).toHaveLength(1);
+    expect(persisted[0]?.filters?.[0]).toMatchObject({ type: "matchNone" });
+  } finally {
+    vi.useRealTimers();
+  }
+  await page.getByRole("button", { name: "Use conditions", exact: true }).click();
+  await expect
+    .element(page.getByRole("textbox", { name: "Filter value", exact: true }))
+    .toHaveFocus();
+  expect(persisted).toHaveLength(2);
+  expect(persisted[1]?.filters).toEqual([]);
 });

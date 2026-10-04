@@ -417,3 +417,37 @@ empty options and off-window selection. A 25th required production scenario keep
 a 612-option domain's bounded native listbox open through 5,000 × 150, 20 Hz live
 updates, retaining editor/trigger isolation and every previous scenario. Numeric
 and Set workflows, compound editing, live facets and the Server matrix remain open.
+
+### Live Client Set filters
+
+The `client-facet.ts` engine is activated from the audited import, with its
+store projection optimized after the first live performance failure. This is a
+reviewed adaptation in `core-provenance.json`, not a mechanical-review exemption;
+retained tests execute against the active module. It derives complete resident facets after other filters and Quick Filter,
+excluding its own column expression. No viewport sampling or second filter engine
+is introduced.
+
+An open overlay alone owns the facet subscription. Astryx TextInput, CheckboxInput
+and Button supply searchable value selection with counts, a 64-option window,
+selected-value summaries and exact include/exclude intent. Clear All commits Match
+None for current and future values; passive arrivals never rewrite intent. Explicit
+missing values remain reversible zero-count options. Boolean and Select columns
+use their existing default Set capability; other value families require opt-in.
+The scalar editor remains available beneath the values and gives way to a committed
+Set expression until the user chooses Use conditions.
+
+The public tests also execute against the installed package. The added 26th
+production scenario measures a live, open Set filter under the retained 5,000-row,
+150-column, 20 Hz protocol, including narrow notification and mounted-option
+bounds. Numeric condition controls, compound editing, global filter review and
+Server facets remain separate pending work.
+
+The first Set workload failed at p99 12.1 ms. Memoized native option boundaries
+reduced redundant control rendering, but full resident facet recomputation still
+cost too much. The open store now indexes exact value contributions by admitted
+source position, updates only changed rows when their identity/shape is stable,
+and reconstructs the index for query or structural changes. It preserves original
+first-source-occurrence ordering, exact equivalence and zero-count intent.
+The index is released with the overlay. Differential tests compare incremental
+results with complete recomputation across Text, Number, BigInt and Boolean,
+including signed zero, nulls, other filters, Match None and source reordering.

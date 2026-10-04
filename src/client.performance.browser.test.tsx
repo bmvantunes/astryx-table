@@ -1,3 +1,4 @@
+import { installAstryxTableClientFacetSubscriptionListener } from "../packages/table/src/internal/client-facet";
 import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler, createElement, useEffect, useState } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
@@ -315,6 +316,7 @@ test.for([
   "open-list-filter",
   "open-boolean-filter",
   "open-select-filter",
+  "open-set-filter",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
@@ -325,6 +327,13 @@ test.for([
     const gridSurfaceRenders = vi.fn();
     const toolbarCommits = vi.fn();
     const cellRenderCounts = new Map<string, number>();
+    let facetSubscriptions = 0;
+    let facetNotifications = 0;
+    const removeFacet = installAstryxTableClientFacetSubscriptionListener((event) => {
+      if (event.phase === "subscribe") facetSubscriptions++;
+      if (event.phase === "unsubscribe") facetSubscriptions--;
+      if (event.phase === "notify") facetNotifications++;
+    });
     let filterRenders = 0;
     let filterTriggers = 0;
     const removeFilterRender = installAstryxTableClientColumnFilterRenderListener(() => {
@@ -367,6 +376,7 @@ test.for([
     );
     const selectColumns = [
       AstryxTableSelectColumn({
+        enableSetFilter: false,
         columnId: "COL_ID_SELECT",
         headerName: "Column 1",
         field: "symbol",
@@ -398,6 +408,7 @@ test.for([
                 columnId: "COL_ID_BOOLEAN" as const,
                 field: "ready" as const,
                 valueType: "boolean" as const,
+                enableSetFilter: false,
               }
             : variant !== "plain" && index === 1
               ? {
@@ -405,6 +416,7 @@ test.for([
                   columnId: "COL_ID_FILTER" as const,
                   field: "symbol" as const,
                   valueType: "text" as const,
+                  enableSetFilter: variant === "open-set-filter",
                 }
               : column,
     ) satisfies AstryxTableColumns<ProductionWorkloadRow>;
@@ -548,11 +560,13 @@ test.for([
         await expect
           .element(
             screen.getByRole(
-              variant === "open-boolean-filter" || variant === "open-select-filter"
-                ? "combobox"
-                : "textbox",
+              variant === "open-set-filter"
+                ? "searchbox"
+                : variant === "open-boolean-filter" || variant === "open-select-filter"
+                  ? "combobox"
+                  : "textbox",
               {
-                name: "Filter value",
+                name: variant === "open-set-filter" ? "Search values for Column 1" : "Filter value",
                 exact: true,
               },
             ),
@@ -568,6 +582,8 @@ test.for([
         expect(filterTriggers).toBeGreaterThan(0);
       }
       await settleAstryxTableBrowserFrames(2);
+      expect(facetSubscriptions).toBe(variant === "open-set-filter" ? 1 : 0);
+      const initialFacetNotifications = facetNotifications;
       const initialFilterRenders = filterRenders;
       const initialFilterTriggers = filterTriggers;
       observedCell =
@@ -649,15 +665,17 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-select-filter"
-              ? "client-open-select-filter-live-publication-5000x150-20hz"
-              : variant === "open-boolean-filter"
-                ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                : variant === "open-list-filter"
-                  ? "client-open-list-filter-live-publication-5000x150-20hz"
-                  : variant === "open-filter"
-                    ? "client-open-filter-live-publication-5000x150-20hz"
-                    : "client-live-publication-5000x150-20hz",
+            variant === "open-set-filter"
+              ? "client-open-set-filter-live-publication-5000x150-20hz"
+              : variant === "open-select-filter"
+                ? "client-open-select-filter-live-publication-5000x150-20hz"
+                : variant === "open-boolean-filter"
+                  ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                  : variant === "open-list-filter"
+                    ? "client-open-list-filter-live-publication-5000x150-20hz"
+                    : variant === "open-filter"
+                      ? "client-open-filter-live-publication-5000x150-20hz"
+                      : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -671,6 +689,18 @@ test.for([
       expect(viewRenders).toHaveBeenCalledTimes(initialViewRenders);
       expect(gridSurfaceRenders).toHaveBeenCalledTimes(initialGridRenders);
       expect(toolbarCommits).toHaveBeenCalledOnce();
+      if (variant === "open-set-filter") {
+        expect(
+          screen
+            .getByRole("group", { name: "Filter values", exact: true })
+            .getByRole("checkbox")
+            .all(),
+        ).toHaveLength(64);
+        expect(facetNotifications - initialFacetNotifications).toBe(LIVE_PUBLICATION_SAMPLE_COUNT);
+        await expect
+          .element(screen.getByRole("checkbox", { name: "Select SYMBOL-LIVE-112, 1", exact: true }))
+          .toBeChecked();
+      }
       expect(filterRenders).toBe(initialFilterRenders);
       expect(filterTriggers).toBe(initialFilterTriggers);
       expect(cellRenderCounts.get(unchangedRow.id)).toBe(initialUnchangedCellRenders);
@@ -686,6 +716,7 @@ test.for([
       removeReconciliation();
       removeFilterRender();
       removeFilterTrigger();
+      removeFacet();
     }
   },
 );
