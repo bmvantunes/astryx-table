@@ -216,6 +216,7 @@ export function useColumnInteractions(bindings: Bindings) {
           ? active.columnId
           : undefined);
       if (columnId === undefined) return;
+      const runtime = latest.current.runtime;
       const command = runtime.getColumnCommandSnapshot(columnId);
       if (!command.visible) return;
       event.preventDefault();
