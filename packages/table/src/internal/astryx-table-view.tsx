@@ -719,7 +719,9 @@ const HeaderCell = memo(function HeaderCell({
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
-  const filterable = column.enableFilter && column.semantics.filterFamily === "text";
+  const filterable =
+    column.enableFilter &&
+    (column.semantics.filterFamily === "text" || column.valueType === "boolean");
   const menuRef = useAstryxTableHotkeyWorkflowAction(() => setMenuOpen(true));
   const subscribe = useCallback(
     (listener: () => void) => runtime.subscribeColumnCommands(column.columnId, listener),

@@ -90,7 +90,7 @@ export const ColumnFilter = memo(function ColumnFilter({
         onFocus={activate}
         onClick={() => onOpenChange(!open)}
       />
-      {renderPopover(isOpen ? <TextFilterEditor column={column} runtime={runtime} /> : null)}
+      {renderPopover(isOpen ? <ScalarFilterEditor column={column} runtime={runtime} /> : null)}
     </>
   );
 });
@@ -105,7 +105,7 @@ type Operator =
   | "in"
   | "blank"
   | "notBlank";
-const operators: { value: Operator; label: string }[] = [
+const textOperators: { value: Operator; label: string }[] = [
   { value: "contains", label: "Contains" },
   { value: "notContains", label: "Does not contain" },
   { value: "startsWith", label: "Starts with" },
@@ -116,6 +116,17 @@ const operators: { value: Operator; label: string }[] = [
   { value: "blank", label: "Blank" },
   { value: "notBlank", label: "Not blank" },
 ];
+const booleanOperators = textOperators.filter(
+  ({ value }) =>
+    value === "equals" || value === "notEqual" || value === "blank" || value === "notBlank",
+);
+const booleanOptions = [
+  { value: "true", label: "True" },
+  { value: "false", label: "False" },
+];
+function filterOperators(column: CompiledColumn) {
+  return column.valueType === "boolean" ? booleanOperators : textOperators;
+}
 const VISIBLE_OPERANDS = 64;
 type Draft = {
   operator: Operator;
@@ -126,14 +137,16 @@ type Draft = {
 function restoredDraft(column: CompiledColumn, value: unknown): Draft | undefined {
   if (value === undefined)
     return {
-      operator: "contains",
+      operator: column.valueType === "boolean" ? "equals" : "contains",
       operands: [{ text: "", authored: false }],
       caseSensitive: false,
       accentSensitive: false,
     };
   if (value === null || typeof value !== "object") return undefined;
   const expression = value as Readonly<Record<string, unknown>>;
-  const operator = operators.find((candidate) => candidate.value === expression["type"])?.value;
+  const operator = filterOperators(column).find(
+    (candidate) => candidate.value === expression["type"],
+  )?.value;
   if (operator === undefined) return undefined;
   const noOperand = operator === "blank" || operator === "notBlank";
   const raw = expression["filter"];
@@ -187,14 +200,18 @@ function filterCandidate(
   return {
     filter: {
       ...base,
-      caseSensitive: draft.caseSensitive,
-      accentSensitive: draft.accentSensitive,
+      ...(column.semantics.filterFamily === "text"
+        ? {
+            caseSensitive: draft.caseSensitive,
+            accentSensitive: draft.accentSensitive,
+          }
+        : {}),
       filter: draft.operator === "in" ? values : values[0],
     },
   };
 }
 
-const TextFilterEditor = memo(function TextFilterEditor({
+const ScalarFilterEditor = memo(function ScalarFilterEditor({
   column,
   runtime,
 }: Pick<Props, "column" | "runtime">) {
@@ -368,77 +385,91 @@ const TextFilterEditor = memo(function TextFilterEditor({
   };
   return (
     <div {...stylex.props(styles.editor)}>
-      {draft.operator === "blank" || draft.operator === "notBlank"
-        ? null
-        : (draft.operator === "in"
-            ? draft.operands.slice(start, start + VISIBLE_OPERANDS)
-            : draft.operands.slice(0, 1)
-          ).map((operand, offset) => {
-            const index = draft.operator === "in" ? start + offset : 0;
-            return (
-              <div key={index}>
-                <TextInput
-                  ref={(node) => {
-                    if (node === null) inputNodes.current.delete(index);
-                    else inputNodes.current.set(index, node);
-                  }}
-                  label={index === 0 ? "Filter value" : `Filter value ${String(index + 1)}`}
-                  value={operand.text}
-                  maxLength={ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH}
-                  status={
-                    current.error === undefined || invalidIndex !== index
-                      ? undefined
-                      : { type: "error", message: current.error }
+      {draft.operator === "blank" || draft.operator === "notBlank" ? null : column.valueType ===
+        "boolean" ? (
+        <Selector
+          label="Filter value"
+          placeholder="Choose a value"
+          value={draft.operands[0]?.authored ? draft.operands[0].text : ""}
+          options={booleanOptions}
+          status={
+            current.error === undefined ? undefined : { type: "error", message: current.error }
+          }
+          onChange={(value) => {
+            if (value === "true" || value === "false") update(changeOperand(0, value), true);
+          }}
+        />
+      ) : (
+        (draft.operator === "in"
+          ? draft.operands.slice(start, start + VISIBLE_OPERANDS)
+          : draft.operands.slice(0, 1)
+        ).map((operand, offset) => {
+          const index = draft.operator === "in" ? start + offset : 0;
+          return (
+            <div key={index}>
+              <TextInput
+                ref={(node) => {
+                  if (node === null) inputNodes.current.delete(index);
+                  else inputNodes.current.set(index, node);
+                }}
+                label={index === 0 ? "Filter value" : `Filter value ${String(index + 1)}`}
+                value={operand.text}
+                maxLength={ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH}
+                status={
+                  current.error === undefined || invalidIndex !== index
+                    ? undefined
+                    : { type: "error", message: current.error }
+                }
+                onCompositionStart={(event) => {
+                  composition.current = {
+                    column,
+                    version,
+                    epoch,
+                    shapeRevision: shapeRevision.current,
+                    index,
+                    before: operand,
+                    input: event.currentTarget as HTMLInputElement,
+                  };
+                  debouncer.cancel();
+                }}
+                onCompositionEnd={(event) => {
+                  const input = event.currentTarget as HTMLInputElement;
+                  if (composition.current !== undefined && composition.current.input !== input)
+                    return;
+                  const valid = compositionIsCurrent(input);
+                  composition.current = undefined;
+                  if (valid) update(changeOperand(index, input.value), false);
+                  else input.value = operand.text;
+                }}
+                onChange={(text, event) => {
+                  if (!compositionIsCurrent(event.currentTarget)) {
+                    event.currentTarget.value = operand.text;
+                    return;
                   }
-                  onCompositionStart={(event) => {
-                    composition.current = {
-                      column,
-                      version,
-                      epoch,
-                      shapeRevision: shapeRevision.current,
-                      index,
-                      before: operand,
-                      input: event.currentTarget as HTMLInputElement,
-                    };
-                    debouncer.cancel();
-                  }}
-                  onCompositionEnd={(event) => {
-                    const input = event.currentTarget as HTMLInputElement;
-                    if (composition.current !== undefined && composition.current.input !== input)
-                      return;
-                    const valid = compositionIsCurrent(input);
-                    composition.current = undefined;
-                    if (valid) update(changeOperand(index, input.value), false);
-                    else input.value = operand.text;
-                  }}
-                  onChange={(text, event) => {
-                    if (!compositionIsCurrent(event.currentTarget)) {
-                      event.currentTarget.value = operand.text;
-                      return;
-                    }
-                    update(
-                      changeOperand(index, text),
-                      false,
-                      composition.current !== undefined && compositionIsCurrent(),
-                    );
+                  update(
+                    changeOperand(index, text),
+                    false,
+                    composition.current !== undefined && compositionIsCurrent(),
+                  );
+                }}
+              />
+              {draft.operator === "in" && draft.operands.length > 1 ? (
+                <Button
+                  label={`Remove filter value ${String(index + 1)}`}
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const next = commandDraft();
+                    const operands = next.operands.filter((_, at) => at !== index);
+                    focusRequest.current = Math.min(index, operands.length - 1);
+                    update({ ...next, operands }, true);
                   }}
                 />
-                {draft.operator === "in" && draft.operands.length > 1 ? (
-                  <Button
-                    label={`Remove filter value ${String(index + 1)}`}
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      const next = commandDraft();
-                      const operands = next.operands.filter((_, at) => at !== index);
-                      focusRequest.current = Math.min(index, operands.length - 1);
-                      update({ ...next, operands }, true);
-                    }}
-                  />
-                ) : null}
-              </div>
-            );
-          })}
+              ) : null}
+            </div>
+          );
+        })
+      )}
       {draft.operator === "in" && draft.operands.length > VISIBLE_OPERANDS ? (
         <>
           <span role="status">{`Showing values ${String(start + 1)}–${String(Math.min(start + VISIBLE_OPERANDS, draft.operands.length))} of ${String(draft.operands.length)}`}</span>
@@ -490,24 +521,28 @@ const TextFilterEditor = memo(function TextFilterEditor({
       <Selector
         label="Operator"
         value={draft.operator}
-        options={operators}
+        options={filterOperators(column)}
         onChange={(value) => {
-          const operator = operators.find((option) => option.value === value)?.value;
+          const operator = filterOperators(column).find((option) => option.value === value)?.value;
           if (operator !== undefined) {
             update({ ...commandDraft(), operator }, true);
           }
         }}
       />
-      <CheckboxInput
-        label="Case sensitive"
-        value={draft.caseSensitive}
-        onChange={(caseSensitive) => update({ ...commandDraft(), caseSensitive }, true)}
-      />
-      <CheckboxInput
-        label="Accent sensitive"
-        value={draft.accentSensitive}
-        onChange={(accentSensitive) => update({ ...commandDraft(), accentSensitive }, true)}
-      />
+      {column.semantics.filterFamily === "text" ? (
+        <>
+          <CheckboxInput
+            label="Case sensitive"
+            value={draft.caseSensitive}
+            onChange={(caseSensitive) => update({ ...commandDraft(), caseSensitive }, true)}
+          />
+          <CheckboxInput
+            label="Accent sensitive"
+            value={draft.accentSensitive}
+            onChange={(accentSensitive) => update({ ...commandDraft(), accentSensitive }, true)}
+          />
+        </>
+      ) : null}
     </div>
   );
 });

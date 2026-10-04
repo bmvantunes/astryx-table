@@ -695,3 +695,103 @@ test("editing another operand keeps the whole expression local during compositio
     vi.useRealTimers();
   }
 });
+
+test("boolean filters use native choices, commit immediately and restore exact false", async () => {
+  type BooleanRow = { id: string; enabled: boolean | null };
+  const booleanColumns = [
+    { columnId: "COL_ID_ENABLED", headerName: "Enabled", field: "enabled", valueType: "boolean" },
+  ] as const satisfies AstryxTableColumns<BooleanRow>;
+  const booleanRows = [
+    { id: "yes", enabled: true },
+    { id: "no", enabled: false },
+    { id: "empty", enabled: null },
+  ];
+  const persisted: AstryxTablePersistedState<BooleanRow, typeof booleanColumns, true>[] = [];
+  const view = await render(
+    <AstryxTableClient
+      tableId="boolean-filter"
+      columns={booleanColumns}
+      getRowId={(row: BooleanRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_ENABLED", direction: "asc" }]}
+      clientSource={{
+        rows: booleanRows,
+        totalRows: booleanRows.length,
+        version: 1,
+        status: "ready",
+      }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Enabled", exact: true }).click();
+  const input = page.getByRole("combobox", { name: "Filter value", exact: true });
+  await expect.element(input).toHaveFocus();
+  expect(page.getByRole("textbox").all()).toHaveLength(0);
+  expect(
+    page.getByRole("dialog", { name: "Filter Enabled", exact: true }).getByRole("checkbox").all(),
+  ).toHaveLength(0);
+  expect(persisted).toHaveLength(0);
+  await input.click();
+  await page.getByRole("option", { name: "False", exact: true }).click();
+  expect(persisted).toHaveLength(1);
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  await expect
+    .element(page.getByRole("checkbox", { name: "Enabled", exact: true }))
+    .not.toBeChecked();
+  const snapshot = persisted[0]!;
+  expect(snapshot.filters).toEqual([
+    {
+      columnId: "COL_ID_ENABLED",
+      type: "equals",
+      filter: { $astryxTableValue: "boolean", version: 1, value: false },
+      codecId: "@bruno/table/boolean",
+      codecVersion: 1,
+    },
+  ]);
+  const operator = page.getByRole("combobox", { name: "Operator", exact: true });
+  await operator.click();
+  expect(page.getByRole("option", { name: "Contains", exact: true }).all()).toHaveLength(0);
+  expect(page.getByRole("option", { name: "Is one of", exact: true }).all()).toHaveLength(0);
+  await page.getByRole("option", { name: "Not equal", exact: true }).click();
+  expect(persisted).toHaveLength(2);
+  await expect.element(page.getByRole("checkbox", { name: "Enabled", exact: true })).toBeChecked();
+  expect(
+    page.getByRole("checkbox", { name: "Enabled", exact: true, checked: false }).all(),
+  ).toHaveLength(0);
+  await operator.click();
+  await page.getByRole("option", { name: "Blank", exact: true }).click();
+  expect(persisted).toHaveLength(3);
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  expect(input.all()).toHaveLength(0);
+  await operator.click();
+  await page.getByRole("option", { name: "Not blank", exact: true }).click();
+  expect(persisted).toHaveLength(4);
+  expect(page.getByRole("gridcell").all()).toHaveLength(2);
+  await view.unmount();
+  await render(
+    <AstryxTableClient
+      tableId="boolean-filter"
+      columns={booleanColumns}
+      getRowId={(row: BooleanRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_ENABLED", direction: "asc" }]}
+      initialPersistedState={JSON.parse(JSON.stringify(snapshot))}
+      clientSource={{
+        rows: booleanRows,
+        totalRows: booleanRows.length,
+        version: 2,
+        status: "ready",
+      }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  expect(persisted).toHaveLength(4);
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  await page.getByRole("button", { name: "Filter Enabled (active)", exact: true }).click();
+  await expect.element(input).toHaveTextContent("False");
+  await input.click();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(input).toHaveFocus();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("button", { name: "Filter Enabled (active)", exact: true }))
+    .toHaveFocus();
+});

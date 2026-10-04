@@ -45,11 +45,12 @@ const columns = Array.from({ length: 150 }, (_, index) => ({
   width: 120,
 })) satisfies AstryxTableColumns<Row>;
 
-type Row = { id: string; sequence: number; symbol: string };
+type Row = { id: string; sequence: number; symbol: string; ready: boolean };
 const rows = Array.from({ length: 5_000 }, (_, sequence) => ({
   id: `row-${sequence}`,
   sequence,
   symbol: `SYMBOL-${sequence % 500}`,
+  ready: true,
 }));
 const nativeFrame = window.requestAnimationFrame.bind(window);
 const nextFrame = () => new Promise<number>((resolve) => nativeFrame(resolve));
@@ -307,7 +308,7 @@ test.for(["raw", "pinned", "filters"] as const)(
   },
 );
 
-test.for(["plain", "open-filter", "open-list-filter"] as const)(
+test.for(["plain", "open-filter", "open-list-filter", "open-boolean-filter"] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
   async (variant, { annotate }) => {
@@ -366,14 +367,21 @@ test.for(["plain", "open-filter", "open-list-filter"] as const)(
               return row.symbol;
             },
           }
-        : variant !== "plain" && index === 1
+        : variant === "open-boolean-filter" && index === 1
           ? {
               ...column,
-              columnId: "COL_ID_FILTER" as const,
-              field: "symbol" as const,
-              valueType: "text" as const,
+              columnId: "COL_ID_BOOLEAN" as const,
+              field: "ready" as const,
+              valueType: "boolean" as const,
             }
-          : column,
+          : variant !== "plain" && index === 1
+            ? {
+                ...column,
+                columnId: "COL_ID_FILTER" as const,
+                field: "symbol" as const,
+                valueType: "text" as const,
+              }
+            : column,
     ) satisfies AstryxTableColumns<ProductionWorkloadRow>;
     function ToolbarProbe() {
       useEffect(() => {
@@ -453,22 +461,24 @@ test.for(["plain", "open-filter", "open-list-filter"] as const)(
           columns={instrumentedColumns}
           initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
           initialFilters={
-            variant === "open-list-filter"
-              ? [
-                  {
-                    columnId: "COL_ID_FILTER",
-                    type: "in",
-                    filter: [
-                      "SYMBOL-0",
-                      ...Array.from({ length: 499 }, (_, index) => `SYMBOL-${String(index + 1)}`),
-                      ...Array.from(
-                        { length: LIVE_PUBLICATION_SAMPLE_COUNT },
-                        (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
-                      ),
-                    ],
-                  },
-                ]
-              : undefined
+            variant === "open-boolean-filter"
+              ? [{ columnId: "COL_ID_BOOLEAN", type: "equals", filter: true }]
+              : variant === "open-list-filter"
+                ? [
+                    {
+                      columnId: "COL_ID_FILTER",
+                      type: "in",
+                      filter: [
+                        "SYMBOL-0",
+                        ...Array.from({ length: 499 }, (_, index) => `SYMBOL-${String(index + 1)}`),
+                        ...Array.from(
+                          { length: LIVE_PUBLICATION_SAMPLE_COUNT },
+                          (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
+                        ),
+                      ],
+                    },
+                  ]
+                : undefined
           }
           clientSource={{
             rows: publication.rows,
@@ -511,7 +521,12 @@ test.for(["plain", "open-filter", "open-list-filter"] as const)(
       if (variant !== "plain") {
         await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
         await expect
-          .element(screen.getByRole("textbox", { name: "Filter value", exact: true }))
+          .element(
+            screen.getByRole(variant === "open-boolean-filter" ? "combobox" : "textbox", {
+              name: "Filter value",
+              exact: true,
+            }),
+          )
           .toHaveFocus();
         if (variant === "open-list-filter")
           expect(screen.getByRole("textbox").all()).toHaveLength(64);
@@ -600,11 +615,13 @@ test.for(["plain", "open-filter", "open-list-filter"] as const)(
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-list-filter"
-              ? "client-open-list-filter-live-publication-5000x150-20hz"
-              : variant === "open-filter"
-                ? "client-open-filter-live-publication-5000x150-20hz"
-                : "client-live-publication-5000x150-20hz",
+            variant === "open-boolean-filter"
+              ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+              : variant === "open-list-filter"
+                ? "client-open-list-filter-live-publication-5000x150-20hz"
+                : variant === "open-filter"
+                  ? "client-open-filter-live-publication-5000x150-20hz"
+                  : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
