@@ -123,7 +123,12 @@ export const GroupingControls = memo(function GroupingControls({
       aria-label="Group By"
       {...stylex.props(styles.region)}
       onFocusCapture={(event) => {
-        if (event.target instanceof HTMLButtonElement && event.target.id === pickerId)
+        const ButtonElement = event.currentTarget.ownerDocument.defaultView?.HTMLButtonElement;
+        if (
+          ButtonElement !== undefined &&
+          event.target instanceof ButtonElement &&
+          event.target.id === pickerId
+        )
           focusedControl.current = { node: event.target, index: 0 };
       }}
       onBlurCapture={(event) => {

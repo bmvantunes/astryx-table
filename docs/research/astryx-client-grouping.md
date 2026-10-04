@@ -114,6 +114,12 @@ DOM focus; track only owned focus and move it to a surviving group control or a
 stable table destination when its node disappears. Never reclaim intentional
 outside focus. Menu-originated removal needs the same explicit handoff.
 
+The Add Group trigger must be recognized with its owning document's button
+constructor. A real iframe regression reproduced the global-constructor check
+leaving focus on the iframe body when the last eligible column was revoked.
+The corrected check recovers to the surviving grid and preserves intentional
+parent-document focus. Both cases run through public and installed consumers.
+
 ## Production optimization and retained boundaries
 
 The complete public 20 Hz workload initially failed at p99 15.3 ms for 2,000

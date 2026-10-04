@@ -641,3 +641,58 @@ test("grouped source filters follow live capability metadata with unchanged colu
     .element(page.getByRole("button", { name: "Filter Region", exact: true }))
     .toBeVisible();
 });
+
+test.for([false, true])(
+  "iframe grouping capability removal preserves owned focus (outside: %s)",
+  async (outsideFocus) => {
+    const outside = await render(<button type="button">Parent outside</button>);
+    const frame = document.createElement("iframe");
+    frame.title = "Grouping focus document";
+    document.body.append(frame);
+    let view: Awaited<ReturnType<typeof render>> | undefined;
+    try {
+      const owner = frame.contentDocument;
+      if (owner === null) throw new Error("Expected a same-origin grouping document");
+      const container = owner.createElement("div");
+      owner.body.append(container);
+      view = await render(<AstryxTableClient {...props} />, {
+        container,
+        baseElement: owner.body,
+      });
+      // Browser locators resolve in the test document; scope iframe reads to roles.
+      const picker = owner.querySelector<HTMLButtonElement>(
+        '[role="region"][aria-label="Group By"] button',
+      );
+      const grid = owner.querySelector<HTMLElement>('[role="grid"]');
+      expect(picker).not.toBeNull();
+      expect(picker?.textContent).toContain("Add Group");
+      expect(grid).not.toBeNull();
+      expect(picker instanceof HTMLButtonElement).toBe(false);
+      picker!.focus();
+      expect(owner.activeElement).toBe(picker);
+      const parentButton = outside.getByRole("button", { name: "Parent outside", exact: true });
+      if (outsideFocus) {
+        parentButton.element().focus();
+        expect(owner.hasFocus()).toBe(false);
+      }
+      const { groupKeyValueFormatter: _formatter, ...desk } = columns[0];
+      const replacement = [
+        { ...desk, groupBy: false },
+        { ...columns[1], groupBy: false },
+        columns[2],
+      ] as const satisfies AstryxTableColumns<Row>;
+      await view.rerender(<AstryxTableClient {...props} columns={replacement} />);
+      expect(owner.querySelector('[role="region"][aria-label="Group By"]')).toBeNull();
+      if (outsideFocus) {
+        await expect.element(parentButton).toHaveFocus();
+        expect(owner.hasFocus()).toBe(false);
+      } else {
+        await expect.poll(() => owner.activeElement).toBe(grid);
+        expect(document.activeElement).toBe(frame);
+      }
+    } finally {
+      await view?.unmount();
+      frame.remove();
+    }
+  },
+);
