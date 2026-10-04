@@ -44,6 +44,8 @@ for (const name of [
   "client-column-reorder.browser.test.tsx",
   "client-navigation.browser.test.tsx",
   "client-filter.browser.test.tsx",
+  "active-filters.browser.test.tsx",
+  "quick-filter.browser.test.tsx",
 ]) {
   writeFileSync(
     join(directory, name),

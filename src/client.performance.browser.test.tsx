@@ -1,11 +1,14 @@
+import { installAstryxTableActiveFilterRenderListener } from "../packages/table/src/internal/active-filter-instrumentation";
 import { installAstryxTableClientFacetSubscriptionListener } from "../packages/table/src/internal/client-facet";
 import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler, createElement, useEffect, useState } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
   AstryxTableClient,
+  AstryxTableActiveFilters,
+  AstryxTableQuickFilter,
   AstryxTableSelectColumn,
   type AstryxTableColumns,
   type AstryxTableColumnId,
@@ -18,6 +21,7 @@ import {
 import { getAstryxTableBenchmarkEnvironment } from "../packages/table/src/internal/benchmark-profile";
 import {
   installAstryxTableClientColumnFilterRenderListener,
+  installAstryxTableClientQuickFilterRenderListener,
   installAstryxTableClientColumnFilterTriggerRenderListener,
   installAstryxTableClientViewRenderListenerForTable,
   installAstryxTableClientGridSurfaceRenderListenerForTable,
@@ -317,6 +321,8 @@ test.for([
   "open-boolean-filter",
   "open-select-filter",
   "open-set-filter",
+  "open-active-filters",
+  "quick-filter",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
@@ -333,6 +339,14 @@ test.for([
       if (event.phase === "subscribe") facetSubscriptions++;
       if (event.phase === "unsubscribe") facetSubscriptions--;
       if (event.phase === "notify") facetNotifications++;
+    });
+    let quickFilterRenders = 0;
+    const removeQuickFilterRender = installAstryxTableClientQuickFilterRenderListener(() => {
+      quickFilterRenders++;
+    });
+    let activeFilterRenders = 0;
+    const removeActiveFilterRender = installAstryxTableActiveFilterRenderListener(() => {
+      activeFilterRenders++;
     });
     let filterRenders = 0;
     let filterTriggers = 0;
@@ -400,25 +414,27 @@ test.for([
               return row.symbol;
             },
           }
-        : variant === "open-select-filter" && index === 1
-          ? selectColumns[0]
-          : variant === "open-boolean-filter" && index === 1
-            ? {
-                ...column,
-                columnId: "COL_ID_BOOLEAN" as const,
-                field: "ready" as const,
-                valueType: "boolean" as const,
-                enableSetFilter: false,
-              }
-            : variant !== "plain" && index === 1
+        : variant === "open-active-filters" && index > 0 && index <= 70
+          ? { ...column, field: "symbol" as const, valueType: "text" as const }
+          : variant === "open-select-filter" && index === 1
+            ? selectColumns[0]
+            : variant === "open-boolean-filter" && index === 1
               ? {
                   ...column,
-                  columnId: "COL_ID_FILTER" as const,
-                  field: "symbol" as const,
-                  valueType: "text" as const,
-                  enableSetFilter: variant === "open-set-filter",
+                  columnId: "COL_ID_BOOLEAN" as const,
+                  field: "ready" as const,
+                  valueType: "boolean" as const,
+                  enableSetFilter: false,
                 }
-              : column,
+              : variant !== "plain" && index === 1
+                ? {
+                    ...column,
+                    columnId: "COL_ID_FILTER" as const,
+                    field: "symbol" as const,
+                    valueType: "text" as const,
+                    enableSetFilter: variant === "open-set-filter",
+                  }
+                : column,
     ) satisfies AstryxTableColumns<ProductionWorkloadRow>;
     function ToolbarProbe() {
       useEffect(() => {
@@ -497,25 +513,35 @@ test.for([
           getRowId={(row: ProductionWorkloadRow) => row.id}
           columns={instrumentedColumns}
           initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
+          quickFilterFields={variant === "quick-filter" ? ["symbol"] : undefined}
           initialFilters={
-            variant === "open-boolean-filter"
-              ? [{ columnId: "COL_ID_BOOLEAN", type: "equals", filter: true }]
-              : variant === "open-list-filter"
-                ? [
-                    {
-                      columnId: "COL_ID_FILTER",
-                      type: "in",
-                      filter: [
-                        "SYMBOL-0",
-                        ...Array.from({ length: 499 }, (_, index) => `SYMBOL-${String(index + 1)}`),
-                        ...Array.from(
-                          { length: LIVE_PUBLICATION_SAMPLE_COUNT },
-                          (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
-                        ),
-                      ],
-                    },
-                  ]
-                : undefined
+            variant === "open-active-filters"
+              ? Array.from({ length: 70 }, (_, index) => ({
+                  columnId: `COL_ID_C${index + 1}` as `COL_ID_C${Uppercase<`${number}`>}`,
+                  type: "contains" as const,
+                  filter: "SYMBOL",
+                }))
+              : variant === "open-boolean-filter"
+                ? [{ columnId: "COL_ID_BOOLEAN", type: "equals", filter: true }]
+                : variant === "open-list-filter"
+                  ? [
+                      {
+                        columnId: "COL_ID_FILTER",
+                        type: "in",
+                        filter: [
+                          "SYMBOL-0",
+                          ...Array.from(
+                            { length: 499 },
+                            (_, index) => `SYMBOL-${String(index + 1)}`,
+                          ),
+                          ...Array.from(
+                            { length: LIVE_PUBLICATION_SAMPLE_COUNT },
+                            (_, index) => `SYMBOL-LIVE-${String(index + 1).padStart(3, "0")}`,
+                          ),
+                        ],
+                      },
+                    ]
+                  : undefined
           }
           clientSource={{
             rows: publication.rows,
@@ -525,6 +551,10 @@ test.for([
           }}
         >
           <ToolbarProbe />
+          {variant === "quick-filter" ? <AstryxTableQuickFilter /> : null}
+          {variant === "open-active-filters" || variant === "quick-filter" ? (
+            <AstryxTableActiveFilters />
+          ) : null}
         </AstryxTableClient>
       );
     }
@@ -555,7 +585,32 @@ test.for([
       await expect
         .element(screen.getByRole("button", { name: "Stable production command" }))
         .toBeInTheDocument();
-      if (variant !== "plain") {
+      if (variant === "quick-filter") {
+        await screen.getByRole("searchbox", { name: "Quick Filter", exact: true }).fill("SYMBOL");
+        await expect
+          .element(screen.getByRole("button", { name: "Active filters (1)", exact: true }))
+          .toBeVisible();
+        // Toolbar's native keyboard hint dismisses after 3 seconds. Complete
+        // that focus interaction through its supported arrow gesture before
+        // recording steady-state source publications (no delayed UI work).
+        await userEvent.keyboard("{ArrowLeft}");
+        await expect
+          .element(screen.getByRole("searchbox", { name: "Quick Filter", exact: true }))
+          .toHaveFocus();
+        expect(quickFilterRenders).toBeGreaterThan(0);
+      } else if (variant === "open-active-filters") {
+        await screen.getByRole("button", { name: "Active filters (70)", exact: true }).click();
+        await expect
+          .element(screen.getByRole("button", { name: /^Remove Column 1\b/ }))
+          .toHaveFocus();
+        expect(
+          screen
+            .getByRole("dialog", { name: "Active filters", exact: true })
+            .getByRole("button", { name: /^Remove / })
+            .all(),
+        ).toHaveLength(64);
+        expect(activeFilterRenders).toBeGreaterThan(0);
+      } else if (variant !== "plain") {
         await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
         await expect
           .element(
@@ -584,6 +639,8 @@ test.for([
       await settleAstryxTableBrowserFrames(2);
       expect(facetSubscriptions).toBe(variant === "open-set-filter" ? 1 : 0);
       const initialFacetNotifications = facetNotifications;
+      const initialQuickFilterRenders = quickFilterRenders;
+      const initialActiveFilterRenders = activeFilterRenders;
       const initialFilterRenders = filterRenders;
       const initialFilterTriggers = filterTriggers;
       observedCell =
@@ -665,17 +722,21 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "open-set-filter"
-              ? "client-open-set-filter-live-publication-5000x150-20hz"
-              : variant === "open-select-filter"
-                ? "client-open-select-filter-live-publication-5000x150-20hz"
-                : variant === "open-boolean-filter"
-                  ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                  : variant === "open-list-filter"
-                    ? "client-open-list-filter-live-publication-5000x150-20hz"
-                    : variant === "open-filter"
-                      ? "client-open-filter-live-publication-5000x150-20hz"
-                      : "client-live-publication-5000x150-20hz",
+            variant === "quick-filter"
+              ? "client-quick-filter-live-publication-5000x150-20hz"
+              : variant === "open-active-filters"
+                ? "client-open-active-filters-live-publication-5000x150-20hz"
+                : variant === "open-set-filter"
+                  ? "client-open-set-filter-live-publication-5000x150-20hz"
+                  : variant === "open-select-filter"
+                    ? "client-open-select-filter-live-publication-5000x150-20hz"
+                    : variant === "open-boolean-filter"
+                      ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                      : variant === "open-list-filter"
+                        ? "client-open-list-filter-live-publication-5000x150-20hz"
+                        : variant === "open-filter"
+                          ? "client-open-filter-live-publication-5000x150-20hz"
+                          : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -701,6 +762,23 @@ test.for([
           .element(screen.getByRole("checkbox", { name: "Select SYMBOL-LIVE-112, 1", exact: true }))
           .toBeChecked();
       }
+      expect(quickFilterRenders).toBe(initialQuickFilterRenders);
+      if (variant === "quick-filter")
+        await expect
+          .element(screen.getByRole("searchbox", { name: "Quick Filter", exact: true }))
+          .toHaveValue("SYMBOL");
+      expect(activeFilterRenders).toBe(initialActiveFilterRenders);
+      if (variant === "open-active-filters")
+        expect(
+          screen
+            .getByRole("dialog", { name: "Active filters", exact: true })
+            .getByRole("button", { name: /^Remove / })
+            .all(),
+        ).toHaveLength(64);
+      if (variant === "open-active-filters")
+        await expect
+          .element(screen.getByRole("dialog", { name: "Active filters", exact: true }))
+          .toBeVisible();
       expect(filterRenders).toBe(initialFilterRenders);
       expect(filterTriggers).toBe(initialFilterTriggers);
       expect(cellRenderCounts.get(unchangedRow.id)).toBe(initialUnchangedCellRenders);
@@ -714,6 +792,8 @@ test.for([
       removeGrid();
       removeView();
       removeReconciliation();
+      removeQuickFilterRender();
+      removeActiveFilterRender();
       removeFilterRender();
       removeFilterTrigger();
       removeFacet();

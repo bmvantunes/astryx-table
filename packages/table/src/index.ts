@@ -1,3 +1,5 @@
+export { AstryxTableQuickFilter } from "./quick-filter";
+export { AstryxTableActiveFilters } from "./active-filters";
 export type { AstryxTableClientProps } from "./astryx-table-client";
 export { AstryxTableClient } from "./astryx-table-client";
 export { AstryxTableAggregateAlgebra, AstryxTableComputedColumn } from "./public-types";

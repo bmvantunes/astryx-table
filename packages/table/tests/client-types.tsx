@@ -5,6 +5,8 @@ import {
   AstryxTableComputedColumn,
   type AstryxTableColumns,
   type AstryxTableClientProps,
+  type AstryxTableQuickFilterField,
+  type AstryxTableQuickFilterFields,
 } from "../src";
 
 type Row = { id: string; name: string; amount: bigint };
@@ -43,6 +45,19 @@ const props = {
   initialOrderBy: [{ columnId: "COL_ID_AMOUNT", direction: "asc" }] as const,
 };
 void (<AstryxTableClient {...props} getRowId={(row) => row.id} />);
+// Source fields remain eligible even when they have no visible column.
+const quickFilterFields = ["id", "name"] as const satisfies AstryxTableQuickFilterFields<Row>;
+void (<AstryxTableClient {...props} quickFilterFields={quickFilterFields} />);
+const quickFilterField: AstryxTableQuickFilterField<Row> = "id";
+void quickFilterField;
+// @ts-expect-error Quick Filter requires a non-empty source-field tuple.
+void (<AstryxTableClient {...props} quickFilterFields={[]} />);
+// @ts-expect-error Exact numeric fields are not string Quick Filter fields.
+void (<AstryxTableClient {...props} quickFilterFields={["amount"]} />);
+// @ts-expect-error Misspelled source fields are rejected.
+void (<AstryxTableClient {...props} quickFilterFields={["naem"]} />);
+// @ts-expect-error Column Identities are not source fields.
+void (<AstryxTableClient {...props} quickFilterFields={["COL_ID_NAME"]} />);
 const missingSort = { tableId: "types", columns, clientSource, getRowId: props.getRowId };
 const missingId = { tableId: "types", columns, clientSource, initialOrderBy: props.initialOrderBy };
 const missingTable = {
