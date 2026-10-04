@@ -922,7 +922,7 @@ test("Select option windows stay bounded and retain an off-window selected value
   await expect.element(page.getByRole("gridcell", { name: "Item 0", exact: true })).toBeVisible();
 });
 
-test("an empty-string Select option is an authored exact value", async () => {
+test("an empty-string Select option survives persisted restoration in a fresh instance", async () => {
   type ChoiceRow = { id: string; choice: "" | "Filled" };
   const choiceColumns = [
     AstryxTableSelectColumn({
@@ -937,7 +937,7 @@ test("an empty-string Select option is an authored exact value", async () => {
     { id: "filled", choice: "Filled" },
   ];
   const persisted: AstryxTablePersistedState<ChoiceRow, typeof choiceColumns, true>[] = [];
-  await render(
+  const view = await render(
     <AstryxTableClient
       tableId="select-empty"
       columns={choiceColumns}
@@ -966,5 +966,27 @@ test("an empty-string Select option is an authored exact value", async () => {
   await userEvent.keyboard("{Escape}");
   await page.getByRole("button", { name: "Filter Choice (active)", exact: true }).click();
   await expect.element(input).toHaveTextContent("Empty value");
+  expect(persisted).toHaveLength(1);
+  const snapshot: (typeof persisted)[number] = JSON.parse(JSON.stringify(persisted[0]));
+  await view.unmount();
+  await render(
+    <AstryxTableClient
+      tableId="select-empty"
+      columns={choiceColumns}
+      getRowId={(row: ChoiceRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      initialPersistedState={snapshot}
+      clientSource={{ rows: choiceRows, totalRows: 2, version: 2, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Choice (active)", exact: true }).click();
+  await expect
+    .element(page.getByRole("combobox", { name: "Filter value", exact: true }))
+    .toHaveTextContent("Empty value");
+  await expect.poll(async () => (await page.getByRole("gridcell").all()).length).toBe(1);
+  await expect
+    .element(page.getByRole("gridcell", { name: "Filled", exact: true }))
+    .not.toBeInTheDocument();
   expect(persisted).toHaveLength(1);
 });

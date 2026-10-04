@@ -329,3 +329,12 @@ and a state-setting click callback confirmed the emitted substitutions. The fina
 React diagnostic reproduction supplies its bigint data from the test body to
 isolate that separate error. No application workaround, compiler opt-out or compiler
 patch has been applied; this observation needs its own toolchain investigation.
+
+### Select restoration verification follow-up
+
+CodeRabbit PR #25 identified that the empty-string Select test only reopened the
+same table instance. It now round-trips the saved preferences through JSON,
+unmounts the table and restores a fresh instance. The test verifies the native
+Empty value label, the exact filtered row set and no extra persistence callback.
+The same fixture runs against the installed package. This strengthens evidence;
+it does not add an Astryx defect or change the dependency patch.
