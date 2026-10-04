@@ -42,6 +42,7 @@ for (const name of [
   "client-column-layout.browser.test.tsx",
   "client-column-resize.browser.test.tsx",
   "client-column-reorder.browser.test.tsx",
+  "client-navigation.browser.test.tsx",
 ]) {
   writeFileSync(
     join(directory, name),

@@ -52,6 +52,7 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       "react",
+      "@tanstack/react-pacer",
       "react-dom/client",
       "react/jsx-runtime",
       "@astryxdesign/core/Toolbar",

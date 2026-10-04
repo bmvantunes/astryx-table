@@ -5,6 +5,7 @@ import {
   recordAstryxTableClientColumnGestureListener,
 } from "./render-instrumentation";
 import { createAstryxTableColumnGestureActor } from "./column-gesture";
+import { useGridNavigation } from "./grid-navigation";
 import { createColumnReorder } from "./column-reorder";
 import { clampAstryxTableColumnWidth } from "./column-management";
 import { useAstryxTableGridHotkeys } from "./hotkey-adapter";
@@ -15,6 +16,7 @@ import type { AstryxTableNavigationRuntime } from "./navigation";
 
 type Bindings = Readonly<{
   tableId: string;
+  findRowIndex: (rowId: string) => number | undefined;
   queryGeneration: number;
   totalRows: number;
   adapter: AstryxTableViewportAdapterState;
@@ -189,20 +191,20 @@ export function useColumnInteractions(bindings: Bindings) {
     finishRef.current(false);
   }, [bindings.queryGeneration, bindings.totalRows]);
 
+  const navigationCommands = useGridNavigation(grid, {
+    ...bindings,
+    isGestureActive: () => session.current !== undefined,
+  });
   useAstryxTableGridHotkeys(grid, {
+    ...navigationCommands,
     documentEscapeActive: () => session.current !== undefined,
     escape: (event) => {
       if (session.current !== undefined) {
         event.preventDefault();
         finish(false);
-      }
+      } else navigationCommands.escape(event);
     },
-    shiftTab: noop,
-    headerMenu: noop,
     copy: noop,
-    activate: noop,
-    navigate: noop,
-    page: noop,
     resize: (event, adjustment, step, allowActiveHeader) => {
       if (event.defaultPrevented || session.current !== undefined) return;
       const element = grid.current;

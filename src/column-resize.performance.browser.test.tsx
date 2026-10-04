@@ -1,3 +1,4 @@
+import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -79,6 +80,7 @@ test.for(["start", "end"] as const)(
         if (event.phase === "ran") ran++;
       }),
     ];
+    const observers = measureMutationObserverWork();
     try {
       await render(
         <Profiler
@@ -143,7 +145,7 @@ test.for(["start", "end"] as const)(
         cancelProbe.mockRestore();
       };
       const capture = () => {
-        const result = Math.max(interval.callbacks, interval.react);
+        const result = Math.max(interval.callbacks, interval.react) + observers.take();
         interval = { callbacks: 0, react: 0 };
         return result;
       };
@@ -231,6 +233,7 @@ test.for(["start", "end"] as const)(
         "benchmark",
       );
     } finally {
+      observers.restore();
       recording = false;
       restoreFrames?.();
       cleanup();

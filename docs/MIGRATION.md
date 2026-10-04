@@ -119,7 +119,7 @@ for adoption, not a claim that full pinning/sorting parity is implemented.
 
 ## Activated Client core and newer source corrections
 
-`packages/table/core-provenance.json` records 48 activated modules. Forty-two
+`packages/table/core-provenance.json` records 50 activated modules. Forty-four
 are byte-identical to the retained baseline, one has the reviewed diagnostic correction
 described below, and five use the current merged source
 `00efa81616b2a999714db595fd1fec48caa55c58`, with only the recorded branding
@@ -289,3 +289,42 @@ callbacks and moving grid-owned interaction/empty statuses outside the grid's ro
 ownership. Native status descendants within a header control remain valid. These
 changes receive fresh local review with the reorder integration. Complete keyboard
 and segmented reveal proof remains pending; this slice does not close #4.
+
+## Keyboard projection (issue #5, in progress)
+
+The native renderer now projects the retained logical navigation runtime onto
+stable header/body IDs and `aria-activedescendant`, without a React subscription
+at the grid root. One existing TanStack Hotkeys owner admits navigation, page
+movement, header sorting, menu shortcuts, custom-control entry and Escape. Native
+DropdownMenu receives controlled open requests through the retained private
+workflow-action registry. It still owns menu focus and dismissal.
+
+The exact `focus.ts` and `focus-ownership.ts` modules are activated with recorded
+hashes. Pacer owns the temporary Shift+Tab handoff. Header controls remain outside
+ordinary Tab order; custom-renderer descendants are normalized when mounted or
+changed. A removed focused custom control falls back to its connected grid only
+while its document still owns focus. Ordinary scroll never reveals the old cell;
+its accessible descendant reconnects when that identity mounts again.
+
+Public Browser coverage currently includes LTR/RTL header/body navigation,
+minimum pinned-aware reveal, held logical moves, empty results, native custom
+inputs, composition, descendant Escape ownership, nested grids, keyboard menu
+opening and return, context-menu opening, SVG pointer targets, removed menu-trigger
+fallback with external-focus ownership, live identity movement/deletion, suspended
+pinning traversal in both directions, recycling, and header Enter/Space sorting.
+The installed consumer runs the same suite. Submenu and filter transfers and the
+complete Client/Server issue matrix remain pending; this is not issue #5 closure.
+
+The held-navigation benchmark retains 5,000 × 150 data, 24 warmups, 200 measured
+samples, one and two ArrowDown commands per frame, horizontal traversal, exact
+final identities and the original work/cadence budgets. Its six scenarios are
+required by the evidence validator in addition to the existing thirteen. The
+current native renderer's established mounted-window envelope replaces source
+DOM selectors. Root/surface and column-command isolation are measured; toolbar
+and per-row/per-cell render counters from the original suite are not claimed
+because those active boundaries have not yet been instrumented or migrated.
+
+All production scenarios now charge asynchronous MutationObserver work separately
+from the maximum of React and RAF work. The harness conservatively includes native
+control and test observers created during each workload. Performance remains
+working-tree evidence until a clean reviewed commit is measured and attested.

@@ -28,6 +28,48 @@ function report() {
           {
             evidence: [
               [
+                "client-held-arrow-down-input-through-render-work-5000x150-pinned",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+                200,
+              ],
+              [
+                "client-held-arrow-down-presentation-frame-cadence-5000x150-pinned",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+                200,
+              ],
+              [
+                "client-held-arrow-down-two-repeats-per-frame-work-5000x150-pinned",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+                200,
+              ],
+              [
+                "client-held-arrow-down-two-repeats-per-presentation-frame-cadence-5000x150-pinned",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+                200,
+              ],
+              [
+                "client-held-arrow-right-input-through-render-work-5000x150-pinned",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+                200,
+              ],
+              [
+                "client-held-arrow-right-presentation-frame-cadence-5000x150-pinned",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+                200,
+              ],
+              [
                 "client-raw-two-axis-custom-renderer-work-5000x150",
                 "chromium-capable-hardware-v1",
                 8.33,
@@ -90,13 +132,13 @@ function report() {
                 8.33,
                 16.66,
               ],
-            ].map(([scenario, profile, budget, thresholdMs]) => ({
+            ].map(([scenario, profile, budget, thresholdMs, sampleCount = 100]) => ({
               scenario,
               profile,
               environment,
               summary: {
                 budget,
-                sampleCount: 100,
+                sampleCount,
                 min: 1,
                 p50: 2,
                 p95: 3,
@@ -113,7 +155,7 @@ function report() {
   };
 }
 test("accepts complete evidence for the exact clean commit", () => {
-  assert.equal(validatePerformanceEvidence(report(), commit).length, 13);
+  assert.equal(validatePerformanceEvidence(report(), commit).length, 19);
 });
 for (const [name, change] of [
   [
@@ -236,4 +278,10 @@ test("only accepts a successful owner attestation with a repository evidence lin
   assert.throws(() =>
     validatePerformanceStatus([{ ...status, target_url: "https://example.com" }]),
   );
+});
+
+test("held navigation requires its retained 200 measured samples", () => {
+  const r = report();
+  r.tests[0].evidence[0].evidence[0].summary.sampleCount = 100;
+  assert.throws(() => validatePerformanceEvidence(r, commit), /sample count/);
 });

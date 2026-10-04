@@ -118,6 +118,10 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
   return { presentation, attach };
 }
 
+export function headerDomId(instanceId: string, columnId: string) {
+  return `astryx-table-header-${encode(instanceId)}-${encode(columnId)}`;
+}
+
 export function cellDomId(instanceId: string, tableId: string, rowId: string, columnId: string) {
   return `astryx-table-cell-${encode(instanceId)}-${encode(tableId)}-${encode(rowId)}-${encode(columnId)}`;
 }
