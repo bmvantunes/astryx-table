@@ -58,13 +58,17 @@ function active() {
 }
 
 test.each(["ltr", "rtl"] as const)(
-  "%s enters the side management control before navigating headers and body through one grid tab stop",
+  "%s enters the side management controls before navigating headers and body through one grid tab stop",
   async (direction) => {
     await mount(direction);
     page.getByRole("button", { name: "Before", exact: true }).element().focus();
     await userEvent.keyboard("{Tab}");
     await expect
       .element(page.getByRole("button", { name: "Column preferences", exact: true }))
+      .toHaveFocus();
+    await userEvent.keyboard("{Tab}");
+    await expect
+      .element(page.getByRole("button", { name: "Sort rows, 1 active", exact: true }))
       .toHaveFocus();
     await userEvent.keyboard("{Tab}");
     const grid = page.getByRole("grid");

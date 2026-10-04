@@ -587,3 +587,45 @@ The native nested-selector regression also extends the existing ASTRYX-001 patch
 to recognize focus fallback to a containing dialog. Intentional focus on a sibling
 control remains preserved; this corrects our prior patch rather than claiming a
 new defect in unpatched Core. Source and emitted-JS paths are covered.
+
+## Native sort controls and stable live order (2026-10-04)
+
+The side rail now includes a count-only Sort control. Its on-demand native Popover
+composes List/ListItem, Button and one searchable Selector over the retained sorting
+commands. Users add eligible hidden or visible columns, toggle direction, change
+priority, remove all but the final sort and restore the original admitted baseline.
+Active entries mount in windows of at most 64 with absolute priority labels; the
+add picker retains every inactive option for native search. It is not virtualized.
+The controls preserve focus through moves, removal and replacement definitions and
+announce successful commands. No public controller or mandatory toolbar was added.
+
+Current compiled definitions supply header labels and sorting eligibility through
+private props, fixing stale open controls after definition-only changes. The retained
+column-structure notification contract remains unchanged. The sort trigger observes
+only the active-sort count; the open review observes sorting itself. Width commits
+and source publications do not wake these controls.
+
+The new 150-active-sort production scenario exposed full row-model reconstruction
+when a secondary sort value changed without moving a row. A private proof now uses
+the last committed TanStack order and next-publication neighbours to retain that
+order only when all affected edges remain ordered. Filter membership, identities,
+invalid operands and actual moves still trigger the complete projection. Every
+changed included row is checked, including one returning to its original reference
+after earlier retained publications. The proof resets with query generation and
+commits only accepted row-model evidence. TanStack still owns construction/sorting.
+This client-row-pipeline change is also outside the mechanical import exemption.
+
+Public and installed tests cover controls, focus, restoration, live membership and
+sort changes, simultaneous moves and accumulated changes. Differential Node cases
+compare neighbour proofs with complete stable sorts. The unchanged production gate
+now contains 32 scenarios, adding the open 150-sort review and 149-option picker.
+Focused development measurement reduced review p99 from 12.6 ms to 4.9 ms; the picker
+measured 4.4 ms. Full validation, independent review and clean-commit evidence remain
+separate gates. Issue #6 remains partial: numeric editors, Server facets, remaining
+status controls and publication are still pending. See
+[the native API investigation](research/astryx-sort-controls.md).
+
+The original retained pipeline suite runs unchanged, including its requirement for
+zero structural notifications on a label-only replacement. Only the row-pipeline
+optimization moves out of the mechanical provenance exemption; its source and target
+hashes and independent-review requirement are recorded in core-provenance.json.

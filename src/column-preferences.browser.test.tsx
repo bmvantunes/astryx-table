@@ -308,3 +308,19 @@ test("repeated successful resets produce a fresh accessible announcement", async
     previous = current;
   }
 });
+
+test("an open visibility picker refreshes a label-only column replacement", async () => {
+  const view = await render(<AstryxTableClient {...props} />);
+  await page.getByRole("button", { name: "Column preferences", exact: true }).click();
+  await page.getByRole("button", { name: "Visible columns", exact: true }).click();
+  await view.rerender(
+    <AstryxTableClient
+      {...props}
+      columns={[{ ...columns[0], headerName: "Full name" }, columns[1]]}
+    />,
+  );
+  await expect.element(page.getByRole("option", { name: "Full name", exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("option", { name: "Name", exact: true }))
+    .not.toBeInTheDocument();
+});

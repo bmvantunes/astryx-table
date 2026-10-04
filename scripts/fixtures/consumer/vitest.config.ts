@@ -8,6 +8,7 @@ export default defineConfig({
   optimizeDeps: {
     include: [
       "@astryxdesign/core/MultiSelector",
+      "@astryxdesign/core/List",
       "@astryxdesign/core/VisuallyHidden",
       "react",
       "react-dom",

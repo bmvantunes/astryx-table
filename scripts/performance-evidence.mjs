@@ -2,6 +2,14 @@ export const performanceContext = "performance/capable-hardware";
 export const repository = "bmvantunes/astryx-table";
 const scenarios = new Map([
   [
+    "client-open-sort-controls-live-publication-5000x150-20hz",
+    ["chromium-capable-hardware-v1", 8.33, 16.66],
+  ],
+  [
+    "client-open-sort-picker-live-publication-5000x150-20hz",
+    ["chromium-capable-hardware-v1", 8.33, 16.66],
+  ],
+  [
     "client-open-column-visibility-live-publication-5000x150-20hz",
     ["chromium-capable-hardware-v1", 8.33, 16.66],
   ],

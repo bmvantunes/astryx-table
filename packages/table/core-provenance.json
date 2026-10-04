@@ -67,11 +67,6 @@
       "sha256": "4a12248b24e1461447dd100e485350b477cc6a808f0609e86dc1765d9bd54f39"
     },
     {
-      "source": "migration/table/src/internal/client-row-pipeline.tsx",
-      "target": "packages/table/src/internal/client-row-pipeline.tsx",
-      "sha256": "bf2cb6573548346b44082ee7880e02fb98dde770a2802512feb44615f7a221b7"
-    },
-    {
       "source": "packages/table/provenance/client-source-adapter.ts.reference",
       "target": "packages/table/src/internal/client-source-adapter.ts",
       "sha256": "daabdd184915473ade810b286be43b8e1034b3ad252eed815d2d63c65cad02c8",
@@ -348,6 +343,14 @@
       "sourceSha256": "118bb781e92646c25d385051c345f9826a2d0000f649d1a4b3382429c761c53d",
       "reviewExempt": false,
       "reason": "Open-facet incremental exact-value contributions under unchanged query, row identity and cardinality, preserving first-source-occurrence ordering and rebuilding for query/structural changes. Requires independent review and differential/performance validation."
+    },
+    {
+      "source": "migration/table/src/internal/client-row-pipeline.tsx",
+      "target": "packages/table/src/internal/client-row-pipeline.tsx",
+      "sha256": "aabf6ba709fd5bb93f0bf63ff0241691d95c50988ff2fe2a4974108c9e5029eb",
+      "sourceSha256": "bf2cb6573548346b44082ee7880e02fb98dde770a2802512feb44615f7a221b7",
+      "reviewExempt": false,
+      "reason": "Use committed TanStack row order and current neighbour comparisons to retain unchanged sort projections across value-only publications; membership, identity, invalid-value and ordering changes still reproject. Semantic performance optimization requires independent review, differential tests and production measurement."
     }
   ]
 }
