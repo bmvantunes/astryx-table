@@ -9,6 +9,7 @@ export default defineConfig({
     include: [
       "@astryxdesign/core/MultiSelector",
       "@astryxdesign/core/List",
+      "@astryxdesign/core/Text",
       "@astryxdesign/core/VisuallyHidden",
       "react",
       "react-dom",

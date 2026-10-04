@@ -545,6 +545,24 @@ failed before the fix and cover 65→64 and 65→2 replacement transitions. The 
 surviving-sort recovery handles these controls without moving intentional outside
 focus. This is another local integration correction, not an Astryx patch.
 
+## Row-count controls (no additional upstream patch)
+
+Result and Loaded Row Count now compose as optional Client toolbar children using
+published Astryx Text. The retained numeric projections own filtering and source
+counts; each control subscribes only to its own count. Initial Result projection
+stays lazy, including SSR, and custom content retains a named status wrapper.
+Tests cover live changes, source lifecycle, callback replacement and cleanup.
+A value-only publication with unchanged counts produces no count notifications
+or callback renders. The native row-status plugin was inspected and is unrelated
+to these aggregate counts. No new Astryx defect or dependency patch is claimed.
+
+The first complete production run exposed a test-configuration omission: Text was
+prebundled for application and ordinary Browser tests but missing from the
+performance configuration. Vite discovered it during import and reloaded the test,
+so the Client scenarios never ran. Text is now explicitly prebundled there too;
+the failed report is retained and a complete rerun is required. This corrects our
+measurement setup, with no change to budgets or upstream components.
+
 ### Nested multi-value filters exceeded the mounted editor budget
 
 CodeRabbit identified that compound conditions shared a render budget but each

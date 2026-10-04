@@ -1,9 +1,20 @@
 import { createContext, useContext } from "react";
-import type { AstryxTableClientFacetRowsSource } from "./client-source-adapter";
+import type {
+  AstryxTableClientFacetRowsSource,
+  AstryxTableClientRowPipelineAdapter,
+} from "./client-source-adapter";
 import type { AstryxTableRowPipelineRuntimeView } from "./grid-runtime";
 
 export const ClientContext = createContext<
-  | Readonly<{ rows: AstryxTableClientFacetRowsSource; runtime: AstryxTableRowPipelineRuntimeView }>
+  | Readonly<{
+      tableId: string;
+      rows: AstryxTableClientFacetRowsSource;
+      resultRows: Pick<
+        AstryxTableClientRowPipelineAdapter<unknown>,
+        "getResultRowCountSnapshot" | "subscribeResultRowCount" | "initializeResultRowCount"
+      >;
+      runtime: AstryxTableRowPipelineRuntimeView;
+    }>
   | undefined
 >(undefined);
 
