@@ -292,15 +292,17 @@ until that active session completes or a discrete command restores and cancels i
 The tests control only timeout scheduling and verify query and persistence effects.
 These are integration fixes, not defects attributed to Astryx Core.
 
-## Numeric-filter investigation — pending dependency changes
+## Numeric-filter dependencies — authorized local corrections
 
 The next filter slice reproduced a declaration gap: native `type="number"` is
 rejected by TextInput's public type union, and `step` is not declared. NumberInput
 is not equivalent: its published implementation commits validated numbers on blur
 or Enter, rather than exposing the retained continuously validated native draft.
 The proposed compatibility extension adds `number` and `step` only to TextInput's
-source and emitted types. Automatic approval review rejected that concrete patch
-and requires another explicit confirmation; it has **not** been applied. This is
+source and emitted types. The user subsequently explicitly authorized bug fixes;
+the four-line declaration extension is now applied through the existing Core patch.
+The positive type fixture failed before patching, while the native Browser input
+already accepted decimals and forwarded step and the original event. This is
 an API compatibility extension, not evidence that NumberInput violates its own API.
 
 A separate public Client test reproduced a React DOM 19.2.8 development-profiler
@@ -308,9 +310,16 @@ failure on bigint arrays: `addValueToProperties` classifies the array as primiti
 and calls `JSON.stringify`, which throws for bigint. A minimal React-only Browser
 reproduction confirms the same unhandled error when an array prop is introduced.
 This is a React diagnostic bug, **not an Astryx defect**. A narrowly scoped proposed
-patch would stringify bigint only in the diagnostic description in the two React
-DOM development builds. It is awaiting user confirmation; no React patch is applied
-and numeric filtering is not yet validated or shipped.
+patch now stringifies bigint only in the diagnostic description in the two React
+DOM development builds, with a decimal `n` suffix. The fresh isolated reproduction
+failed with an unhandled exception before this authorized patch. It does not alter
+canonical values, persistence or production code. Both diagnostic builds pass the
+exact-array regression, and the public Browser reproduction now passes without an
+unhandled error. All ten React DOM production files have identical SHA-256 hashes
+before and after the patch. Numeric filter integration is not yet validated or shipped.
+
+The investigation and exact dependency boundaries are recorded in
+[numeric control research](docs/research/astryx-numeric-controls.md).
 
 ## Configured Select integration (no additional upstream patch)
 
@@ -329,7 +338,8 @@ with `undefined`. A direct `transformSync` of `useState([90071992547409931234567
 and a state-setting click callback confirmed the emitted substitutions. The final
 React diagnostic reproduction supplies its bigint data from the test body to
 isolate that separate error. No application workaround, compiler opt-out or compiler
-patch has been applied; this observation needs its own toolchain investigation.
+patch had been applied at that point; the executed compiler follow-up below
+records the subsequent repair and its separate verification.
 
 ### Select restoration verification follow-up
 
@@ -339,6 +349,49 @@ unmounts the table and restores a fresh instance. The test verifies the native
 Empty value label, the exact filtered row set and no extra persistence callback.
 The same fixture runs against the installed package. This strengthens evidence;
 it does not add an Astryx defect or change the dependency patch.
+
+Follow-up source research found [Oxc issue #26161](https://github.com/oxc-project/oxc/issues/26161)
+and the still-unmerged [fix candidate #26587](https://github.com/oxc-project/oxc/pull/26587).
+The missing BigIntLiteral lowering branch is also present in the inspected 0.152
+release. The candidate's mixed-domain constant folding needs independent validation;
+it has not been adopted. This remains an open compiler defect, separate from the
+corrected React diagnostic and Astryx declarations.
+
+### Compiler correction in progress — official Babel integration plus exact primitives
+
+The executed alternative also found a limitation in stable Babel React Compiler
+1.0.0: with our unchanged `all_errors` policy it rejects bigint literals rather
+than corrupting their values. The new versioned patch adds exact bigint lowering,
+code generation, property keys, diagnostic printing and public HIR typing. The
+application and library share the documented Babel/Rolldown integration, keeping
+React Compiler active before StyleX and preserving its strict settings.
+
+The original Browser output contained empty/NaN values. The corrected Browser
+case and emitted application/library builds now preserve large positive/negative
+integers, literal bases, comparisons and state-setting callbacks. Both builds retain
+compiler memoization imports, source maps and extracted CSS. Native-JavaScript
+equivalence tests additionally cover object keys and mixed-domain exceptions.
+
+The full build exposed unsupported optional calls inside try/catch, nested ternary
+conditions and a logical fallback inside try/catch in the stable compiler. Equivalent
+pointer-capture, document-target and Select-label expressions preserve their behavior
+without disabling compilation. These are local compatibility adaptations, not new
+Astryx Core defects. Full regression, review and performance validation is pending;
+the compiler correction is not yet committed or claimed complete.
+
+The complete 346-case Browser suite now passes. A real Fast Refresh check preserves
+the edited exact bigint state with no page errors. The first check's temporary
+directory was under Vite's ignored `test-results` path; the corrected watched
+directory proves the behavior. The separate compiler-API matrix also covers native
+mixed-domain failures, exact property keys, increment/decrement and constructor
+shadowing. Independent review and production measurements remain outstanding.
+
+The subsequent complete local validation passed: 95 Node tests, 346 Browser tests,
+39 runner checks and 248 Client plus 25 Server installed-package tests. The three
+independent review axes reported zero blocking and non-blocking findings. All 42
+production performance scenarios passed in the development checkout. Measurement
+against the clean committed revision and remote publication gates still remain;
+this compiler correction does not complete numeric-filter parity.
 
 ### Live Set filter integration
 
@@ -907,3 +960,14 @@ not established. The test now lets the initial measured window commit, confirms
 the first header and horizontal overflow, then performs the same scroll and
 keyboard assertions. This follows the other geometry tests' frame-based setup;
 the 15-second timeout is unchanged. Temporary throttling configuration was removed.
+
+### Numeric/compiler integration on the current Server base
+
+Fresh baseline probes again reproduced the TextInput type rejection, React's
+unhandled bigint diagnostic exception, and the compiled component output
+`|NaN|NaN|NaN|false|false|true|undefined` instead of its exact numeric values.
+The numeric input's native event test passed before patching, confirming that
+its change is a declaration extension. Earlier focus patches and current Server
+configuration are preserved while integrating the two dependency corrections
+and the compiler repair. Full integration evidence is recorded separately from
+the earlier isolated-branch results; no numeric filter completion is inferred.

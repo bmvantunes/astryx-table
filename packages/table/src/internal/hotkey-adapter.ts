@@ -21,7 +21,9 @@ type AstryxTableHotkeyBinding = Readonly<{
   onTrigger: (event: AstryxTableHotkeyGesture) => void;
 }>;
 
-export type AstryxTableHotkeyGesture = Readonly<Pick<KeyboardEvent, "defaultPrevented" | "target">> &
+export type AstryxTableHotkeyGesture = Readonly<
+  Pick<KeyboardEvent, "defaultPrevented" | "target">
+> &
   Pick<KeyboardEvent, "preventDefault">;
 
 function astryxTableLiveHotkeyGesture(event: KeyboardEvent): AstryxTableHotkeyGesture {
@@ -380,7 +382,8 @@ export const ASTRYX_TABLE_GRID_DOCUMENT_ESCAPE_HOTKEY_REGISTRATION_COUNT: number
   ASTRYX_TABLE_ESCAPE_HOTKEYS.length;
 export const ASTRYX_TABLE_GRID_LOCAL_HOTKEY_REGISTRATION_COUNT: number =
   ASTRYX_TABLE_GRID_HOTKEYS.length - ASTRYX_TABLE_GRID_DOCUMENT_ESCAPE_HOTKEY_REGISTRATION_COUNT;
-export const ASTRYX_TABLE_REACT_HOTKEY_REGISTRATION_COUNT: number = ASTRYX_TABLE_GRID_HOTKEYS.length;
+export const ASTRYX_TABLE_REACT_HOTKEY_REGISTRATION_COUNT: number =
+  ASTRYX_TABLE_GRID_HOTKEYS.length;
 export const ASTRYX_TABLE_BASE_HOTKEY_REGISTRATION_COUNT: number = ASTRYX_TABLE_GRID_HOTKEYS.length;
 export const ASTRYX_TABLE_ROW_SELECTION_HOTKEY_REGISTRATION_COUNT: number =
   ASTRYX_TABLE_ROW_SELECTION_HOTKEYS.length;
@@ -526,10 +529,9 @@ export function useAstryxTableGridHotkeys(
   }, [commands]);
   useLayoutEffect(() => {
     const ownerDocument = target.current?.ownerDocument ?? null;
+    const currentWindow = typeof window === "undefined" ? undefined : window;
     reactDocumentTargetRef.current =
-      ownerDocument?.defaultView === (typeof window === "undefined" ? undefined : window)
-        ? ownerDocument
-        : null;
+      ownerDocument?.defaultView === currentWindow ? ownerDocument : null;
     const registration = documentEscapeRegistrationRef.current;
     if (ownerDocument === null || registration === undefined) return;
     let registrations = documentEscapeRegistrations.get(ownerDocument);

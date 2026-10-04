@@ -162,11 +162,6 @@
       "sha256": "1b7e70250e34bf885d92f6154831d545c5854b7bc9e4d48e7f8bd26c01ba42cf"
     },
     {
-      "source": "migration/table/src/internal/hotkey-adapter.ts",
-      "target": "packages/table/src/internal/hotkey-adapter.ts",
-      "sha256": "748cd8ca35c8598866c5389bb9d92b4fecfb089cee7610affc8ac1950a82b653"
-    },
-    {
       "source": "migration/table/src/internal/listener-registry.ts",
       "target": "packages/table/src/internal/listener-registry.ts",
       "sha256": "d244c35e6db61908f4851b11e22540a760254fdb61090878103a727c0c4bc01c"
@@ -328,6 +323,14 @@
     }
   ],
   "reviewedChanges": [
+    {
+      "source": "migration/table/src/internal/hotkey-adapter.ts",
+      "target": "packages/table/src/internal/hotkey-adapter.ts",
+      "sha256": "476cc159c578d3a0706f56cf363d3e7d9f014194d0f1d3a6966ce104360a3cac",
+      "sourceSha256": "748cd8ca35c8598866c5389bb9d92b4fecfb089cee7610affc8ac1950a82b653",
+      "reviewExempt": false,
+      "reason": "Extract the current Window ternary before the document-target condition because stable React Compiler cannot lower the nested ternary. Preserve document identity, SSR and event registration behavior. Requires independent compiler-integration review and existing Browser hotkey regressions; not a mechanical import."
+    },
     {
       "source": "migration/table/src/internal/toolbar-instrumentation.ts",
       "target": "packages/table/src/internal/toolbar-instrumentation.ts",

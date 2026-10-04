@@ -1187,14 +1187,13 @@ function SelectFilterOperand({
   const choices = indexes.map((index) => {
     let label: string;
     try {
-      label =
-        column.semantics
-          .formatDisplay(options[index])
-          .slice(0, ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH) || "Empty value";
+      label = column.semantics
+        .formatDisplay(options[index])
+        .slice(0, ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH);
     } catch {
       label = "<unavailable>";
     }
-    return { value: String(index), label, index };
+    return { value: String(index), label: label || "Empty value", index };
   });
   return (
     <>
