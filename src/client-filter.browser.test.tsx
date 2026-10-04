@@ -467,7 +467,7 @@ test("list values can be added and removed without publishing an unfinished expr
   await expect.element(first).toHaveFocus();
   await expect.element(first).toHaveValue("Grace");
   expect(persisted).toHaveLength(3);
-  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  await expect.poll(() => page.getByRole("gridcell").all().length).toBe(1);
   await expect.element(page.getByRole("gridcell", { name: "Grace", exact: true })).toBeVisible();
   expect(page.getByRole("button", { name: /^Remove filter value/ }).all()).toHaveLength(0);
 });
@@ -569,7 +569,7 @@ test.for([false, true])(
       />,
     );
     await page.getByRole("button", { name: /^Filter Name(?: \(active\))?$/ }).click();
-    expect(page.getByRole("textbox").all()).toHaveLength(64);
+    await expect.poll(() => page.getByRole("textbox").all().length).toBe(64);
     await expect
       .element(page.getByRole("button", { name: "Add filter value", exact: true }))
       .toBeDisabled();
@@ -651,7 +651,7 @@ test("moving the operand window cancels composition without blocking another val
   } finally {
     vi.useRealTimers();
   }
-  expect(page.getByRole("gridcell").all()).toHaveLength(2);
+  await expect.poll(() => page.getByRole("gridcell").all().length).toBe(2);
   await expect.element(page.getByRole("gridcell", { name: "Ada", exact: true })).toBeVisible();
   await expect.element(page.getByRole("gridcell", { name: "Alan", exact: true })).toBeVisible();
   await first.fill("Grace");
