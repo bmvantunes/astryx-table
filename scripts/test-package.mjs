@@ -128,3 +128,51 @@ process.chdir(directory);
 const code = await runBrowserValidation("vp", ["test", "--config", "vitest.config.ts", "--run"]);
 process.chdir(root);
 if (code !== 0) process.exitCode = code;
+
+// First prove the root consumer above without Effect. Only the real Server
+// integration fixture below opts into the published View Server toolchain.
+if (code === 0) {
+  for (const name of ["effect", "effect-view-server", "@effect/atom-react"])
+    dependencies[name] = versions.devDependencies[name];
+  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"));
+  writeFileSync(
+    join(directory, "package.json"),
+    JSON.stringify({ ...manifest, dependencies }, null, 2),
+  );
+  writeFileSync(
+    join(directory, "server-types.tsx"),
+    consumerFixture("packages/table/tests/server-types.tsx", 'from "../src"'),
+  );
+  const config = JSON.parse(readFileSync(join(directory, "tsconfig.json"), "utf8"));
+  writeFileSync(
+    join(directory, "tsconfig.json"),
+    JSON.stringify(
+      {
+        ...config,
+        compilerOptions: { ...config.compilerOptions, types: ["node"] },
+        include: [...config.include, "server-types.tsx"],
+      },
+      null,
+      2,
+    ),
+  );
+  writeFileSync(
+    join(directory, "server.browser.test.tsx"),
+    consumerFixture("src/server.browser.test.tsx", 'from "../packages/table/src"').replace(
+      'import "./styles.css";',
+      'import "@astryxdesign/core/reset.css";\nimport "@astryxdesign/core/astryx.css";\nimport "@astryxdesign/theme-neutral/theme.css";\nimport "@bmvantunes/astryx-table/styles.css";',
+    ),
+  );
+  run("pnpm", ["install", "--ignore-scripts"]);
+  run("vp", ["run", "typecheck"]);
+  process.chdir(directory);
+  const serverCode = await runBrowserValidation("vp", [
+    "test",
+    "--config",
+    "vitest.server.config.ts",
+    "--run",
+    "server.browser.test.tsx",
+  ]);
+  process.chdir(root);
+  if (serverCode !== 0) process.exitCode = serverCode;
+}

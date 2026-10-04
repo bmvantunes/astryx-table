@@ -1,3 +1,4 @@
+export { AstryxTableServer } from "./astryx-table-server";
 export { AstryxTableToolbar, AstryxTableToolbarSpacer } from "./toolbar";
 export { AstryxTableFilterControl } from "./filter-control";
 export type {

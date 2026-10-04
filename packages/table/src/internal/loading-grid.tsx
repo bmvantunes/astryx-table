@@ -1,6 +1,7 @@
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { TableContext, TableRow, TableCell } from "@astryxdesign/core/Table";
-import { memo, useState } from "react";
+import { memo, useLayoutEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import type { CompiledColumn } from "./compile-columns";
 import type { AstryxTableRuntimeView } from "./grid-runtime";
 import {
@@ -8,7 +9,12 @@ import {
   type AstryxTableLoadingViewportAdapterState,
 } from "./react-compiler-adapters";
 import { nativeTableAppearance, cellDomId } from "./native-table-presentation";
-import { ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT, ASTRYX_TABLE_ROW_HEIGHT } from "./virtual-viewport";
+import {
+  ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT,
+  ASTRYX_TABLE_ROW_HEIGHT,
+  ASTRYX_TABLE_PREPARED_ENTERING_DISPLAY_CSS_VARIABLE,
+  ASTRYX_TABLE_PREPARED_RETIRING_DISPLAY_CSS_VARIABLE,
+} from "./virtual-viewport";
 import { astryxTableColumnCssVariable } from "./column-management";
 
 // SourceBody owns focus transfer across both loaded and loading renderers.
@@ -22,7 +28,9 @@ export const LoadingGrid = memo(function LoadingGrid({
   totalRows,
   ariaRowCount,
   tableId,
+  setRequiredRange,
 }: {
+  readonly setRequiredRange?: ((start: number, end: number) => void) | undefined;
   readonly runtime: AstryxTableRuntimeView;
   readonly columns: readonly CompiledColumn[];
   readonly structuralColumns: readonly CompiledColumn[] | undefined;
@@ -41,7 +49,12 @@ export const LoadingGrid = memo(function LoadingGrid({
       focusHandoff={noFocusTransfer}
     >
       {(adapter) => (
-        <LoadingSurface adapter={adapter} tableId={tableId} ariaRowCount={ariaRowCount} />
+        <LoadingSurface
+          adapter={adapter}
+          tableId={tableId}
+          ariaRowCount={ariaRowCount}
+          setRequiredRange={setRequiredRange}
+        />
       )}
     </AstryxTableLoadingViewportAdapterBoundary>
   );
@@ -60,7 +73,9 @@ function LoadingSurface({
   adapter,
   tableId,
   ariaRowCount,
+  setRequiredRange,
 }: {
+  readonly setRequiredRange?: ((start: number, end: number) => void) | undefined;
   readonly adapter: AstryxTableLoadingViewportAdapterState;
   readonly tableId: string;
   readonly ariaRowCount: number;
@@ -69,6 +84,9 @@ function LoadingSurface({
   const [attachRowLayer] = useState(() => adapter.attachRowLayer);
   const [attachBodyLayer] = useState(() => adapter.attachBodyLayer);
   const layout = adapter.viewportSnapshot.virtualWindow;
+  useLayoutEffect(() => {
+    setRequiredRange?.(layout.rowStart, layout.rowEnd);
+  }, [setRequiredRange, layout.rowStart, layout.rowEnd]);
   const fill =
     layout.pinnedEnd.length === 0
       ? 0
@@ -220,14 +238,18 @@ function LoadingSurface({
   );
 }
 
-function LoadingCell({
+export function LoadingCell({
   column,
   columnIndex,
   id,
+  preparedStage,
+  rowIndex,
 }: {
   readonly column: CompiledColumn;
   readonly columnIndex: number;
   readonly id: string;
+  readonly preparedStage?: "entering" | "retiring" | undefined;
+  readonly rowIndex?: number | undefined;
 }) {
   return (
     <TableCell
@@ -236,12 +258,19 @@ function LoadingCell({
       role="gridcell"
       aria-colindex={columnIndex + 1}
       aria-label={`Loading ${column.headerName}`}
+      data-astryx-column-id={column.columnId}
+      data-astryx-loading-row-index={rowIndex}
       style={{
         height: ASTRYX_TABLE_ROW_HEIGHT,
         width: `var(${astryxTableColumnCssVariable("width", column.columnId)}, ${column.semantics.width}px)`,
         flexShrink: 0,
         overflow: "clip",
         maxWidth: "none",
+        transform: `var(${astryxTableColumnCssVariable("transform", column.columnId)}, none)`,
+        display:
+          preparedStage === undefined
+            ? undefined
+            : (`var(${preparedStage === "entering" ? ASTRYX_TABLE_PREPARED_ENTERING_DISPLAY_CSS_VARIABLE : ASTRYX_TABLE_PREPARED_RETIRING_DISPLAY_CSS_VARIABLE}, ${preparedStage === "entering" ? "none" : "block"})` as CSSProperties["display"]),
       }}
     >
       <Skeleton

@@ -7,6 +7,12 @@ export default defineConfig({
   resolve: { dedupe: ["react", "react-dom"] },
   optimizeDeps: {
     include: [
+      "effect",
+      "effect-view-server/config",
+      "effect-view-server/react",
+      "effect-view-server/react/testing",
+      "react-dom/client",
+      "react-dom/server",
       "@astryxdesign/core/Toolbar",
       "@astryxdesign/core/Divider",
       "@astryxdesign/core/Button",

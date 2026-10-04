@@ -125,6 +125,15 @@ export function headerDomId(instanceId: string, columnId: string) {
 export function cellDomId(instanceId: string, tableId: string, rowId: string, columnId: string) {
   return `astryx-table-cell-${encode(instanceId)}-${encode(tableId)}-${encode(rowId)}-${encode(columnId)}`;
 }
+// A loading coordinate is DOM presentation only, never a source Row Identity.
+export function unloadedCellDomId(
+  instanceId: string,
+  tableId: string,
+  rowIndex: number,
+  columnId: string,
+) {
+  return `unloaded-${cellDomId(instanceId, tableId, String(rowIndex), columnId)}`;
+}
 // Fixed-width UTF-16 preserves even lone surrogates and avoids delimiter collisions.
 const encodedSegments = new Map<string, string>();
 function encode(value: string): string {

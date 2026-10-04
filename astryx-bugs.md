@@ -757,3 +757,135 @@ The temporary timing/throttling probes were removed. All geometry, mounted-windo
 unique ownership, pinned-cell and scroll assertions remain, as does the 15-second
 limit. This is test enumeration overhead, not an Astryx defect or a relaxed grid
 performance gate. A scrollbar-gutter hypothesis did not reproduce the failure.
+
+### Client lifecycle validation completed locally
+
+Commit `959a6849151f58dbce01b85c5a2fab43b8c1eb02` passed the complete functional
+gates, including 318 Browser tests and 248 installed-package Browser tests. All
+three independent local reviewers reported zero findings. The complete 39-scenario
+production suite passed on that clean commit on its second full run. The first
+clean run failed the pinned-start resize presentation-cadence limit; its evidence
+was preserved, and the cause is not established. The successful full run reported
+loading work p99 3.2 ms and grouped-live work p99 6.5 ms. Remote gates remain separate.
+
+### Server sparse deliveries did not wake native row shells
+
+The first public Server integration reproduced a local renderer gap: delivery into
+a stationary viewport updated the source runtime but rendered no loaded row. Both
+center and pinned shells subscribed only to viewport-range changes and discarded
+indexes without a loaded source identity. This is an AstryxTable integration bug,
+not an upstream Astryx Core defect.
+
+The renderer now reuses the retained bounded Mounted Row Slots publisher, subscribes
+to source identity changes and rechecks after subscription. Unresolved positions
+render native Skeleton cells in both center and pinned regions. Their DOM IDs
+describe loading coordinates; they never become source Row Identities. A public
+regression checks a source key different from the raw record ID and validates
+the pinned row's accessibility ownership. Stationary delivery and late-generation
+rejection now pass the targeted tests. Full regression and performance gates,
+independent review and additional Server capabilities remain pending.
+
+Source-owned loading-window requests are also wired through the loading renderer.
+The first test expected a separate loading grid after an authoritative row count,
+but the retained runtime correctly used its sparse row space in that state. The
+corrected regression checks requests while that actual viewport scrolls; it passes.
+This assertion correction is not evidence of a separate upstream loading defect.
+
+The next public regressions reproduced two further native integration gaps:
+unresolved Active Cells lacked an accessible DOM destination, and restored Server
+grouping passed raw presentation columns into the view. Loading coordinates now
+have separate DOM IDs that navigation can announce, and Server subscribes to the
+runtime's compiled grouped presentation. Grouped callbacks no longer accidentally
+use raw-row presentation. The targeted ten-test Server suite passes, including a
+real published View Server hook under Strict Mode and source-key invalidation that
+must remain cleared after later publications.
+
+The first complete Browser run caught three regressions introduced while wiring
+the shared slots: recycling a loaded row's React key could leave focus inside a
+different record (HTML and SVG controls), and retaining the previous projection's
+slots for one render could invoke a grouped formatter after its row disappeared.
+Loaded shells now keep identity-based keys, distinct from unresolved coordinates;
+a new row-space projection creates its corresponding slot publisher immediately.
+All 65 focused Server, Client navigation and Client grouping regressions pass.
+These are corrected local integration regressions, not new upstream Astryx bugs.
+
+The expanded Server suite also reproduced a pointer gap on unresolved cells:
+clicking a loading cell did not activate that logical coordinate. Loading cells now
+provide private positional evidence, and navigation accepts an unresolved coordinate
+only when the source currently has no identity there. Integer/bounds checks and
+loaded-key equality remain enforced. Delivery subsequently supplies the real Row
+Identity. This changes retained navigation semantics and is explicitly recorded
+outside the mechanical-import exemption. The focused Server/navigation suite passes
+47 Browser tests; hydration, overlapping-window retention and 20-million-row narrow
+LTR/RTL segmentation are included.
+
+The first sparse Server scroll workload observed 97 loading frames: diagnostic
+evidence showed that periodic one-row steps changed only the window's leading edge,
+so no new unresolved row existed in those steps. Waiting an extra frame did not
+change that count. The workload now advances two rows per sample, requiring new
+admissions more consistently while retaining the stricter greater-than-100 loading
+observations, the complete 100 measured samples and all time budgets. A focused
+production run passes at 7.9 ms scroll-work p99, 18.5 ms frame-cadence p99 and 0.7 ms
+delivery-work p99. This is dirty focused evidence; the complete suite and clean
+commit proof remain required. No upstream renderer defect is claimed from the
+initial benchmark assertion.
+
+### Server review: grouped focus and loading accessibility
+
+The first independent review found three local integration gaps. Grouped Server
+snapshots retained the raw-row conflict policy, so removing the active final group
+cleared activation instead of clamping its position. The sparse renderer also
+dropped source loading and unknown-count accessibility metadata. Finally, a
+retained identity whose row was unloaded lost its accessible destination, including
+after viewport eviction and while the source temporarily masked loaded values.
+
+New public regressions reproduced these failures. Server now installs the retained
+grouped fallback policy without replacing source identity or window authority.
+The native surface consumes loading and the narrow Body count metadata. Navigation
+chooses loading presentation independently of retained identity and maintains one
+value-free, clipped destination for a focused offscreen loading coordinate. Passive
+publications do not reveal that coordinate; delivery restores the real cell.
+
+The 76 focused Server, Client navigation and Client grouping tests pass, including
+group replacement, shrink and movement, unknown-to-authoritative count, source
+masking/recovery and eviction followed by horizontal navigation and identity arrival.
+The first complete 42-scenario development run passed before these review fixes
+(Server work p99 7.4 ms, cadence 18.1 ms, delivery 0.6 ms). Updated full validation,
+a fresh three-axis round and clean-commit performance proof remain required.
+These are AstryxTable integration corrections, not upstream Core patches.
+
+The second round found one further proxy ownership defect: horizontal virtualization
+could leave the ordinary row mounted while the loading destination created another
+accessible row at the same index. The new horizontal/vertical transition regression
+failed with two rows. The proxy now joins the mounted row through ordered ARIA
+ownership; it owns a separate row only while that logical row is absent. Ownership
+is removed when the native cell returns and on cleanup. All 22 Server cases pass.
+The second complete 42-scenario run also passed before this ownership correction;
+updated complete validation and independent review remain required.
+
+The third round caught the corresponding unpinned/suspended layout: ordinary DOM
+cells preceded an explicitly owned earlier-column proxy. Both added variants failed
+the accessible-order assertion. Native rows now always declare the complete logical
+cell ownership order, so the proxy can join that same order regardless of pinning.
+Cleanup removes the proxy and preserves the native list. All 24 Server cases pass,
+including pinned, unpinned and narrow suspended layouts. This one shared ownership
+rule replaces the previous conditional rule; no source identity or extra row is added.
+
+The fourth round found a nearest-table boundary missing from the proxy's row lookup.
+A loaded custom cell containing a nested grid could claim the outer table's evicted
+loading coordinate. The public reproduction failed with no semantic owner remaining
+in the outer grid. The lookup now reuses the existing nearest-grid ownership guard;
+all 25 Server cases pass, including isolation from the nested row. This is a one-line
+boundary correction, not a change to source identity or nested-grid support.
+
+### Server integration dependency preparation
+
+The first integration probe stopped before test collection because discovering
+the published View Server/Effect imports restarted Vite's dependency optimizer.
+That failure did not prove missing Server behavior. Explicit preparation of the
+fixture dependencies made the next probe fail for the actual missing public
+`AstryxTableServer` export. Browser and production configurations now include
+their imported dependency entry points, and the installed Server phase uses its
+own configuration after the root consumer has already passed without Effect.
+This is local test setup, not an upstream defect; no runtime fallback or
+performance threshold is changed.
