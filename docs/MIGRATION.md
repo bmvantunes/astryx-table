@@ -451,3 +451,55 @@ first-source-occurrence ordering, exact equivalence and zero-count intent.
 The index is released with the overlay. Differential tests compare incremental
 results with complete recomputation across Text, Number, BigInt and Boolean,
 including signed zero, nulls, other filters, Match None and source reordering.
+
+## Active-filter review slice — issue #6
+
+`AstryxTableActiveFilters` composes through optional Client toolbar children and
+uses the published Astryx Button/Popover. A stable private Client context serves
+both controls and facets; it exposes no public table controller or TanStack state.
+The closed trigger observes only the active count, while the mounted review uses
+the runtime's narrow filter snapshot and compiled summaries. Neither subscribes to
+row publications. Complete column expressions count once, including hidden columns.
+Removal clears the complete expression; Clear all Grid Filters is one runtime
+command. The review retains the source Quick Filter entry semantics for the later
+Quick Filter control slice; that control is not exposed by this change.
+
+A 64-entry window bounds mounted controls. Native dismissal returns trigger focus,
+and removal focuses the next surviving entry, including at window boundaries.
+Empty state uses the published disabled-with-tooltip Button behavior to preserve
+return focus. No Astryx patch or copied generic control is introduced.
+
+Public source and installed-tarball regressions cover count, complete-expression
+removal, hidden preferences, atomic clearing, window/focus behavior and live labels.
+The added production workload holds a 70-filter review open (64 mounted controls)
+over 5,000 × 150 at 20 Hz, retains full frame accounting and the 8.33 ms p99 budget,
+and asserts no review/trigger renders from row publications. All 26 preceding
+scenarios remain mandatory. Full validation, independent review and clean-commit
+attestation remain publication prerequisites; issue #6 is not closed.
+
+## Quick Filter control slice — issue #6
+
+`AstryxTableQuickFilter` is an optional Client toolbar child. It consumes published
+TextInput with its native Clear button and focus restoration. Explicit configured
+string fields define the OR search, independently of column visibility; Grid
+Filters remain AND-combined. Raw query text is session-only and never enters
+persisted preferences. Missing fields are a development configuration error.
+
+Continuous input retains the 150 ms Pacer debounce. Native Clear is immediate and
+cancels pending drafts. The control retains the complete IME invalidation protocol:
+clear or external review removal invalidates the composing token, and every late
+input from that session is ignored until compositionend consumes it. Removing the
+control releases its subscriptions and cancels its pending debounce without
+resetting the retained Table Instance's committed query.
+
+Core 0.6.5 passes a null event from its native Clear callback despite the declared
+non-null type. The independent published-control regression and nullable-event
+integration are recorded as ASTRYX-006; no dependency patch is introduced.
+
+Public and installed-package coverage exercises explicit hidden fields, conjunction
+with Grid Filters, active review and clearing, no persistence, remount, native
+focus, valid/cancelled composition and invalid configuration. The production gate
+adds a mounted active Quick Filter during the original 5,000 × 150, 20 Hz protocol,
+including stable render counts. All previous 27 scenarios and thresholds remain.
+Numeric/compound editors, remaining preference controls and Server facets remain
+pending, along with complete validation and review before publication of this slice.

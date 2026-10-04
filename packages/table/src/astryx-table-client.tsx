@@ -15,7 +15,7 @@ import {
 } from "./internal/client-row-pipeline";
 import { compileAstryxTableGroupRowsColumn } from "./internal/client-grouping-presentation";
 import { registerAstryxTableIdentity } from "./internal/table-identity-registry";
-import { ClientFacetContext } from "./internal/client-set-filter";
+import { ClientContext } from "./internal/client-context";
 import { AstryxTableView } from "./internal/astryx-table-view";
 
 const styles = stylex.create({ root: { position: "relative" } });
@@ -85,7 +85,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     return instance;
   });
   const [view] = useState(() => runtime.getView());
-  const facetContext = useMemo(() => ({ rows: adapter, runtime: view }), [adapter, view]);
+  const clientContext = useMemo(() => ({ rows: adapter, runtime: view }), [adapter, view]);
   const [projection] = useState(
     () => new AstryxTableClientProjectionStore(view, adapter, undefined),
   );
@@ -121,11 +121,11 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     [props.tableId, columns],
   );
   return (
-    <div {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
-      {props.children === undefined || props.children === null ? null : (
-        <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
-      )}
-      <ClientFacetContext value={facetContext}>
+    <ClientContext value={clientContext}>
+      <div {...stylex.props(styles.root)} data-astryx-table={props.tableId}>
+        {props.children === undefined || props.children === null ? null : (
+          <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
+        )}
         <AstryxTableClientRowPipeline
           runtime={view}
           tableId={props.tableId}
@@ -134,7 +134,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         >
           {(snapshot) => <AstryxTableView tableId={props.tableId} snapshot={snapshot} />}
         </AstryxTableClientRowPipeline>
-      </ClientFacetContext>
-    </div>
+      </div>
+    </ClientContext>
   );
 }

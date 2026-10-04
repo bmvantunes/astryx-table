@@ -5,6 +5,7 @@ import { Theme } from "@astryxdesign/core/theme";
 import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import {
   AstryxTableClient,
+  AstryxTableQuickFilter,
   AstryxTableBigIntColumn,
   type AstryxTableColumns,
 } from "@bmvantunes/astryx-table";
@@ -51,4 +52,25 @@ test("installed JavaScript, declarations and CSS render an exact styled Client w
   await userEvent.keyboard("{Enter}");
   await expect.element(page.getByRole("row").nth(1)).toHaveTextContent("9007199254740992");
   await expect.element(trigger).toHaveFocus();
+});
+
+test("installed production Quick Filter without configured fields leaves the grid usable", async () => {
+  await render(
+    <AstryxTableClient
+      tableId="installed-no-quick-fields"
+      columns={columns}
+      getRowId={(row) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_AMOUNT", direction: "desc" }]}
+      clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+    >
+      <AstryxTableQuickFilter />
+    </AstryxTableClient>,
+  );
+  await expect
+    .element(page.getByRole("gridcell", { name: "9007199254740993", exact: true }))
+    .toBeVisible();
+  await expect
+    .element(page.getByRole("searchbox", { name: "Quick Filter", exact: true }))
+    .not.toBeInTheDocument();
+  await expect.element(page.getByRole("alert")).not.toBeInTheDocument();
 });

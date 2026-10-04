@@ -1,19 +1,10 @@
-import {
-  createContext,
-  memo,
-  useCallback,
-  useContext,
-  useMemo,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
 import { Button } from "@astryxdesign/core/Button";
 import { CheckboxInput } from "@astryxdesign/core/CheckboxInput";
 import { TextInput } from "@astryxdesign/core/TextInput";
 import type { CompiledColumn } from "./compile-columns";
-import type { AstryxTableClientFacetRowsSource } from "./client-source-adapter";
-import type { AstryxTableRowPipelineRuntimeView } from "./grid-runtime";
+import { useClientContext } from "./client-context";
 import { normalizeAstryxTableFilterText } from "./grid-query";
 import { astryxTableSetValueKey } from "./set-value-identity";
 import {
@@ -24,10 +15,6 @@ import {
   type AstryxTableSetFilterCommand,
 } from "./client-facet";
 
-export const ClientFacetContext = createContext<
-  | Readonly<{ rows: AstryxTableClientFacetRowsSource; runtime: AstryxTableRowPipelineRuntimeView }>
-  | undefined
->(undefined);
 const WINDOW_SIZE = 64;
 const styles = stylex.create({
   section: { display: "flex", flexDirection: "column", gap: 8 },
@@ -40,9 +27,7 @@ export const ClientSetFilter = memo(function ClientSetFilter({
 }: {
   readonly column: CompiledColumn;
 }) {
-  const context = useContext(ClientFacetContext);
-  if (context === undefined) throw new Error("Client facet source is missing.");
-  const { rows, runtime } = context;
+  const { rows, runtime } = useClientContext();
   const store = useMemo(
     () => createAstryxTableClientFacetStore({ column, rows, runtime }),
     [column, rows, runtime],

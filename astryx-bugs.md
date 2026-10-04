@@ -4,13 +4,14 @@ This is the running record requested by Bruno. Package under investigation: `@as
 
 The first three entries group the earlier corrections by user-visible problem. They cover six source modules, not three individual line changes. New findings get stable IDs. Keep reproduced defects, API gaps and unconfirmed observations distinct; mark a correction validated only after its regression tests pass.
 
-| ID         | Area            | Problem                                                                              | Status                              |
-| ---------- | --------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
-| ASTRYX-001 | Focus           | Modal focus containment and Selector focus restoration can choose the wrong target   | Corrected locally; merged in PR #17 |
-| ASTRYX-002 | Toast           | Same-turn or queued dismissal can lose cancellation and lifecycle evidence           | Corrected locally; merged in PR #17 |
-| ASTRYX-003 | TextInput types | Native search, input mode and maximum length are rejected by the public types        | Corrected locally; merged in PR #17 |
-| ASTRYX-004 | Table pinning   | Pin changes leave memoized body cells sticky; Compiler can also retain stale headers | Corrected locally; merged in PR #19 |
-| ASTRYX-005 | Table sorting   | Controlled sort changes leave the header/ARIA stale with React Compiler              | Corrected locally; merged in PR #19 |
+| ID         | Area            | Problem                                                                              | Status                                                         |
+| ---------- | --------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------- |
+| ASTRYX-001 | Focus           | Modal focus containment and Selector focus restoration can choose the wrong target   | Corrected locally; merged in PR #17                            |
+| ASTRYX-002 | Toast           | Same-turn or queued dismissal can lose cancellation and lifecycle evidence           | Corrected locally; merged in PR #17                            |
+| ASTRYX-003 | TextInput types | Native search, input mode and maximum length are rejected by the public types        | Corrected locally; merged in PR #17                            |
+| ASTRYX-004 | Table pinning   | Pin changes leave memoized body cells sticky; Compiler can also retain stale headers | Corrected locally; merged in PR #19                            |
+| ASTRYX-005 | Table sorting   | Controlled sort changes leave the header/ARIA stale with React Compiler              | Corrected locally; merged in PR #19                            |
+| ASTRYX-006 | TextInput Clear | Native Clear passes a null event despite the non-null ChangeEvent callback type      | Reproduced; nullable event handled by Quick Filter integration |
 
 ## Patch size
 
@@ -353,3 +354,71 @@ replace redundant native-control renders and full scans after each single-row
 publication. This is a grid integration/performance improvement, not an Astryx
 bug or new dependency patch. The source engine adaptation has independent review
 and differential regression requirements; clean-commit evidence remains required.
+
+### Active-filter review integration
+
+The Client review panel consumes the runtime's already compiled, bounded labels
+and whole-column filter commands. It includes hidden columns, counts one entry per
+column expression, and mounts at most 64 entries. Only its open review subscribes
+to filter details; the closed trigger observes the count. Live row publications do
+not notify either projection. Native Popover owns dismissal and return focus;
+removal transfers focus to the next surviving entry.
+
+The empty trigger uses Button's documented disabled-with-tooltip behavior, which
+keeps it programmatically focusable for return focus. Passing `aria-disabled`
+directly does not override Button's own disabled policy. This is normal native
+composition, not a reproduced Astryx bug or additional dependency patch.
+
+A CodeRabbit concern about a pending text filter using uncommitted replacement
+column semantics was investigated at PR #22 head `2168c27`. Two public suspended
+replacement probes passed; the editor receives only installed runtime columns.
+CodeRabbit verified that ownership boundary and withdrew the finding in
+[the review thread](https://github.com/bmvantunes/astryx-table/pull/22#discussion_r4176156067).
+No speculative fix or upstream bug is claimed for that report.
+
+Local review caught an avoidable subscription in this new integration: deriving a
+count from the general filter snapshot avoided React renders but still received
+same-count operand notifications. The trigger now uses the retained runtime's
+dedicated active-count subscription directly. A Browser regression first failed
+on the broader subscription, then verifies zero same-count notifications, detail
+subscription only while open, and cleanup on close/unmount. This is a grid
+integration correction, not an Astryx defect.
+
+## ASTRYX-006 — Native Clear callback event differs from its type
+
+**Version:** Core 0.6.5. `TextInputProps.onChange` declares a non-null
+`ChangeEvent<HTMLInputElement>`, but `handleClear` invokes it with `null` using a
+cast. Ordinary input changes still provide the event. A consumer that trusts the
+declaration and reads `event.currentTarget` therefore fails on native Clear.
+
+**Reproduction:** `src/controls/astryx-clear-event.browser.test.tsx` renders the
+published TextInput with `hasClear`, clicks its native clear button and observes
+`["", null]`. No grid or package patch is involved in that reproduction.
+
+**Integration:** Quick Filter accepts a nullable event and treats native Clear as
+an immediate command, cancelling its pending debounce and composition session.
+Ordinary edits retain the 150 ms debounce. Native Clear still owns its button and
+focus restoration. This is defensive integration for the reproduced callback
+contract; no dependency patch or upstream correction is claimed. The Core patch
+size above is unchanged. Full integration validation/review remain required.
+
+### Operand-list test synchronization follow-up
+
+CodeRabbit PR #23 identified possible races in immediate locator counts. Most
+cited assertions already follow a DOM-specific awaited value/focus check; those
+remain unchanged. Three counts that follow an action or timer/persistence boundary
+now wait for their exact DOM count. This preserves the same expected states and
+budgets; it is test synchronization, not an additional Astryx defect. The changes
+were validated and merged in PR #23; this integration preserves them.
+
+### Quick Filter performance investigation
+
+The initial production Quick Filter scenario detected one React commit outside
+its source-publication samples. Temporary subtree profiling excluded the Quick
+Filter and active-filter controls. Core's Toolbar `useKeyboardHint` owns a
+three-second dismissal after the search field receives focus; that delayed
+interaction overlapped steady-state publication measurement. Completing its
+native arrow-key dismissal before recording removes the unrelated interaction.
+The focused production scenario then passes with the original zero-unowned-commit
+assertion and 8.33 ms budget. No dependency patch, disabled hint, arbitrary sleep
+or relaxed accounting was introduced. This is benchmark setup, not an Astryx bug.

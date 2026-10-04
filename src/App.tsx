@@ -3,7 +3,12 @@ import { Theme } from "@astryxdesign/core/theme";
 import { neutralTheme } from "@astryxdesign/theme-neutral/built";
 import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
-import { AstryxTableClient, type AstryxTableColumns } from "../packages/table/src";
+import {
+  AstryxTableClient,
+  AstryxTableQuickFilter,
+  AstryxTableActiveFilters,
+  type AstryxTableColumns,
+} from "../packages/table/src";
 
 type Quote = { id: string; instrument: string; quantity: bigint };
 const columns = [
@@ -43,7 +48,7 @@ export function App() {
       <main {...stylex.props(styles.page)}>
         <h1 {...stylex.props(styles.heading)}>AstryxTable</h1>
         <p {...stylex.props(styles.paragraph)}>
-          Client workbench: 10,000 rows, exact bigint values and Astryx column menus.
+          Client workbench: 10,000 rows, exact bigint values, Quick Filter and Astryx column menus.
         </p>
         <Button label="Verify Astryx interaction" onClick={() => setConfirmed(true)} />
         <p role="status" aria-label="Workbench status">
@@ -55,7 +60,11 @@ export function App() {
           getRowId={getRowId}
           clientSource={source}
           initialOrderBy={[{ columnId: "COL_ID_INSTRUMENT", direction: "asc" }]}
-        />
+          quickFilterFields={["instrument"]}
+        >
+          <AstryxTableQuickFilter />
+          <AstryxTableActiveFilters />
+        </AstryxTableClient>
       </main>
     </Theme>
   );
