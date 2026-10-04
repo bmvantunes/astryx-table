@@ -4,11 +4,10 @@ import { runBrowserValidation } from "./test-browser.mjs";
 process.chdir(fileURLToPath(new URL("../", import.meta.url)));
 rmSync("test-results/performance.json", { force: true });
 process.env.NODE_ENV = "production";
-process.exitCode = await runBrowserValidation("vp", [
-  "test",
-  "--config",
-  "vitest.performance-browser.config.ts",
-  "--mode",
-  "production",
-  "--run",
-]);
+// The complete 29-scenario suite exceeds two minutes; per-scenario work and
+// cadence budgets remain enforced by the unchanged production assertions.
+process.exitCode = await runBrowserValidation(
+  "vp",
+  ["test", "--config", "vitest.performance-browser.config.ts", "--mode", "production", "--run"],
+  180_000,
+);
