@@ -125,11 +125,14 @@ const booleanOptions = [
   { value: "false", label: "False" },
 ];
 function filterOperators(column: CompiledColumn) {
-  return column.valueType === "boolean" ? booleanOperators : textOperators;
+  return column.valueType === "boolean" || column.selectOptions !== undefined
+    ? booleanOperators
+    : textOperators;
 }
 const VISIBLE_OPERANDS = 64;
 type Draft = {
   operator: Operator;
+  selectIndex?: number | undefined;
   operands: readonly { readonly text: string; readonly authored: boolean }[];
   caseSensitive: boolean;
   accentSensitive: boolean;
@@ -137,7 +140,10 @@ type Draft = {
 function restoredDraft(column: CompiledColumn, value: unknown): Draft | undefined {
   if (value === undefined)
     return {
-      operator: column.valueType === "boolean" ? "equals" : "contains",
+      operator:
+        column.valueType === "boolean" || column.selectOptions !== undefined
+          ? "equals"
+          : "contains",
       operands: [{ text: "", authored: false }],
       caseSensitive: false,
       accentSensitive: false,
@@ -150,6 +156,19 @@ function restoredDraft(column: CompiledColumn, value: unknown): Draft | undefine
   if (operator === undefined) return undefined;
   const noOperand = operator === "blank" || operator === "notBlank";
   const raw = expression["filter"];
+  if (column.selectOptions !== undefined) {
+    const index = column.selectOptionIndexes?.get(raw);
+    return {
+      operator,
+      operands: [{ text: "", authored: false }],
+      selectIndex:
+        !noOperand && index !== undefined && Object.is(column.selectOptions[index], raw)
+          ? index
+          : undefined,
+      caseSensitive: false,
+      accentSensitive: false,
+    };
+  }
   const values = operator === "in" && Array.isArray(raw) ? raw : [raw];
   const operands = values.map((value) => ({
     text: noOperand
@@ -173,6 +192,13 @@ function filterCandidate(
 ): { filter?: Readonly<Record<string, unknown>>; error?: string; invalidIndex?: number } {
   const base = { columnId: column.columnId, type: draft.operator };
   if (draft.operator === "blank" || draft.operator === "notBlank") return { filter: base };
+  if (column.selectOptions !== undefined) {
+    const option =
+      draft.selectIndex === undefined ? undefined : column.selectOptions[draft.selectIndex];
+    return option === undefined
+      ? { error: "Choose a value.", invalidIndex: 0 }
+      : { filter: { ...base, filter: option } };
+  }
   const operands = draft.operator === "in" ? draft.operands : draft.operands.slice(0, 1);
   const values: unknown[] = [];
   if (operands.length === 0) return { error: "Enter one or more valid values." };
@@ -385,8 +411,15 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
   };
   return (
     <div {...stylex.props(styles.editor)}>
-      {draft.operator === "blank" || draft.operator === "notBlank" ? null : column.valueType ===
-        "boolean" ? (
+      {draft.operator === "blank" || draft.operator === "notBlank" ? null : column.selectOptions !==
+        undefined ? (
+        <SelectFilterOperand
+          column={column}
+          selected={draft.selectIndex}
+          error={current.error}
+          onChange={(selectIndex) => update({ ...draft, selectIndex }, true)}
+        />
+      ) : column.valueType === "boolean" ? (
         <Selector
           label="Filter value"
           placeholder="Choose a value"
@@ -546,3 +579,69 @@ const ScalarFilterEditor = memo(function ScalarFilterEditor({
     </div>
   );
 });
+
+function SelectFilterOperand({
+  column,
+  selected,
+  error,
+  onChange,
+}: {
+  readonly column: CompiledColumn;
+  readonly selected: number | undefined;
+  readonly error: string | undefined;
+  readonly onChange: (index: number) => void;
+}) {
+  const [windowStart, setWindowStart] = useState(0);
+  const options = column.selectOptions ?? [];
+  const maxStart = Math.max(0, options.length - VISIBLE_OPERANDS);
+  const start = Math.min(windowStart, maxStart);
+  const end = Math.min(start + VISIBLE_OPERANDS, options.length);
+  const indexes = Array.from({ length: end - start }, (_, offset) => start + offset);
+  if (selected !== undefined && (selected < start || selected >= end)) indexes.unshift(selected);
+  const choices = indexes.map((index) => {
+    let label: string;
+    try {
+      label =
+        column.semantics
+          .formatDisplay(options[index])
+          .slice(0, ASTRYX_TABLE_MAX_FILTER_OPERAND_LENGTH) || "Empty value";
+    } catch {
+      label = "<unavailable>";
+    }
+    return { value: String(index), label, index };
+  });
+  return (
+    <>
+      <Selector
+        label="Filter value"
+        placeholder="Choose a value"
+        value={selected === undefined ? "" : String(selected)}
+        options={choices}
+        status={error === undefined ? undefined : { type: "error", message: error }}
+        onChange={(value) => {
+          const choice = choices.find((option) => option.value === value);
+          if (choice !== undefined) onChange(choice.index);
+        }}
+      />
+      {options.length > VISIBLE_OPERANDS ? (
+        <>
+          <span role="status">{`Showing options ${String(start + 1)}–${String(end)} of ${String(options.length)}`}</span>
+          <Button
+            label="Previous filter options"
+            size="sm"
+            variant="ghost"
+            isDisabled={start === 0}
+            onClick={() => setWindowStart(Math.max(0, start - VISIBLE_OPERANDS))}
+          />
+          <Button
+            label="Next filter options"
+            size="sm"
+            variant="ghost"
+            isDisabled={start === maxStart}
+            onClick={() => setWindowStart(Math.min(maxStart, start + VISIBLE_OPERANDS))}
+          />
+        </>
+      ) : null}
+    </>
+  );
+}

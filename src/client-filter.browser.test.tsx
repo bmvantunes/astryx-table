@@ -3,6 +3,7 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
   AstryxTableClient,
+  AstryxTableSelectColumn,
   type AstryxTableColumns,
   type AstryxTableColumnId,
   type AstryxTablePersistedState,
@@ -794,4 +795,198 @@ test("boolean filters use native choices, commit immediately and restore exact f
   await expect
     .element(page.getByRole("button", { name: "Filter Enabled (active)", exact: true }))
     .toHaveFocus();
+});
+
+test("Select filters publish exact configured numbers and restore zero", async () => {
+  type ChoiceRow = { id: string; choice: 0 | 1 | 2 };
+  const choiceColumns = [
+    AstryxTableSelectColumn({
+      columnId: "COL_ID_CHOICE",
+      headerName: "Choice",
+      field: "choice",
+      options: [0, 1, 2],
+    }),
+  ] as const satisfies AstryxTableColumns<ChoiceRow>;
+  const choiceRows: ChoiceRow[] = [
+    { id: "zero", choice: 0 },
+    { id: "one", choice: 1 },
+    { id: "two", choice: 2 },
+  ];
+  const persisted: AstryxTablePersistedState<ChoiceRow, typeof choiceColumns, true>[] = [];
+  const view = await render(
+    <AstryxTableClient
+      tableId="select-filter"
+      columns={choiceColumns}
+      getRowId={(row: ChoiceRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      clientSource={{ rows: choiceRows, totalRows: choiceRows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Choice column menu", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Filter column", exact: true }).click();
+  const input = page.getByRole("combobox", { name: "Filter value", exact: true });
+  await expect.element(input).toHaveFocus();
+  expect(persisted).toHaveLength(0);
+  await input.click();
+  await page.getByRole("option", { name: "0", exact: true }).click();
+  expect(persisted).toHaveLength(1);
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  await expect.element(page.getByRole("gridcell", { name: "0", exact: true })).toBeVisible();
+  const snapshot = persisted[0]!;
+  expect(snapshot.filters).toEqual([
+    {
+      columnId: "COL_ID_CHOICE",
+      type: "equals",
+      filter: { $astryxTableValue: "select", version: 1, value: { type: "number", value: "0" } },
+      codecId: "@bruno/table/select",
+      codecVersion: 1,
+    },
+  ]);
+  await page.getByRole("combobox", { name: "Operator", exact: true }).click();
+  await page.getByRole("option", { name: "Not equal", exact: true }).click();
+  expect(persisted).toHaveLength(2);
+  expect(page.getByRole("gridcell").all()).toHaveLength(2);
+  expect(page.getByRole("gridcell", { name: "0", exact: true }).all()).toHaveLength(0);
+  await view.unmount();
+  await render(
+    <AstryxTableClient
+      tableId="select-filter"
+      columns={choiceColumns}
+      getRowId={(row: ChoiceRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      initialPersistedState={JSON.parse(JSON.stringify(snapshot))}
+      clientSource={{ rows: choiceRows, totalRows: choiceRows.length, version: 2, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  expect(persisted).toHaveLength(2);
+  await page.getByRole("button", { name: "Filter Choice (active)", exact: true }).click();
+  await expect.element(input).toHaveTextContent("0");
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+});
+
+test("Select option windows stay bounded and retain an off-window selected value", async () => {
+  type ChoiceRow = { id: string; choice: string };
+  const choices = [
+    "Item 0",
+    ...Array.from({ length: 69 }, (_, index) => `Item ${String(index + 1)}`),
+  ] as const;
+  const choiceColumns = [
+    AstryxTableSelectColumn({
+      columnId: "COL_ID_CHOICE",
+      headerName: "Choice",
+      field: "choice",
+      options: choices,
+    }),
+  ] as const satisfies AstryxTableColumns<ChoiceRow>;
+  const choiceRows = choices.map((choice) => ({ id: choice, choice }));
+  const persisted: AstryxTablePersistedState<ChoiceRow, typeof choiceColumns, true>[] = [];
+  await render(
+    <AstryxTableClient
+      tableId="select-filter-window"
+      columns={choiceColumns}
+      getRowId={(row: ChoiceRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      initialFilters={[{ columnId: "COL_ID_CHOICE", type: "equals", filter: "Item 69" }]}
+      clientSource={{ rows: choiceRows, totalRows: choiceRows.length, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Choice (active)", exact: true }).click();
+  const input = page.getByRole("combobox", { name: "Filter value", exact: true });
+  await expect.element(input).toHaveFocus();
+  await expect.element(input).toHaveTextContent("Item 69");
+  await input.click();
+  expect(page.getByRole("option").all()).toHaveLength(65);
+  await expect
+    .element(page.getByRole("option", { name: "Item 69", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: "Next filter options", exact: true }).click();
+  expect(persisted).toHaveLength(0);
+  await input.click();
+  expect(page.getByRole("option").all()).toHaveLength(64);
+  await page.getByRole("option", { name: "Item 68", exact: true }).click();
+  expect(persisted).toHaveLength(1);
+  await expect.element(page.getByRole("gridcell", { name: "Item 68", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Previous filter options", exact: true }).click();
+  expect(persisted).toHaveLength(1);
+  await input.click();
+  expect(page.getByRole("option").all()).toHaveLength(65);
+  await expect
+    .element(page.getByRole("option", { name: "Item 68", exact: true }))
+    .toHaveAttribute("aria-selected", "true");
+  await page.getByRole("option", { name: "Item 0", exact: true }).click();
+  expect(persisted).toHaveLength(2);
+  await expect.element(page.getByRole("gridcell", { name: "Item 0", exact: true })).toBeVisible();
+});
+
+test("an empty-string Select option survives persisted restoration in a fresh instance", async () => {
+  type ChoiceRow = { id: string; choice: "" | "Filled" };
+  const choiceColumns = [
+    AstryxTableSelectColumn({
+      columnId: "COL_ID_CHOICE",
+      headerName: "Choice",
+      field: "choice",
+      options: ["", "Filled"],
+    }),
+  ] as const satisfies AstryxTableColumns<ChoiceRow>;
+  const choiceRows: ChoiceRow[] = [
+    { id: "empty", choice: "" },
+    { id: "filled", choice: "Filled" },
+  ];
+  const persisted: AstryxTablePersistedState<ChoiceRow, typeof choiceColumns, true>[] = [];
+  const view = await render(
+    <AstryxTableClient
+      tableId="select-empty"
+      columns={choiceColumns}
+      getRowId={(row: ChoiceRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      clientSource={{ rows: choiceRows, totalRows: 2, version: 1, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Choice", exact: true }).click();
+  const input = page.getByRole("combobox", { name: "Filter value", exact: true });
+  await input.click();
+  await page.getByRole("option", { name: "Empty value", exact: true }).click();
+  expect(persisted).toHaveLength(1);
+  expect(page.getByRole("gridcell").all()).toHaveLength(1);
+  expect(page.getByRole("gridcell", { name: "Filled", exact: true }).all()).toHaveLength(0);
+  expect(persisted[0]?.filters).toEqual([
+    {
+      columnId: "COL_ID_CHOICE",
+      type: "equals",
+      filter: { $astryxTableValue: "select", version: 1, value: { type: "string", value: "" } },
+      codecId: "@bruno/table/select",
+      codecVersion: 1,
+    },
+  ]);
+  await userEvent.keyboard("{Escape}");
+  await page.getByRole("button", { name: "Filter Choice (active)", exact: true }).click();
+  await expect.element(input).toHaveTextContent("Empty value");
+  expect(persisted).toHaveLength(1);
+  const snapshot: (typeof persisted)[number] = JSON.parse(JSON.stringify(persisted[0]));
+  await view.unmount();
+  await render(
+    <AstryxTableClient
+      tableId="select-empty"
+      columns={choiceColumns}
+      getRowId={(row: ChoiceRow) => row.id}
+      initialOrderBy={[{ columnId: "COL_ID_CHOICE", direction: "asc" }]}
+      initialPersistedState={snapshot}
+      clientSource={{ rows: choiceRows, totalRows: 2, version: 2, status: "ready" }}
+      onPersistChange={(state) => persisted.push(state)}
+    />,
+  );
+  await page.getByRole("button", { name: "Filter Choice (active)", exact: true }).click();
+  await expect
+    .element(page.getByRole("combobox", { name: "Filter value", exact: true }))
+    .toHaveTextContent("Empty value");
+  await expect.poll(async () => (await page.getByRole("gridcell").all()).length).toBe(1);
+  await expect
+    .element(page.getByRole("gridcell", { name: "Filled", exact: true }))
+    .not.toBeInTheDocument();
+  expect(persisted).toHaveLength(1);
 });

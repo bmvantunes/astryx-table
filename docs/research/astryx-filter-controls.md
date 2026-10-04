@@ -90,8 +90,11 @@ BrunoTable storage. Sources: `migration/reference/docs/grid/requirements.md:481`
 
 The number-domain input contract includes native `type="number"`, `step="any"`
 and `badInput`. Exact domains use textual inputs without `valueAsNumber`.
-**Unverified:** whether Astryx NumberInput preserves the full raw-draft and
-`badInput` contract. Investigate and Browser-test it before adoption.
+The published NumberInput source does not provide that contract: its callback is
+number/null, text edits commit on blur/Enter, and its actual input is `type="text"`
+(`NumberInput/NumberInput.tsx:410`, `:519`, `:904`). This is an API mismatch, not a
+reproduced NumberInput defect. The proposed TextInput declaration extension remains
+unapplied pending explicit confirmation; see `astryx-bugs.md`.
 
 ## Implementation and verification boundaries
 
@@ -116,3 +119,12 @@ Native filtering-plugin Compiler behavior remains unverified. Existing sorting,
 pinning and overlay corrections do not establish a filtering-plugin defect.
 This investigation used the approved patched package; see `astryx-bugs.md` for
 actual upstream findings and integration corrections.
+
+## Configured Select options
+
+The published Selector loops through all supplied options when rendering its
+listbox (`Selector/Selector.tsx:1487–1575`); it exposes native keyboard, selection
+and optional search, but this path is not virtualized. Supply the retained bounded
+64-option window plus an off-window selected option. Keep configured values in
+the compiled domain and use private UI tokens only to select their exact indexes.
+The grid owns paging; native Selector owns interaction and overlay behavior.

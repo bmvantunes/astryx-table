@@ -397,3 +397,23 @@ A 24th required production scenario keeps this editor open during the retained
 Custom Boolean-family descriptors, numeric/Select/Set families, compound editing,
 facets and the Server matrix remain pending. Numeric work is preserved separately
 while two concrete dependency-patch approvals remain outstanding; see astryx-bugs.md.
+
+### Configured Select filter editor
+
+Columns with a compiled Select option domain now use the native Astryx Selector
+for Equals, Not equal, Blank and Not blank. A choice identifies its configured
+option directly; its label and private UI token never become the runtime operand.
+Restoration uses the compiled exact-option index, without scanning rows or calling
+custom equivalence during render. Zero and empty-string options remain authored
+values. Empty labels display `Empty value` without changing their canonical value.
+
+The published Selector renders its supplied options rather than virtualizing them.
+The grid therefore retains the original 64-option window, plus at most one selected
+option outside that window. Paging changes only local presentation. Native Selector
+continues to own the listbox, focus, keyboard interaction and dismissal.
+
+Public and installed-package tests cover exact numeric choices, JSON restoration,
+empty options and off-window selection. A 25th required production scenario keeps
+a 612-option domain's bounded native listbox open through 5,000 × 150, 20 Hz live
+updates, retaining editor/trigger isolation and every previous scenario. Numeric
+and Set workflows, compound editing, live facets and the Server matrix remain open.
