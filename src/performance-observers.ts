@@ -1,5 +1,5 @@
 // Mutation observers run after React/RAF callbacks. Charge them separately so
-// asynchronous focus projection cannot disappear inside max(React, RAF) work.
+// asynchronous focus projection remains separate from React and RAF work.
 // Includes native-control and harness observers conservatively during sampling.
 export function measureMutationObserverWork(onWork?: (durationMs: number) => void) {
   const NativeObserver = window.MutationObserver;

@@ -1,3 +1,4 @@
+import { sumProductionFrameWork } from "./performance-frame-work";
 import { Profiler, createElement, useEffect, useState } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -309,7 +310,7 @@ test(
           (sample) =>
             sample.admission +
             sample.phases.reduce(
-              (total, phase) => total + Math.max(phase.callbacks, phase.react),
+              (total, phase) => total + sumProductionFrameWork(phase.callbacks, phase.react),
               0,
             ) +
             sample.observers,
