@@ -1012,6 +1012,33 @@ and the next ordinary input. They also run against the installed package. Native
 Astryx input behavior, TanStack Pacer scheduling and session-only filter ownership
 remain unchanged; no upstream patch or persistence format change is needed.
 
+### Row Selection iframe modifiers and loading geometry
+
+Local review reproduced iframe Shift-click selecting only the clicked row rather
+than the inclusive interval. The integration read TanStack Hotkeys 0.8.0's
+singleton held-key tracker, whose listeners attach only to the importing document.
+The checkbox event guard already accepted the owning MouseEvent; its later
+held-state lookup silently read another document. The private hotkey adapter now
+translates the pointer event's modifiers through TanStack `parseKeyboardEvent`
+with an undispatched owning-realm KeyboardEvent. No handwritten matcher, held-key
+engine, listener or upstream dependency patch is added. Public iframe tests cover
+Shift, accompanying modifiers and detail-zero native keyboard activation.
+
+Review also reproduced loading data at column index 1 without the 40px selection
+gutter, followed by ready data at index 2. Loading now preserves the separate
+utility geometry, semantic ownership and shifted data indexes, including suspended
+pinning. Public loading-to-ready tests cover wide and narrow viewports and removal
+of the capability. Both failures are AstryxTable integration defects, not new
+Astryx Core bugs. The disabled-header focus correction is likewise local: owned
+focus returns to the grid when Select All becomes disabled, while intentional
+outside focus remains untouched.
+
+A subsequent public regression reproduced focus loss when selection was toggled
+while the same loading source remained active. The private viewport remounts for
+its changed gutter; source-body focus recovery now observes that same effective
+gutter discriminator. Paired enable/disable tests retain owned grid focus and
+preserve intentional outside focus.
+
 ## Benchmark harness: independent React CPU could be omitted
 
 The loading collector and inherited active Client collectors used the larger of
@@ -1055,3 +1082,20 @@ full-window autoscroll cases in this file. The test still requires actual source
 unmount, bounded headers, a committed new order and restored focus. No production
 code, interaction budget, workload, sample count or assertion changes. This is a
 test synchronization correction, not an additional Astryx defect.
+
+## Initial layout could overwrite newer manual scrolling
+
+PR #39 CI run https://github.com/bmvantunes/astryx-table/actions/runs/37268317392
+exposed a header-navigation check whose manually scrolled body had returned from
+720px to zero. Temporary enqueue and native-scroll traces confirmed that the
+initial column-layout effect queued a body-cell reveal before the manual scroll;
+the next animation frame applied that obsolete reveal before keyboard input.
+This is an inherited AstryxTable Adapter defect, not an Astryx Core defect.
+
+The Adapter now initializes its applied layout signature from the columns already
+installed in the viewport constructor. Initial mount no longer requests a redundant
+reveal; actual later column changes and keyboard commands retain their existing
+minimum-delta reveal behavior. Deterministic LTR/RTL public regressions scroll in
+the parent layout effect before the first frame, reproduce the old reset, and
+retain the scroll and grid focus through subsequent header navigation. The same
+cases run against the installed package. No timeout or expected position was relaxed.

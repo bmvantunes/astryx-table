@@ -24,7 +24,10 @@ export type NativePinnedPresentation = Readonly<{
 }>;
 
 // Native Table owns cell styling/shadows. The viewport remains the only geometry owner.
-export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterState) {
+export function useNativeTablePresentation(
+  adapter: AstryxTableViewportAdapterState,
+  leadingUtilityWidth = 0,
+) {
   const {
     columns,
     viewportSnapshot: { virtualWindow: window },
@@ -77,7 +80,7 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
               ...header.htmlProps,
               style: {
                 ...header.htmlProps.style,
-                [offset]: `var(${variable}, ${header.htmlProps.style?.[offset] ?? "0px"})`,
+                [offset]: `var(${variable}, ${side === "start" ? `calc(${leadingUtilityWidth}px + ${header.htmlProps.style?.[offset] ?? "0px"})` : (header.htmlProps.style?.[offset] ?? "0px")})`,
               },
             },
           },
@@ -87,7 +90,7 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
               ...body.htmlProps,
               style: {
                 ...body.htmlProps.style,
-                [offset]: `var(${variable}, ${body.htmlProps.style?.[offset] ?? "0px"})`,
+                [offset]: `var(${variable}, ${side === "start" ? `calc(${leadingUtilityWidth}px + ${body.htmlProps.style?.[offset] ?? "0px"})` : (body.htmlProps.style?.[offset] ?? "0px")})`,
               },
             },
           },
@@ -95,7 +98,7 @@ export function useNativeTablePresentation(adapter: AstryxTableViewportAdapterSt
       }
     }
     return pinned;
-  }, [columns, pinnedStart, pinnedEnd, plugin]);
+  }, [columns, pinnedStart, pinnedEnd, plugin, leadingUtilityWidth]);
   const element = useRef<HTMLDivElement | null>(null);
   const attachViewport = adapter.attach;
   const attach = useCallback(
