@@ -693,3 +693,18 @@ This activates grouping presentation, not the whole parity epic. Grouped selecti
 and atomic Copy await #13, source lifecycle chrome awaits #9, and optional-Effect
 package presentation is not exposed by the current root-only package. No issue is
 closed, dependency patch added or package published by this slice.
+
+## Public Client Source update contract
+
+CodeRabbit review of grouping-cache integration requested that the existing immutable
+row contract be visible directly in consumer IntelliSense. `AstryxTableClientSource.rows`
+now documents fresh references for changed rows and stable references for unchanged
+rows. The public type structure and runtime behavior are unchanged. The documentation
+adaptation of `public-types.ts` leaves the mechanical exemption and records source
+and target hashes with independent review in `core-provenance.json`.
+
+The lifecycle review also exposed an inherited benchmark accounting assumption.
+All currently active Client collectors now conservatively sum React and callback
+CPU rather than assuming they overlap. Admission, observers, thresholds, workloads
+and sample counts remain unchanged. Historical core fixtures stay intact; see
+`research/astryx-performance-accounting.md` for the policy and its limitations.
