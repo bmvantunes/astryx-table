@@ -281,22 +281,59 @@ test("ready empty is distinct from a persistent stale empty warning", async () =
     .not.toBeInTheDocument();
 });
 
-test("zero-row loading has five fixed placeholders and ignores unreadable optional Retry", async () => {
-  const source = { rows: [], totalRows: 0, version: 1, status: "loading" as const };
-  Object.defineProperty(source, "retry", {
-    get() {
-      throw new Error("Unreadable optional capability");
-    },
-  });
-  const screen = await render(<AstryxTableClient {...props} clientSource={source} />);
-  await expect
-    .element(screen.getByRole("grid", { name: "Loading table rows" }))
-    .toHaveAttribute("aria-rowcount", "0");
-  expect(screen.getByRole("row").all()).toHaveLength(5);
-  for (const row of screen.getByRole("row").all())
-    expect(row.element().getBoundingClientRect().height).toBe(36);
-  await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
-});
+test.each([false, true])(
+  "zero-row loading hides visual placeholders from accessibility and restores positive counts (pinned: %s)",
+  async (pinned) => {
+    const source = { rows: [], totalRows: 0, version: 1, status: "loading" as const };
+    Object.defineProperty(source, "retry", {
+      get() {
+        throw new Error("Unreadable optional capability");
+      },
+    });
+    const loadingColumns = [
+      { ...columns[0], ...(pinned ? { pinned: "start" as const } : {}) },
+      { ...columns[0], columnId: "COL_ID_CENTER" },
+      { ...columns[0], columnId: "COL_ID_END", ...(pinned ? { pinned: "end" as const } : {}) },
+    ] satisfies AstryxTableColumns<Row>;
+    const screen = await render(
+      <AstryxTableClient {...props} columns={loadingColumns} clientSource={source} />,
+    );
+    const loading = screen.getByRole("grid", { name: "Loading table rows" });
+    await expect.element(loading).toHaveAttribute("aria-rowcount", "0");
+    const grid = loading.element() as HTMLElement;
+    grid.focus();
+    const expectZeroRows = () => {
+      expect(screen.getByRole("row").elements()).toHaveLength(0);
+      expect(screen.getByRole("gridcell").elements()).toHaveLength(0);
+      const placeholders = grid.querySelectorAll('[role="row"]');
+      expect(placeholders).toHaveLength(5);
+      for (const row of placeholders) expect(row.getBoundingClientRect().height).toBe(36);
+      expect(document.activeElement).toBe(grid);
+    };
+    expectZeroRows();
+    await expect.element(screen.getByRole("alert")).not.toBeInTheDocument();
+    await screen.rerender(
+      <AstryxTableClient
+        {...props}
+        columns={loadingColumns}
+        clientSource={{ ...source, totalRows: 2, version: 2 }}
+      />,
+    );
+    await expect.element(loading).toHaveAttribute("aria-rowcount", "2");
+    expect(screen.getByRole("row").elements()).toHaveLength(2);
+    expect(screen.getByRole("gridcell").elements()).toHaveLength(6);
+    expect(document.activeElement).toBe(grid);
+    await screen.rerender(
+      <AstryxTableClient
+        {...props}
+        columns={loadingColumns}
+        clientSource={{ ...source, version: 3 }}
+      />,
+    );
+    await expect.element(loading).toHaveAttribute("aria-rowcount", "0");
+    expectZeroRows();
+  },
+);
 
 test("removing Retry preserves intentional outside focus", async () => {
   const source = { ...ready, status: "error" as const, retry: { run: vi.fn(), pending: false } };
