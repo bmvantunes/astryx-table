@@ -702,3 +702,9 @@ now documents fresh references for changed rows and stable references for unchan
 rows. The public type structure and runtime behavior are unchanged. The documentation
 adaptation of `public-types.ts` leaves the mechanical exemption and records source
 and target hashes with independent review in `core-provenance.json`.
+
+The lifecycle review also exposed an inherited benchmark accounting assumption.
+All currently active Client collectors now conservatively sum React and callback
+CPU rather than assuming they overlap. Admission, observers, thresholds, workloads
+and sample counts remain unchanged. Historical core fixtures stay intact; see
+`research/astryx-performance-accounting.md` for the policy and its limitations.

@@ -679,6 +679,85 @@ The first full production suite with native result reuse passed all 37 scenarios
 samples. This is a dirty development result. Complete functional validation,
 independent review and exact clean-commit production evidence remain required.
 
+### Grouping optimization verified on its clean commit
+
+The complete 37-scenario production suite passed on clean commit
+`fdab881474ededdde7438bffb5d834b8f1d24478`. The evidence validator confirmed the
+same commit and a clean tree at both ends. Grouped live work was p99 7.1 ms,
+maximum 7.5 ms, with no over-budget samples; grouped scroll work was p99 4.7 ms.
+All three independent local reviewers reported zero findings. Remote publication
+and the remaining grouping integrations are separate outstanding work.
+
+### Shared Client lifecycle presentation gaps
+
+The active Astryx renderer did not yet expose source warning/error chrome, Retry
+or fixed-height loading rows. New public Browser regressions reproduced these
+integration gaps. Native Banner, Button, Skeleton and EmptyState now consume the
+retained source/runtime decisions. No new dependency patch is required.
+
+The empty-error regression also exposed local focus loss when a pending Retry's
+entire body unmounted after recovery. Focused removal now returns focus to the
+table region; pending remains source-owned and uses the native focusable disabled
+button behavior. The targeted regressions pass. Full validation, production and
+review are still pending for this lifecycle slice. See
+`docs/research/astryx-source-lifecycle.md` for component choices and boundaries.
+
+The full Browser and installed-package suites exposed an integration regression:
+ordinary empty sources replaced the grid, removing its headers and keyboard
+navigation when the final row disappeared. The Body boundary now retains the
+loaded grid for ordinary empty states; only a terminal empty source receives
+its dedicated message. Existing empty-grid, live-removal and row-ownership
+regressions cover this behavior. Validation is being rerun.
+
+Independent review found that hiding an invalid or terminal-empty body also
+unmounted the raw query pipeline, preventing query-only recovery. Three public
+regressions reproduce the concrete path: a hidden numeric column contains NaN,
+a filter activates it and rejects the rows, and clearing that filter must restore
+the same source snapshot in stale/error/closed states. The non-loading pipeline
+now stays mounted while its visual output is suppressed. The three cases failed
+before correction and pass afterward.
+
+An adjacent empty-to-error focus regression also failed: the compact Body snapshot
+stayed empty while chrome replaced the focused grid. Focus transfer now observes
+that presentation transition as well as Body changes. Intentional outside focus
+continues to be preserved.
+
+While constructing the recovery reproduction, two separate existing error paths
+surfaced: a thrown custom comparison escapes the row model, and rendering a
+non-finite number in an inactive visible column throws in native value formatting.
+Neither initial reproduction reached query recovery. These remain open local
+error-containment gaps for renderer/query parity; they are not Astryx Core defects
+and are not claimed fixed by this lifecycle slice.
+
+The second review identified a cross-document focus bug: the importing window's
+`Element` constructor rejected focus targets inside a same-origin iframe. A public
+iframe test failed on ready-to-loading focus transfer. The boundary now uses its
+owning document's constructor. The regression also checks recovery and intentional
+parent-document focus. This is a local integration correction, not an upstream patch.
+
+A further review concern suggested Retry unmount might steal parent-document focus
+if an inactive iframe retains Retry as its active element. The exact public
+regression passed before changing code: tested Chromium reset that active element
+to the iframe body. No reproduced failure is claimed for this concern. Cleanup
+now also requires the owning document to have focus, matching the existing
+recovery guard; the parent-focus regression remains as defensive coverage.
+
+### Loading test enumeration on constrained runners
+
+Both GitHub validation jobs exceeded the loading-geometry test's 15-second
+timeout. A local phase probe attributed about 2.5 seconds to its final cell
+count alone: Vitest `Locator.all()` builds a new element locator for every match,
+although the test only needs a count or the existing row elements. The installed
+implementation confirms that `all()` wraps the same result returned by
+`elements()`.
+
+With temporary 6× CPU throttling, the original test reproduced the timeout; using
+role-based `elements()` for those counts and row iteration passed in 989 ms.
+The temporary timing/throttling probes were removed. All geometry, mounted-window,
+unique ownership, pinned-cell and scroll assertions remain, as does the 15-second
+limit. This is test enumeration overhead, not an Astryx defect or a relaxed grid
+performance gate. A scrollbar-gutter hypothesis did not reproduce the failure.
+
 ### Nested multi-value filters exceeded the mounted editor budget
 
 CodeRabbit identified that compound conditions shared a render budget but each
@@ -704,3 +783,28 @@ The check now uses the region's owning document constructor. Both regressions pa
 owned focus returns to the surviving grid, while outside focus remains untouched.
 The cases also run against the installed package. This is an AstryxTable integration
 defect, not an additional Astryx Core patch; no shortcut or overlay behavior changes.
+
+## Benchmark harness: independent React CPU could be omitted
+
+The loading collector and inherited active Client collectors used the larger of
+callback and React CPU without proving overlap. Two gate regressions reproduce
+false passes when independent React work puts the total over 8.33 ms. They now
+conservatively add both, retaining admission and observer work and every existing
+threshold, workload and sample count. Overlap may be counted twice. This is a
+benchmark-harness correction, not an Astryx component defect. See
+`docs/research/astryx-performance-accounting.md`.
+
+## Zero-count loading exposed nonexistent accessible rows
+
+CodeRabbit found that a source-authoritative `totalRows: 0` loading grid announced
+zero rows while exposing five visual placeholder rows and their cells. Public
+Browser regressions reproduced this with both pinned and unpinned columns.
+
+The placeholder layer now leaves the accessibility tree only while the announced
+row count is zero. Its five fixed-height visual skeletons remain mounted, and the
+focusable loading grid stays accessible. Tests cover zero → two → zero source
+counts, restored row/cell accessibility, retained grid focus and 36px placeholder
+geometry through the public component and installed package. This is an
+AstryxTable integration defect, not an Astryx Core patch. It preserves the known
+source count rather than reporting an unknown count to mask the mismatch; see
+[WAI-ARIA row indexes](https://www.w3.org/TR/wai-aria-1.2/#aria-rowindex).
