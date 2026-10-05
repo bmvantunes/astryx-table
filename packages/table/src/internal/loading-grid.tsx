@@ -95,7 +95,11 @@ function LoadingSurface({
       }}
     >
       <TableContext value={nativeTableAppearance}>
-        <div ref={attachRowLayer} style={{ position: "relative", width }}>
+        <div
+          ref={attachRowLayer}
+          aria-hidden={ariaRowCount === 0}
+          style={{ position: "relative", width }}
+        >
           <table role="presentation" style={{ display: "block", borderCollapse: "collapse" }}>
             <tbody
               role="presentation"
