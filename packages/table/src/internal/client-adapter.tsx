@@ -23,7 +23,7 @@ import type { AstryxTableClientAdmittedRow } from "./client-source-adapter";
 import type { AstryxTableInvalidCellValue } from "./grid-runtime";
 import { isAstryxTableInvalidCellValue } from "./grid-runtime";
 import type { ClientOrderBy } from "./client-row-model";
-import { createAstryxTableClientRowComparator } from "./client-row-model";
+import { ClientQueryValueError, createAstryxTableClientRowComparator } from "./client-row-model";
 import { createClientQueryPredicate, readClientQuickFilterField } from "./quick-filter";
 
 const clientFeatures = tableFeatures({
@@ -176,7 +176,7 @@ export function useClientRowIds(
   try {
     rowModel = table.getRowModel();
   } catch (error) {
-    if (!(error instanceof ClientInvalidValueError)) throw error;
+    if (!(error instanceof ClientQueryValueError)) throw error;
     invalid = error.invalid;
   }
   const rowIds = rowModel === undefined ? EMPTY_ROW_IDS : stableRowIds(rowModel);
@@ -276,16 +276,10 @@ function buildAdapterColumns(
   ];
 }
 
-class ClientInvalidValueError extends Error {
-  public constructor(public readonly invalid: AstryxTableInvalidCellValue["invalid"]) {
-    super("AstryxTable Client row model encountered an invalid canonical value.");
-  }
-}
-
 function readCanonicalValue(row: AdapterRow, column: CompiledColumn, tableId: string): unknown {
   for (const listener of queryValueReadListeners) listener(row.rowId, column.columnId, tableId);
   const value = row.values.read(row.raw, row.rowId, row.rowIndex, column);
-  if (isAstryxTableInvalidCellValue(value)) throw new ClientInvalidValueError(value.invalid);
+  if (isAstryxTableInvalidCellValue(value)) throw new ClientQueryValueError(value.invalid);
   return value;
 }
 

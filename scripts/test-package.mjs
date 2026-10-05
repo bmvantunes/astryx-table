@@ -38,6 +38,7 @@ cpSync(
 );
 for (const name of [
   "client-capabilities.browser.test.tsx",
+  "client-query-errors.browser.test.tsx",
   "client-row-selection.browser.test.tsx",
   "client-cell-range.browser.test.tsx",
   "client-pointer-range.browser.test.tsx",
