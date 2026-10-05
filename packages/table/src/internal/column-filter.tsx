@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import * as stylex from "@stylexjs/stylex";
+import { AstryxTableServerSetFilterFacet } from "./server-facet";
 import { ClientSetFilter } from "./client-set-filter";
 import { isAstryxTableSetFilterExpression } from "./client-facet";
 import { Button } from "@astryxdesign/core/Button";
@@ -108,8 +109,12 @@ export const ColumnFilter = memo(function ColumnFilter({
       {renderPopover(
         isOpen ? (
           <div {...stylex.props(styles.editor)}>
-            {column.enableSetFilter && rows !== undefined ? (
-              <ClientSetFilter column={column} />
+            {column.enableSetFilter ? (
+              rows !== undefined ? (
+                <ClientSetFilter column={column} />
+              ) : (
+                <AstryxTableServerSetFilterFacet column={column} />
+              )
             ) : null}
             <ScalarFilterEditor column={column} runtime={runtime} />
           </div>

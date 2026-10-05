@@ -119,3 +119,50 @@ A nested-grid reproduction subsequently proved that proxy owner lookup also need
 the existing nearest-grid guard. That one-line correction preserves table-local
 ownership when the outer active row is evicted; all 25 Server cases pass. Updated
 complete checks, independent convergence and exact-commit performance remain required.
+
+## Native Server facet integration (issue #10, in progress)
+
+The first public real-source regression reproduced the missing Values surface on
+Server filters. The integration now reuses the retained independent whole-result
+facet runtime and query compiler, with a shared native Astryx Set Filter view.
+The Client still reads its complete resident source and captures fresh intent at
+the gesture boundary; the Server consumes only source-owned distinct values and
+exact counts. Neither branch derives Server facets from sparse viewport rows.
+
+Public Browser evidence currently covers offscreen values, Match None with retained
+own-column alternatives, external-query changes while the overlay is open, live
+count updates, lazy subscription lifetime, and loading/stale/closed/error display.
+The retained facet plan-cache tests run through the existing StyleX-aware Node
+pipeline with recorded source hashes. The new public cases are included in the
+installed Server phase, after the independent Effect-free consumer phase.
+
+This remains development evidence. Three independent reviews, final full validation and exact clean-commit evidence
+remain pending. The first full development validation passed 421 Browser cases,
+310 installed Client and 33 installed Server cases, plus four conditional iframe
+cases. Four retained facet contracts bring the Node suite to 89 tests.
+Numeric query compatibility and the remaining issue #10 criteria are not waived;
+no package release or full-parity completion is claimed.
+
+The added production workload publishes whole-result facet updates with 5,000
+distinct values over the existing 5,000 × 150 pinned grid. It retains the 12 warmup
+and 100 measured samples, 8.33 ms CPU budget, observer/React/callback accounting,
+64 mounted value-option limit and zero view/surface commits. The first isolated
+Server run passed facet updates at p99 7.4 ms and sparse row delivery at 0.6 ms,
+but failed the existing scroll workload at 8.5 ms against 8.33 ms. The cause is
+unconfirmed. This mixed result is retained as a failure, not publication evidence;
+no workload, assertion, sampling or threshold was relaxed. The required evidence
+set now includes the new facet workload, bringing the complete gate to 52 scenarios.
+
+A sequential isolated comparison then measured the unchanged parent commit
+`85186140b781c1d3d53ca2b05224327924219b99` and the facet candidate at p99 8.1 ms
+for scroll CPU and 18.7 ms for presentation cadence in both runs. No competing
+heavy local checks ran during either measurement. This did not reproduce a
+candidate-specific regression, but it does not establish the cause of the prior
+8.5 ms exceedance or replace the complete required production gate.
+
+The first local review round reported zero architecture and verification findings,
+and one specification blocker: a checkbox callback could overwrite filter intent
+changed earlier in the same event. A public Filter Control command in an ancestor
+change-capture handler reproduced the loss. Reading current runtime intent at the
+gesture boundary fixes it; all four Server facet Browser cases pass. This correction
+requires a new complete review round and updated validation before publication.

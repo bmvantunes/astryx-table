@@ -29,7 +29,7 @@ import {
 } from "./client-source-adapter";
 import { useClientRowIds } from "./client-adapter";
 import { ClientSortStability } from "./client-sort-stability";
-import { createAstryxTableClientRowComparator } from "./client-row-model";
+import { ClientQueryValueError, createAstryxTableClientRowComparator } from "./client-row-model";
 import { recordAstryxTableClientRowOrderPlanning } from "./render-instrumentation";
 import {
   deriveAstryxTableClientGroupedProjectionFromRows,
@@ -131,7 +131,13 @@ export const AstryxTableClientRowPipeline: NamedExoticComponent<
       installedProjection.kind === "invalid"
         ? Object.freeze({
             kind: "invalid" as const,
-            columns: installedProjection.columns,
+            // Hidden source columns remain query participants; system columns
+            // exist only in the installed projection.
+            columns: props.columns.some(
+              (column) => column.columnId === installedProjection.invalid.columnId,
+            )
+              ? props.columns
+              : installedProjection.columns,
             invalid: installedProjection.invalid,
           })
         : Object.freeze({
@@ -285,7 +291,7 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
     invalid !== undefined
       ? Object.freeze({
           kind: "invalid" as const,
-          columns: rowModel.columns,
+          columns,
           invalid,
         })
       : Object.freeze({
@@ -817,7 +823,7 @@ export function deriveClientProjectionRowModel(
   );
   const readValue = (column: CompiledColumn, row: AstryxTableClientAdmittedRow): unknown => {
     const value = row.values.read(row.raw, row.rowId, row.rowIndex, column);
-    if (isAstryxTableInvalidCellValue(value)) throw new ClientProjectionValueError(value.invalid);
+    if (isAstryxTableInvalidCellValue(value)) throw new ClientQueryValueError(value.invalid);
     return value;
   };
   try {
@@ -846,7 +852,7 @@ export function deriveClientProjectionRowModel(
     });
   } catch (error) {
     const invalid =
-      error instanceof ClientProjectionValueError
+      error instanceof ClientQueryValueError
         ? error.invalid
         : isInvalidValueEvidence(error)
           ? error
@@ -910,12 +916,6 @@ function sameLogicalColumnProjection(
       );
     })
   );
-}
-
-class ClientProjectionValueError extends Error {
-  public constructor(public readonly invalid: AstryxTableInvalidCellValue["invalid"]) {
-    super(invalid.message);
-  }
 }
 
 function isInvalidValueEvidence(input: unknown): input is AstryxTableInvalidCellValue["invalid"] {

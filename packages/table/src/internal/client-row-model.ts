@@ -9,6 +9,8 @@ export {
   sanitizeClientOrderBy,
 } from "./grid-query";
 
+import type { AstryxTableInvalidCellValue } from "./grid-runtime";
+
 import type { CompiledColumn } from "./compile-columns";
 import type { ClientOrderBy } from "./grid-query";
 
@@ -25,10 +27,21 @@ export function createAstryxTableClientRowComparator<TRow>(
     for (const sort of orderBy) {
       const column = columnsById.get(sort.columnId);
       if (column === undefined || column.enableSorting === false) continue;
-      const comparison = column.semantics.compare(
-        readValue(column, left),
-        readValue(column, right),
-      );
+      const leftValue = readValue(column, left);
+      const rightValue = readValue(column, right);
+      let comparison: number;
+      try {
+        comparison = column.semantics.compare(leftValue, rightValue);
+      } catch {
+        throw new ClientQueryValueError(
+          Object.freeze({
+            kind: "invalid-value",
+            rowIndex: readSourceIndex(left),
+            columnId: column.columnId,
+            message: "Unable to compare source values.",
+          }),
+        );
+      }
       if (comparison !== 0) return sort.direction === "desc" ? -comparison : comparison;
     }
     return readSourceIndex(left) - readSourceIndex(right);
@@ -36,3 +49,10 @@ export function createAstryxTableClientRowComparator<TRow>(
 }
 
 export type { AstryxTableOrderBy, ClientOrderBy } from "./grid-query";
+
+// Both raw TanStack models and grouped projection planning consume this evidence.
+export class ClientQueryValueError extends Error {
+  public constructor(public readonly invalid: AstryxTableInvalidCellValue["invalid"]) {
+    super(invalid.message);
+  }
+}

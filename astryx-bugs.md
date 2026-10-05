@@ -778,9 +778,9 @@ continues to be preserved.
 While constructing the recovery reproduction, two separate existing error paths
 surfaced: a thrown custom comparison escapes the row model, and rendering a
 non-finite number in an inactive visible column throws in native value formatting.
-Neither initial reproduction reached query recovery. These remain open local
-error-containment gaps for renderer/query parity; they are not Astryx Core defects
-and are not claimed fixed by this lifecycle slice.
+Neither initial reproduction reached query recovery. These were left open by the
+lifecycle slice and are addressed separately below under "Query and cell value
+error containment". They are AstryxTable defects, not Astryx Core defects.
 
 The second review identified a cross-document focus bug: the importing window's
 `Element` constructor rejected focus targets inside a same-origin iframe. A public
@@ -1156,3 +1156,40 @@ minimum-delta reveal behavior. Deterministic LTR/RTL public regressions scroll i
 the parent layout effect before the first frame, reproduce the old reset, and
 retain the scroll and grid focus through subsequent header navigation. The same
 cases run against the installed package. No timeout or expected position was relaxed.
+
+## Query and cell value error containment
+
+Two public Client regressions reproduced the previously recorded failures: a custom
+Value Type comparison exception escaped the raw TanStack row model, and a visible
+non-query numeric cell passed its invalid-value marker into number formatting.
+Both crashed the component rather than presenting the already decoded error.
+
+The comparator now reports private typed invalid-value evidence to the existing
+query boundary. The native error Banner identifies the column by its header label;
+hidden sorted columns retain that label. Corrected immutable source publications
+recover the table, including repeated
+valid → invalid → valid transitions. Canonical decoding evidence keeps its original
+message. Sorting does not substitute a fallback order or coerce source values.
+
+The native Cell now renders an accessible inline error for a decoded invalid marker
+and keeps that marker out of custom formatting, styling and rendering callbacks.
+Valid cells remain visible and the failed cell recovers after a corrected source
+publication. Public Browser cases cover ordinary numeric presentation and pinned
+row-aware custom presentation; the same cases run against the installed tarball.
+These are local integration/inherited defects, with no Astryx Core patch. The
+changed imported query modules are recorded as semantic adaptations requiring
+independent review, outside the mechanical-copy exemption.
+
+## Server Set Filter could overwrite newer intent within one event
+
+The new Server facet integration initially derived checkbox commands from its
+last rendered filter intent. A public `AstryxTableFilterControl` command issued
+by an ancestor's change-capture handler could exclude Alpha before the Beta
+checkbox handler ran; that handler then replaced the newer exclusion with Beta
+alone. A real-source Browser regression reproduced the lost Alpha exclusion.
+
+The Server now reads current column/filter intent at the gesture boundary, as the
+Client already does, while retaining the displayed source-owned facet evidence.
+An obsolete column cannot dispatch a command. The regression proves that both
+exclusions survive and only the third row remains; it also runs against the
+installed package. This is a local integration defect, not an Astryx Core bug.

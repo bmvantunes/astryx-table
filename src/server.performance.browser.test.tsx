@@ -1,5 +1,5 @@
 import { sumProductionFrameWork } from "./performance-frame-work";
-import { createElement, Profiler } from "react";
+import { createElement, Profiler, useMemo, useSyncExternalStore } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -64,6 +64,15 @@ const columns = [
 const nativeFrame = window.requestAnimationFrame.bind(window);
 const nextFrame = () => new Promise<number>((resolve) => nativeFrame(resolve));
 function sourceFixture() {
+  let facetVersion = 0;
+  const facetListeners = new Set<() => void>();
+  const subscribeFacets = (listener: () => void) => {
+    facetListeners.add(listener);
+    return () => {
+      facetListeners.delete(listener);
+    };
+  };
+  const getFacetVersion = () => facetVersion;
   const requests: Request[] = [];
   const windows: Window[] = [];
   const release = vi.fn();
@@ -80,10 +89,27 @@ function sourceFixture() {
     requests,
     windows,
     release,
+    facetListeners,
+    publishFacets: () => {
+      facetVersion++;
+      for (const listener of facetListeners) listener();
+    },
     source: {
       viewport,
       completeRawSelect: ["id", "name", "amount"] as unknown as Source["completeRawSelect"],
-      useWholeResult: () => ({ rows: [], totalRows: 0, version: 1, status: "ready" as const }),
+      useWholeResult(query: { aggregates: Readonly<Record<string, unknown>> }) {
+        const version = useSyncExternalStore(subscribeFacets, getFacetVersion, getFacetVersion);
+        const countAlias = Object.keys(query.aggregates)[0]!;
+        const rows = useMemo(
+          () =>
+            Array.from({ length: 5000 }, (_, index) => ({
+              name: `Record ${index}`,
+              [countAlias]: index === 0 && version % 2 === 1 ? 2n : 1n,
+            })).filter((_row, index) => index !== 1 || version % 2 === 0),
+          [countAlias, version],
+        );
+        return { rows, totalRows: rows.length, version, status: "ready" as const };
+      },
       totalRows: 5000,
       version: 1,
       status: "ready" as const,
@@ -103,7 +129,7 @@ function publishWindow(request: Request, next: Window, previous?: Window) {
 }
 type Work = { callback: number; react: number; commits: number };
 
-test.for(["scroll", "delivery"] as const)(
+test.for(["scroll", "delivery", "facets"] as const)(
   "Server budgets complete sparse %s work with 5,000 × 150 pinned cells",
   { timeout: 30_000 },
   async (mode, { annotate }) => {
@@ -146,7 +172,11 @@ test.for(["scroll", "delivery"] as const)(
           <div style={{ width: 1200 }}>
             <AstryxTableServer
               tableId={tableId}
-              columns={columns}
+              columns={
+                mode === "facets"
+                  ? [{ ...columns[0], enableSetFilter: true }, ...columns.slice(1)]
+                  : columns
+              }
               initialOrderBy={[{ columnId: "COL_ID_NAME", direction: "asc" }]}
               viewportSource={f.source}
             />
@@ -172,6 +202,15 @@ test.for(["scroll", "delivery"] as const)(
         await expect
           .element(page.getByRole("gridcell", { name: "Record 4000", exact: true }))
           .toBeVisible();
+        await nextFrame();
+        await nextFrame();
+      }
+      if (mode === "facets") {
+        await page.getByRole("button", { name: "Filter Name", exact: true }).click();
+        await expect
+          .element(page.getByRole("checkbox", { name: "Select Record 0, 1", exact: true }))
+          .toBeVisible();
+        expect(f.facetListeners.size).toBe(1);
         await nextFrame();
         await nextFrame();
       }
@@ -235,6 +274,8 @@ test.for(["scroll", "delivery"] as const)(
           grid.scrollTop = (sample + 1) * 72;
           grid.scrollLeft = (sample + 1) * 4;
           grid.dispatchEvent(new Event("scroll"));
+        } else if (mode === "facets") {
+          f.publishFacets();
         } else {
           request.sink.setRowData(
             { 4000: { id: "raw-4000", name: "Record 4000", amount: 5000 + sample } },
@@ -273,6 +314,17 @@ test.for(["scroll", "delivery"] as const)(
               : String(mode === "delivery" && index === 4000 ? 5000 + sample : index),
           );
         }
+        if (mode === "facets") {
+          await expect
+            .element(
+              page.getByRole("checkbox", {
+                name: `Select Record 0, ${sample % 2 === 0 ? 2 : 1}`,
+                exact: true,
+              }),
+            )
+            .toBeVisible();
+          expect(page.getByRole("checkbox").all().length).toBeLessThanOrEqual(66);
+        }
         expect(cells.length).toBeLessThanOrEqual(33 * 37);
         expect(grid.querySelectorAll('[role="row"]').length).toBeLessThanOrEqual(34);
         work.push(measured);
@@ -308,7 +360,9 @@ test.for(["scroll", "delivery"] as const)(
           scenario:
             mode === "scroll"
               ? "server-sustained-scroll-request-loading-delivery-5000x150-pinned"
-              : "server-sparse-raw-delivery-5000x150-pinned",
+              : mode === "facets"
+                ? "server-open-facet-live-values-5000-options-5000x150-pinned"
+                : "server-sparse-raw-delivery-5000x150-pinned",
           profile: "chromium-capable-hardware-v1",
           warmupSampleCount: 12,
           measuredSampleCount: 100,
@@ -356,6 +410,7 @@ test.for(["scroll", "delivery"] as const)(
       observers.restore();
       removeListeners.forEach((remove) => remove());
       await cleanup();
+      expect(f.facetListeners.size).toBe(0);
     }
   },
 );

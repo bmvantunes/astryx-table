@@ -47,11 +47,6 @@
       "sha256": "46c9ec9e9533368789f16d8d87daf922dd10257fb82fb2716908783683fdf65e"
     },
     {
-      "source": "migration/table/src/internal/client-adapter.tsx",
-      "target": "packages/table/src/internal/client-adapter.tsx",
-      "sha256": "2ccf4e507988e3c203d0dc18ebae7271d66885d85f80795dcfa87698e74423cb"
-    },
-    {
       "source": "migration/table/src/internal/client-grouping-focus.ts",
       "target": "packages/table/src/internal/client-grouping-focus.ts",
       "sha256": "a320ce2eae2030c2c51abb0f392ca15b7062a00cc893122cf0abb0411a9395d2"
@@ -65,11 +60,6 @@
       "source": "migration/table/src/internal/client-projection.ts",
       "target": "packages/table/src/internal/client-projection.ts",
       "sha256": "2f0d0499568e9f071f116e17473e7ffb95ce33bd2227515d55431eef81628441"
-    },
-    {
-      "source": "migration/table/src/internal/client-row-model.ts",
-      "target": "packages/table/src/internal/client-row-model.ts",
-      "sha256": "4a12248b24e1461447dd100e485350b477cc6a808f0609e86dc1765d9bd54f39"
     },
     {
       "source": "packages/table/provenance/client-source-adapter.ts.reference",
@@ -295,6 +285,13 @@
         ["from \"@bruno/table\"", "from \"../src\""]
       ],
       "sha256": "9146042c87aae5cebee306902ad6853043db82237e87bff2611d23ddd8ec69d5"
+    },
+    {
+      "source": "migration/table/src/internal/server-facet.test.ts",
+      "target": "packages/table/tests/server-facet.test.ts",
+      "sourceSha256": "d11734662036178938c2afb253cea2e7942ac4fe0c7b4693606a8c25a5df47c8",
+      "sha256": "4128c72020680295a80b8050eafe05df74a50bc17cc7a105d1b497f0f38df3fa",
+      "renames": [["from \"./", "from \"../src/internal/"]]
     }
   ],
   "reviewedChanges": [
@@ -325,10 +322,10 @@
     {
       "source": "migration/table/src/internal/client-row-pipeline.tsx",
       "target": "packages/table/src/internal/client-row-pipeline.tsx",
-      "sha256": "d18b031710be349466c491133a04ec137dd61e43f4d89557ac7b7dd79b3e3707",
+      "sha256": "a9d85ef57935cd0a70164635c4f59ac2f735de0e5e76ca516c871d4ccd51e6e7",
       "sourceSha256": "bf2cb6573548346b44082ee7880e02fb98dde770a2802512feb44615f7a221b7",
       "reviewExempt": false,
-      "reason": "Use committed TanStack row order and current neighbour comparisons to retain unchanged sort projections across value-only publications; membership, identity, invalid-value and ordering changes still reproject. Semantic performance optimization requires independent review, differential tests and production measurement. Own the bounded grouped-input cache using immutable admitted-row tokens and clear it on ungrouping/disposal. Use a shared typed row reader to avoid per-publication row wrappers and closures; standalone derivation retains its original entry point. Opt the canonical immutable Client Adapter into bounded native result reuse proven by exact ordered admission membership and compiled plan; custom or altered semantics keep the original executor. Reconcile retained identity-stable Client cell ranges before publishing raw/grouped projection changes, preserving coherent clipboard identity evidence."
+      "reason": "Use committed TanStack row order and current neighbour comparisons to retain unchanged sort projections across value-only publications; membership, identity, invalid-value and ordering changes still reproject. Semantic performance optimization requires independent review, differential tests and production measurement. Own the bounded grouped-input cache using immutable admitted-row tokens and clear it on ungrouping/disposal. Use a shared typed row reader to avoid per-publication row wrappers and closures; standalone derivation retains its original entry point. Opt the canonical immutable Client Adapter into bounded native result reuse proven by exact ordered admission membership and compiled plan; custom or altered semantics keep the original executor. Reconcile retained identity-stable Client cell ranges before publishing raw/grouped projection changes, preserving coherent clipboard identity evidence. Preserve shared query-comparison invalid evidence through projection planning instead of replacing it with a generic failure; independent error-containment review required. Invalid presentation retains full source metadata for hidden query columns, with installed metadata for system columns."
     },
     {
       "source": "migration/table/src/internal/client-grouping.ts",
@@ -395,6 +392,30 @@
       ],
       "reviewExempt": false,
       "reason": "Initialize the applied column-layout signature from the layout already installed in the viewport constructor. Initial mount must not enqueue a redundant active-cell reveal that overwrites newer manual scrolling before the first frame. Later column-layout changes retain their existing reveal. Deterministic public LTR/RTL Browser and installed-package regressions plus independent review required; inherited semantic defect, not mechanical import."
+    },
+    {
+      "source": "migration/table/src/internal/client-row-model.ts",
+      "target": "packages/table/src/internal/client-row-model.ts",
+      "sha256": "6246ba2aadee183261dd0e6daca2c27987a1bebae5bc28ff140a3bc306831753",
+      "sourceSha256": "4a12248b24e1461447dd100e485350b477cc6a808f0609e86dc1765d9bd54f39",
+      "reviewExempt": false,
+      "reason": "Contain custom Value Type comparison exceptions as private typed invalid-value evidence identifying the sorted column, without changing canonical values, equality or ordering. Share that evidence with raw and projection row-model boundaries. This inherited semantic defect requires independent review, public recovery regressions and unchanged performance gates."
+    },
+    {
+      "source": "migration/table/src/internal/client-adapter.tsx",
+      "target": "packages/table/src/internal/client-adapter.tsx",
+      "sha256": "8c554f00d94782daf091d85b505f6cf52a39a4bf77bffc93b0bd8f0b5206fb9f",
+      "sourceSha256": "2ccf4e507988e3c203d0dc18ebae7271d66885d85f80795dcfa87698e74423cb",
+      "reviewExempt": false,
+      "reason": "Accept the shared private query-value exception at the existing raw row-model invalid boundary, retaining canonical decode evidence and allowing recovery from corrected source publications. This error-containment correction requires independent review and public/installed Browser regressions."
+    },
+    {
+      "source": "migration/table/src/internal/server-facet.tsx",
+      "target": "packages/table/src/internal/server-facet.tsx",
+      "sourceSha256": "9cd4d92982da6998b1a72da3437a29f72857bfe692fe3d3d56c67afa52aadd29",
+      "sha256": "3bf3e5a71b57f41d2bb26ab6106f39de80902cee523b02e374ca725085832cee",
+      "reviewExempt": false,
+      "reason": "Activate the retained source-owned whole-result Server facet runtime with the shared native Astryx Set Filter view. Preserve own-column filter exclusion, query/source coherence, exact values, lifecycle and lazy subscription ownership. Native presentation and command integration require independent review, public Browser and installed-package tests and production performance evidence; not a mechanical import."
     }
   ]
 }
