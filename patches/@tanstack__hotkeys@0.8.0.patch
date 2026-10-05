@@ -1,0 +1,241 @@
+diff --git a/dist/manager.utils.cjs b/dist/manager.utils.cjs
+index 55852cca4579811b39138981fec0efe8fa961dd2..bec74403e7bcb24cfb5ee5ee2ce3778faa9ca95d 100644
+--- a/dist/manager.utils.cjs
++++ b/dist/manager.utils.cjs
+@@ -34,14 +34,15 @@ function getDefaultIgnoreInputs(parsedHotkey) {
+ * Mod+S and Escape fire when the user has tabbed to a form button.
+ */
+ function isInputElement(element) {
+-	if (!element) return false;
+-	if (element instanceof HTMLInputElement) {
++	const realm = element?.ownerDocument?.defaultView;
++	if (!realm) return false;
++	if (element instanceof realm.HTMLInputElement) {
+ 		const type = element.type.toLowerCase();
+ 		if (type === "button" || type === "submit" || type === "reset") return false;
+ 		return true;
+ 	}
+-	if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return true;
+-	if (element instanceof HTMLElement && element.isContentEditable) return true;
++	if (element instanceof realm.HTMLTextAreaElement || element instanceof realm.HTMLSelectElement) return true;
++	if (element instanceof realm.HTMLElement && element.isContentEditable) return true;
+ 	return false;
+ }
+ /**
+@@ -51,10 +52,9 @@ function isInputElement(element) {
+ * document) read focus from the correct tree.
+ */
+ function getActiveElementForListenerTarget(target) {
+-	if (typeof document === "undefined") return null;
+-	if (typeof Document !== "undefined" && target instanceof Document || typeof Node !== "undefined" && target.nodeType === Node.DOCUMENT_NODE) return target.activeElement;
+-	if (typeof HTMLElement !== "undefined" && target instanceof HTMLElement) return target.ownerDocument.activeElement ?? null;
+-	return target.document.activeElement ?? null;
++	if ("ownerDocument" in target && target.ownerDocument) return target.ownerDocument.activeElement;
++	if ("document" in target) return target.document.activeElement;
++	return target.activeElement;
+ }
+ /**
+ * Returns whether an event should be ignored because it originated from an
+@@ -79,13 +79,13 @@ function shouldIgnoreInputEvent(event, listenerTarget, registrationTarget) {
+ * instead of document when listeners are attached to document.
+ */
+ function isEventForTarget(event, target) {
+-	if (target === document || target === window) return event.currentTarget === target || event.currentTarget === document.documentElement;
+-	if (target === window) return event.currentTarget === window || event.currentTarget === document || event.currentTarget === document.documentElement;
+-	if (target instanceof HTMLElement) {
+-		if (event.currentTarget === target) return true;
+-		if (event.target instanceof Node && target.contains(event.target)) return true;
++	if ("ownerDocument" in target && target.ownerDocument) {
++		const realm = target.ownerDocument.defaultView;
++		return !!realm && target instanceof realm.HTMLElement && (event.currentTarget === target || event.target instanceof realm.Node && target.contains(event.target));
+ 	}
+-	return false;
++	const isWindow = "document" in target;
++	const targetDocument = isWindow ? target.document : target;
++	return event.currentTarget === target || event.currentTarget === targetDocument.documentElement || isWindow && event.currentTarget === targetDocument;
+ }
+ /**
+ * Handles conflicts between registrations based on conflict behavior.
+diff --git a/dist/manager.utils.js b/dist/manager.utils.js
+index 9ec93174d20ceb4a6021618cadec4caaf7ec5d20..cded60769ed30771549d6a7c06677508d2ea00c7 100644
+--- a/dist/manager.utils.js
++++ b/dist/manager.utils.js
+@@ -33,14 +33,15 @@ function getDefaultIgnoreInputs(parsedHotkey) {
+ * Mod+S and Escape fire when the user has tabbed to a form button.
+ */
+ function isInputElement(element) {
+-	if (!element) return false;
+-	if (element instanceof HTMLInputElement) {
++	const realm = element?.ownerDocument?.defaultView;
++	if (!realm) return false;
++	if (element instanceof realm.HTMLInputElement) {
+ 		const type = element.type.toLowerCase();
+ 		if (type === "button" || type === "submit" || type === "reset") return false;
+ 		return true;
+ 	}
+-	if (element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement) return true;
+-	if (element instanceof HTMLElement && element.isContentEditable) return true;
++	if (element instanceof realm.HTMLTextAreaElement || element instanceof realm.HTMLSelectElement) return true;
++	if (element instanceof realm.HTMLElement && element.isContentEditable) return true;
+ 	return false;
+ }
+ /**
+@@ -50,10 +51,9 @@ function isInputElement(element) {
+ * document) read focus from the correct tree.
+ */
+ function getActiveElementForListenerTarget(target) {
+-	if (typeof document === "undefined") return null;
+-	if (typeof Document !== "undefined" && target instanceof Document || typeof Node !== "undefined" && target.nodeType === Node.DOCUMENT_NODE) return target.activeElement;
+-	if (typeof HTMLElement !== "undefined" && target instanceof HTMLElement) return target.ownerDocument.activeElement ?? null;
+-	return target.document.activeElement ?? null;
++	if ("ownerDocument" in target && target.ownerDocument) return target.ownerDocument.activeElement;
++	if ("document" in target) return target.document.activeElement;
++	return target.activeElement;
+ }
+ /**
+ * Returns whether an event should be ignored because it originated from an
+@@ -78,13 +78,13 @@ function shouldIgnoreInputEvent(event, listenerTarget, registrationTarget) {
+ * instead of document when listeners are attached to document.
+ */
+ function isEventForTarget(event, target) {
+-	if (target === document || target === window) return event.currentTarget === target || event.currentTarget === document.documentElement;
+-	if (target === window) return event.currentTarget === window || event.currentTarget === document || event.currentTarget === document.documentElement;
+-	if (target instanceof HTMLElement) {
+-		if (event.currentTarget === target) return true;
+-		if (event.target instanceof Node && target.contains(event.target)) return true;
++	if ("ownerDocument" in target && target.ownerDocument) {
++		const realm = target.ownerDocument.defaultView;
++		return !!realm && target instanceof realm.HTMLElement && (event.currentTarget === target || event.target instanceof realm.Node && target.contains(event.target));
+ 	}
+-	return false;
++	const isWindow = "document" in target;
++	const targetDocument = isWindow ? target.document : target;
++	return event.currentTarget === target || event.currentTarget === targetDocument.documentElement || isWindow && event.currentTarget === targetDocument;
+ }
+ /**
+ * Handles conflicts between registrations based on conflict behavior.
+diff --git a/src/manager.utils.ts b/src/manager.utils.ts
+index a8c01b7b1d00ac2fce57760c598160aec102be80..036489cd4ee136a70c146f17d263dc62d81eed1d 100644
+--- a/src/manager.utils.ts
++++ b/src/manager.utils.ts
+@@ -46,11 +46,12 @@ export function getDefaultIgnoreInputs(parsedHotkey: ParsedHotkey): boolean {
+  * Mod+S and Escape fire when the user has tabbed to a form button.
+  */
+ export function isInputElement(element: EventTarget | null): boolean {
+-  if (!element) {
++  const realm = (element as Node | null)?.ownerDocument?.defaultView
++  if (!realm) {
+     return false
+   }
+ 
+-  if (element instanceof HTMLInputElement) {
++  if (element instanceof realm.HTMLInputElement) {
+     const type = element.type.toLowerCase()
+     if (type === 'button' || type === 'submit' || type === 'reset') {
+       return false
+@@ -59,15 +60,15 @@ export function isInputElement(element: EventTarget | null): boolean {
+   }
+ 
+   if (
+-    element instanceof HTMLTextAreaElement ||
+-    element instanceof HTMLSelectElement
++    element instanceof realm.HTMLTextAreaElement ||
++    element instanceof realm.HTMLSelectElement
+   ) {
+     return true
+   }
+ 
+   // Check for contenteditable elements (includes "true", "", "plaintext-only",
+   // and inherited contenteditable from ancestor elements)
+-  if (element instanceof HTMLElement && element.isContentEditable) {
++  if (element instanceof realm.HTMLElement && element.isContentEditable) {
+     return true
+   }
+ 
+@@ -83,25 +84,9 @@ export function isInputElement(element: EventTarget | null): boolean {
+ export function getActiveElementForListenerTarget(
+   target: HTMLElement | Document | Window,
+ ): Element | null {
+-  if (typeof document === 'undefined') {
+-    return null
+-  }
+-
+-  // Document first (nodeType covers environments where `document instanceof Document` is false)
+-  if (
+-    (typeof Document !== 'undefined' && target instanceof Document) ||
+-    (typeof Node !== 'undefined' &&
+-      (target as Node).nodeType === Node.DOCUMENT_NODE)
+-  ) {
+-    return (target as Document).activeElement
+-  }
+-
+-  if (typeof HTMLElement !== 'undefined' && target instanceof HTMLElement) {
+-    return target.ownerDocument.activeElement ?? null
+-  }
+-
+-  // Window (global or iframe): avoid relying on `instanceof Window` alone (test DOM quirks)
+-  return (target as Window).document.activeElement ?? null
++  if ('ownerDocument' in target && target.ownerDocument) return target.ownerDocument.activeElement
++  if ('document' in target) return target.document.activeElement
++  return (target as Document).activeElement
+ }
+ 
+ /**
+@@ -147,48 +132,18 @@ export function isEventForTarget(
+   event: KeyboardEvent,
+   target: HTMLElement | Document | Window,
+ ): boolean {
+-  // For Document and Window, verify that our handler was indeed called for this target.
+-  //
+-  // Browser compatibility note:
+-  // Per the DOM spec, event.currentTarget should equal the element the listener was
+-  // attached to. However, some Chromium-based browsers (notably Brave) exhibit
+-  // non-standard behavior where event.currentTarget is set to document.documentElement
+-  // (<html>) instead of document when a listener is attached to document.
+-  // This may be related to privacy/fingerprinting protections.
+-  //
+-  // To ensure cross-browser compatibility, we accept both the expected target
+-  // and document.documentElement as valid currentTarget values.
+-  // See: https://dom.spec.whatwg.org/#dom-event-currenttarget
+-  if (target === document || target === window) {
+-    return (
++  if ('ownerDocument' in target && target.ownerDocument) {
++    const realm = target.ownerDocument.defaultView
++    return !!realm && target instanceof realm.HTMLElement && (
+       event.currentTarget === target ||
+-      event.currentTarget === document.documentElement
+-    )
+-  }
+-
+-  // For Window, accept window, document, or document.documentElement (browser quirks)
+-  if (target === window) {
+-    return (
+-      event.currentTarget === window ||
+-      event.currentTarget === document ||
+-      event.currentTarget === document.documentElement
++      (event.target instanceof realm.Node && target.contains(event.target))
+     )
+   }
+-
+-  // For HTMLElement, check if event originated from or bubbled to the element
+-  if (target instanceof HTMLElement) {
+-    // Check if the event's currentTarget is the target (capturing/bubbling)
+-    if (event.currentTarget === target) {
+-      return true
+-    }
+-
+-    // Check if the event's target is a descendant of our target
+-    if (event.target instanceof Node && target.contains(event.target)) {
+-      return true
+-    }
+-  }
+-
+-  return false
++  const isWindow = 'document' in target
++  const targetDocument = isWindow ? target.document : (target as Document)
++  return event.currentTarget === target ||
++    event.currentTarget === targetDocument.documentElement ||
++    (isWindow && event.currentTarget === targetDocument)
+ }
+ 
+ /**

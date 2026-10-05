@@ -396,7 +396,7 @@ export class AstryxTableCellRangeRuntime {
     this.grid = grid;
     if (grid === null) return;
     this.registerMountedCells(grid);
-    this.observer = new MutationObserver((records) => {
+    this.observer = new grid.ownerDocument.defaultView!.MutationObserver((records) => {
       let registryChanged = false;
       for (const record of records) {
         if (record.type === "attributes") {
@@ -415,7 +415,7 @@ export class AstryxTableCellRangeRuntime {
     });
     this.observer.observe(grid, {
       attributes: true,
-      attributeFilter: ["data-bruno-row-id", "data-bruno-column-id"],
+      attributeFilter: ["data-astryx-row-id", "data-astryx-column-id"],
       childList: true,
       subtree: true,
     });
@@ -536,8 +536,9 @@ export class AstryxTableCellRangeRuntime {
     return true;
   };
 
-  public readonly restore = (snapshot: AstryxTableCellRangeSnapshot): AstryxTableCellRangeSnapshot =>
-    this.publish(snapshot);
+  public readonly restore = (
+    snapshot: AstryxTableCellRangeSnapshot,
+  ): AstryxTableCellRangeSnapshot => this.publish(snapshot);
 
   public readonly replace = (
     coordinate: AstryxTableCellCoordinate,
@@ -689,7 +690,9 @@ export class AstryxTableCellRangeRuntime {
   private readonly scheduleDecoration = (): void => {
     const grid = this.grid;
     if (grid === null || this.decorationFrame !== null) return;
-    this.decorationFrame = requestAnimationFrame(() => {
+    const view = grid.ownerDocument.defaultView;
+    if (view === null) return;
+    this.decorationFrame = view.requestAnimationFrame(() => {
       this.decorationFrame = null;
       if (this.grid === grid) this.decorateMountedCells();
     });
@@ -697,7 +700,7 @@ export class AstryxTableCellRangeRuntime {
 
   private readonly cancelDecorationFrame = (): void => {
     if (this.decorationFrame === null) return;
-    cancelAnimationFrame(this.decorationFrame);
+    this.grid?.ownerDocument.defaultView?.cancelAnimationFrame(this.decorationFrame);
     this.decorationFrame = null;
   };
 
@@ -706,8 +709,8 @@ export class AstryxTableCellRangeRuntime {
     if (grid === null) return false;
     let changed = false;
     for (const cell of ownedGridCellsWithin(root, grid)) {
-      const rowId = cell.dataset["brunoRowId"];
-      const columnId = cell.dataset["brunoColumnId"];
+      const rowId = cell.dataset["astryxRowId"];
+      const columnId = cell.dataset["astryxColumnId"];
       if (rowId === undefined || columnId === undefined) continue;
       if (this.mountedCellCoordinates.has(cell)) continue;
       this.mountedCellCoordinates.set(cell, { rowId, columnId });
@@ -729,14 +732,15 @@ export class AstryxTableCellRangeRuntime {
   };
 
   private readonly unregisterMountedCells = (root: Node): boolean => {
-    if (!(root instanceof HTMLElement)) return false;
+    const ElementConstructor = root.ownerDocument?.defaultView?.HTMLElement;
+    if (ElementConstructor === undefined || !(root instanceof ElementConstructor)) return false;
     let changed = false;
     if (this.mountedCellCoordinates.has(root)) {
       this.unregisterMountedCell(root);
       changed = true;
     }
     for (const cell of root.querySelectorAll<HTMLElement>(
-      '[role="gridcell"][data-bruno-row-id][data-bruno-column-id]',
+      '[role="gridcell"][data-astryx-row-id][data-astryx-column-id]',
     )) {
       if (!this.mountedCellCoordinates.has(cell)) continue;
       this.unregisterMountedCell(cell);
@@ -1162,13 +1166,14 @@ function recordInstrumentation(event: AstryxTableCellRangeInstrumentationEvent):
 }
 
 function ownedGridCellsWithin(root: Node, grid: HTMLElement): readonly HTMLElement[] {
-  if (!(root instanceof HTMLElement)) return [];
+  const ElementConstructor = grid.ownerDocument.defaultView?.HTMLElement;
+  if (ElementConstructor === undefined || !(root instanceof ElementConstructor)) return [];
   const candidates = [
-    ...(root.matches('[role="gridcell"][data-bruno-row-id][data-bruno-column-id]')
+    ...(root.matches('[role="gridcell"][data-astryx-row-id][data-astryx-column-id]')
       ? [root as HTMLElement]
       : []),
     ...root.querySelectorAll<HTMLElement>(
-      '[role="gridcell"][data-bruno-row-id][data-bruno-column-id]',
+      '[role="gridcell"][data-astryx-row-id][data-astryx-column-id]',
     ),
   ];
   return candidates.filter((cell) => cell.closest('[role="grid"]') === grid);
@@ -1176,13 +1181,13 @@ function ownedGridCellsWithin(root: Node, grid: HTMLElement): readonly HTMLEleme
 
 function applyCellRangeDecoration(cell: HTMLElement): void {
   cell.setAttribute("aria-selected", "true");
-  cell.setAttribute("data-bruno-cell-range-selected", "");
+  cell.setAttribute("data-astryx-cell-range-selected", "");
   cell.style.boxShadow = "inset 0 0 0 2px Highlight";
 }
 
 function clearCellRangeDecoration(cell: HTMLElement): void {
   cell.removeAttribute("aria-selected");
-  cell.removeAttribute("data-bruno-cell-range-selected");
+  cell.removeAttribute("data-astryx-cell-range-selected");
   cell.style.removeProperty("box-shadow");
 }
 
@@ -1629,7 +1634,7 @@ export function astryxTableCellRangePointerHit(
   const ElementConstructor = grid.ownerDocument.defaultView?.Element;
   if (ElementConstructor === undefined || !(target instanceof ElementConstructor)) return undefined;
   const hitCell = target.closest<HTMLElement>(
-    '[role="gridcell"][data-bruno-row-id][data-bruno-row-index][data-bruno-column-id]',
+    '[role="gridcell"][data-astryx-row-id][data-astryx-row-index][data-astryx-column-id]',
   );
   const excludedDescendant = target.closest<HTMLElement>(CELL_RANGE_POINTER_EXCLUSION_SELECTOR);
   return hitCell !== null &&
@@ -1647,12 +1652,12 @@ function closestCellHit(
   const ElementConstructor = grid.ownerDocument.defaultView?.Element;
   if (ElementConstructor === undefined || !(target instanceof ElementConstructor)) return undefined;
   const cell = target.closest<HTMLElement>(
-    '[role="gridcell"][data-bruno-row-id][data-bruno-row-index][data-bruno-column-id]',
+    '[role="gridcell"][data-astryx-row-id][data-astryx-row-index][data-astryx-column-id]',
   );
   if (cell === null || cell.closest('[role="grid"]') !== grid) return undefined;
-  const rowId = cell.dataset["brunoRowId"];
-  const columnId = cell.dataset["brunoColumnId"];
-  const rowIndexText = cell.dataset["brunoRowIndex"];
+  const rowId = cell.dataset["astryxRowId"];
+  const columnId = cell.dataset["astryxColumnId"];
+  const rowIndexText = cell.dataset["astryxRowIndex"];
   if (rowId === undefined || columnId === undefined || rowIndexText === undefined) return undefined;
   const rowIndex = Number(rowIndexText);
   if (!Number.isSafeInteger(rowIndex) || rowIndex < 0) return undefined;

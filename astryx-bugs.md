@@ -1039,6 +1039,50 @@ its changed gutter; source-body focus recovery now observes that same effective
 gutter discriminator. Paired enable/disable tests retain owned grid focus and
 preserve intentional outside focus.
 
+## Cross-document hotkeys and cell-range integration
+
+`@tanstack/hotkeys@0.8.0` rejects an iframe HTMLElement because event routing
+uses constructors from the importing document. Its focused-element helper also
+misclassifies that element as a Window, and input exclusion uses the same global
+constructors. The public iframe Shift+ArrowDown regression failed before fixing
+the dependency. The published `0.11.0` tarball was also inspected on 2026-10-05;
+its `dist/_event-target.js` retains these checks, so upgrading alone is insufficient.
+
+The authorized, version-pinned [Hotkeys patch](patches/@tanstack__hotkeys@0.8.0.patch)
+uses the target's owning document for event routing, active-element lookup and
+input exclusion. TanStack still owns matching, registration and listener lifecycle.
+Source, ESM and CJS implementations are patched together. Tests cover iframe
+Element/Document/Window scopes, input/textarea/select/contenteditable/shadow input
+exclusion, parent-document isolation and unregistering.
+
+The retained range renderer also needed its owning document's Element,
+MutationObserver and animation-frame APIs. Our shortcut Adapter had restricted
+Escape registration to the main document; a separate failing public regression
+now covers collapsing an iframe range. These are integration corrections, not
+Astryx Core defects. The retained modules receive semantic review, not the
+mechanical-import exemption.
+
+**Distribution remains conditional:** the workspace patch is not included in an
+installed AstryxTable tarball. The package harness first runs its ordinary Client
+and Server regressions with unpatched dependencies, then explicitly installs this
+Hotkeys patch in a separately labelled iframe phase. That phase proves the emitted
+library with the patch, not an unpatched npm release. Issue #16 must resolve the
+runtime dependency corrections before publication. No upstream release or npm
+publication is claimed.
+
+## Autoscroll regression completion on shared CI
+
+PR #40's push validation reproduced the earlier intermittent RTL reorder-test
+failure: the source header had not yet left the overscanned window inside the
+default one-second polling interval. Its concurrent PR validation passed the same
+commit. The gesture advances by 64 pixels only after the preceding virtual window
+commits; leaving the retained header window needs multiple scroll/render cycles.
+The regression now uses the same five-second functional completion deadline as
+the existing full-window autoscroll tests in that file. It still requires real
+autoscroll, source unmount, bounded mounted headers, exactly one durable command,
+correct pinning and restored focus. No runtime speed, sample count, performance
+budget or assertion is changed. This is test synchronization, not an Astryx fix.
+
 ## Benchmark harness: independent React CPU could be omitted
 
 The loading collector and inherited active Client collectors used the larger of

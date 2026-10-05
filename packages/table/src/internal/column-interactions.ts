@@ -16,6 +16,7 @@ import type { AstryxTableRuntimeView } from "./grid-runtime";
 import type { AstryxTableNavigationRuntime } from "./navigation";
 
 type Bindings = Readonly<{
+  cellRange?: import("./cell-range-clipboard").AstryxTableCellRangeRuntime | undefined;
   rowSelection?: AstryxTableRowSelectionRuntime | undefined;
   tableId: string;
   findRowIndex: (rowId: string) => number | undefined;
@@ -43,7 +44,6 @@ type Session = {
   frame: number | undefined;
   detach: () => void;
 };
-const noop = () => undefined;
 
 export function useColumnInteractions(bindings: Bindings) {
   const grid = useRef<HTMLDivElement | null>(null);
@@ -261,7 +261,6 @@ export function useColumnInteractions(bindings: Bindings) {
         finish(false);
       } else navigationCommands.escape(event);
     },
-    copy: noop,
     resize: (event, adjustment, step, allowActiveHeader) => {
       if (event.defaultPrevented || session.current !== undefined) return;
       const element = grid.current;
