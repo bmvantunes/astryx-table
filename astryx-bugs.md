@@ -1096,3 +1096,33 @@ benchmark-harness correction, not an Astryx component defect. See
 The Server viewport collector uses the same conservative addition when activated.
 Its scrolling and delivery workload, observer charges, windows, sample counts and
 8.33 ms gate remain unchanged; the shared false-pass regressions cover the helper.
+
+## Zero-count loading exposed nonexistent accessible rows
+
+CodeRabbit found that a source-authoritative `totalRows: 0` loading grid announced
+zero rows while exposing five visual placeholder rows and their cells. Public
+Browser regressions reproduced this with both pinned and unpinned columns.
+
+The placeholder layer now leaves the accessibility tree only while the announced
+row count is zero. Its five fixed-height visual skeletons remain mounted, and the
+focusable loading grid stays accessible. Tests cover zero → two → zero source
+counts, restored row/cell accessibility, retained grid focus and 36px placeholder
+geometry through the public component and installed package. This is an
+AstryxTable integration defect, not an Astryx Core patch. It preserves the known
+source count rather than reporting an unknown count to mask the mismatch; see
+[WAI-ARIA row indexes](https://www.w3.org/TR/wai-aria-1.2/#aria-rowindex).
+
+## Reorder test completion deadline on shared CI
+
+The PR #37 push validation at `e4c933b` failed the RTL full-window autoscroll
+case because the default one-second polling deadline expired before the source
+header unmounted. Its simultaneous PR validation and local source/installed
+runs passed. The failed run is retained at
+https://github.com/bmvantunes/astryx-table/actions/runs/37266054847.
+
+The already reviewed test correction from PR #40 is applied to this earlier
+branch: use the same five-second functional completion deadline as the other
+full-window autoscroll cases in this file. The test still requires actual source
+unmount, bounded headers, a committed new order and restored focus. No production
+code, interaction budget, workload, sample count or assertion changes. This is a
+test synchronization correction, not an additional Astryx defect.
