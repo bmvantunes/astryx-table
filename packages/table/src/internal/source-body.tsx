@@ -19,11 +19,13 @@ export const SourceBody = memo(function SourceBody({
   scope,
   tableId,
   children,
+  setRequiredRange,
 }: {
   readonly runtime: AstryxTableRuntimeView;
   readonly columns: readonly CompiledColumn[];
   readonly scope: RefObject<HTMLElement | null>;
   readonly tableId: string;
+  readonly setRequiredRange?: ((start: number, end: number) => void) | undefined;
   readonly children: (showRows: boolean) => ReactNode;
 }) {
   const body = useSyncExternalStore(
@@ -83,6 +85,7 @@ export const SourceBody = memo(function SourceBody({
     >
       {body.kind === "loading" ? (
         <LoadingGrid
+          setRequiredRange={setRequiredRange}
           runtime={runtime}
           columns={columns}
           structuralColumns={grouping.columns}

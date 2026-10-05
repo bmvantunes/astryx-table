@@ -51,6 +51,9 @@ export default defineConfig({
   resolve: { alias: { "react-dom/client": "react-dom/profiling" }, dedupe: ["react", "react-dom"] },
   optimizeDeps: {
     include: [
+      "effect",
+      "effect-view-server/config",
+      "effect-view-server/react",
       "react",
       "@tanstack/react-pacer",
       "react-dom/client",

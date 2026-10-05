@@ -2,7 +2,7 @@ import { requestAstryxTableHotkeyWorkflowAction } from "./hotkey-adapter";
 import { useLayoutEffect, useRef } from "react";
 import type { AstryxTableRuntimeView } from "./grid-runtime";
 import type { RefObject } from "react";
-import { cellDomId, headerDomId } from "./native-table-presentation";
+import { cellDomId, headerDomId, unloadedCellDomId } from "./native-table-presentation";
 import { useAstryxTableGridTabStopHandoff } from "./focus";
 import { isAstryxTableDocumentFocusChainActive } from "./focus-ownership";
 import { ASTRYX_TABLE_ROW_HEIGHT } from "./virtual-viewport";
@@ -75,20 +75,103 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
       managedWrites.delete(candidate);
     };
     let highlighted: HTMLElement | null = null;
+    let proxyRow: HTMLDivElement | undefined;
+    let proxyCell: HTMLDivElement | undefined;
+    let proxyOwner: HTMLElement | undefined;
+    let ownedProxyId: string | undefined;
+    const releaseProxyOwnership = () => {
+      if (proxyOwner !== undefined) {
+        const retained = (proxyOwner.getAttribute("aria-owns") ?? "")
+          .split(" ")
+          .filter((id) => id.length > 0 && id !== ownedProxyId)
+          .join(" ");
+        if (retained.length === 0) proxyOwner.removeAttribute("aria-owns");
+        else proxyOwner.setAttribute("aria-owns", retained);
+      }
+      proxyOwner = undefined;
+      ownedProxyId = undefined;
+    };
     let focusedDescendant: InteractiveElement | undefined;
     const owns = (target: Element) => target.closest('[role="grid"]') === element;
     const synchronize = () => {
       const active = navigation.getSnapshot();
+      const unloaded =
+        active?.region === "body" &&
+        (active.rowId === undefined || latest.current.findRowIndex(active.rowId) === undefined);
       const id =
         active === undefined
           ? undefined
           : active.region === "header"
             ? headerDomId(adapter.instanceId, active.columnId)
-            : active.rowId === undefined
-              ? undefined
+            : unloaded || active.rowId === undefined
+              ? unloadedCellDomId(adapter.instanceId, tableId, active.rowIndex, active.columnId)
               : cellDomId(adapter.instanceId, tableId, active.rowId, active.columnId);
       const mounted = id === undefined ? null : document.getElementById(id);
-      const target = mounted !== null && element.contains(mounted) ? mounted : null;
+      let target = mounted !== null && element.contains(mounted) ? mounted : null;
+      // Keep one value-free destination while a focused sparse coordinate is
+      // outside the mounted window. Passive publications never reveal it.
+      if (
+        target === null &&
+        unloaded &&
+        active !== undefined &&
+        element.contains(document.activeElement)
+      ) {
+        if (proxyRow === undefined) {
+          proxyRow = document.createElement("div");
+          proxyRow.setAttribute("role", "row");
+          Object.assign(proxyRow.style, {
+            position: "absolute",
+            top: "0",
+            left: "0",
+            width: "1px",
+            height: "1px",
+            overflow: "hidden",
+            clipPath: "inset(50%)",
+            whiteSpace: "nowrap",
+          });
+          proxyCell = document.createElement("div");
+          proxyCell.setAttribute("role", "gridcell");
+          proxyRow.append(proxyCell);
+          element.append(proxyRow);
+        }
+        const columnIndex = latest.current.adapter.columns.findIndex(
+          (column) => column.columnId === active.columnId,
+        );
+        const label = `Loading ${latest.current.adapter.columns[columnIndex]?.headerName ?? active.columnId}`;
+        proxyCell!.id = `${id}-proxy`;
+        proxyCell!.setAttribute("aria-colindex", String(columnIndex + 1));
+        proxyCell!.setAttribute("aria-label", label);
+        if (proxyCell!.textContent !== label) proxyCell!.textContent = label;
+        const rowIndex = String(active.rowIndex + 2);
+        const owner = [
+          ...element.querySelectorAll<HTMLElement>(`[role="row"][aria-rowindex="${rowIndex}"]`),
+        ].find((row) => row !== proxyRow && owns(row));
+        if (owner !== proxyOwner || ownedProxyId !== proxyCell!.id) releaseProxyOwnership();
+        if (owner === undefined) {
+          proxyRow.setAttribute("role", "row");
+          proxyRow.setAttribute("aria-rowindex", rowIndex);
+        } else {
+          proxyRow.setAttribute("role", "presentation");
+          proxyRow.removeAttribute("aria-rowindex");
+          proxyOwner = owner;
+          ownedProxyId = proxyCell!.id;
+          const ids = (owner.getAttribute("aria-owns") ?? "")
+            .split(" ")
+            .filter((candidate) => candidate.length > 0 && candidate !== ownedProxyId);
+          ids.push(ownedProxyId);
+          const indexOf = (candidate: string) =>
+            Number(document.getElementById(candidate)?.getAttribute("aria-colindex") ?? 0);
+          ids.sort((left, right) => indexOf(left) - indexOf(right));
+          const next = ids.join(" ");
+          if (owner.getAttribute("aria-owns") !== next) owner.setAttribute("aria-owns", next);
+        }
+        target = proxyCell!;
+      } else if (proxyRow !== undefined) {
+        releaseProxyOwnership();
+        proxyRow.remove();
+        proxyRow = undefined;
+        proxyCell = undefined;
+      }
       const currentId = element.getAttribute("aria-activedescendant");
       if (target === null) {
         if (currentId !== null) element.removeAttribute("aria-activedescendant");
@@ -148,9 +231,14 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
       if (cell.getAttribute("role") === "columnheader") navigation.activateHeader(columnId);
       else {
         const rowId = cell.dataset["astryxRowId"];
-        const rowIndex = rowId === undefined ? undefined : latest.current.findRowIndex(rowId);
-        if (rowId !== undefined && rowIndex !== undefined)
-          navigation.activateBody(rowIndex, rowId, columnId);
+        const loadingIndex = cell.dataset["astryxLoadingRowIndex"];
+        const rowIndex =
+          rowId === undefined
+            ? loadingIndex === undefined
+              ? undefined
+              : Number(loadingIndex)
+            : latest.current.findRowIndex(rowId);
+        if (rowIndex !== undefined) navigation.activateBody(rowIndex, rowId, columnId);
       }
       const control = target.closest(interactive);
       if (control === null || control === element) {
@@ -277,6 +365,8 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
       element.removeEventListener("pointerdown", pointer);
       highlighted?.style.removeProperty("outline");
       highlighted?.style.removeProperty("outline-offset");
+      releaseProxyOwnership();
+      proxyRow?.remove();
     };
   }, [grid, navigation, tableId, adapter.instanceId, adapter.subscribeFrameCommit]);
 

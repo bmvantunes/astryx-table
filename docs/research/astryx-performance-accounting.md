@@ -6,7 +6,7 @@ if it happened inside measured callbacks. The collectors do not establish that
 execution overlap. A 6 ms callback followed by 3 ms of independent React CPU can be
 reported as 6 ms and incorrectly pass an 8.33 ms gate.
 
-All currently active Client production collectors now share conservative addition for callback and
+All currently active Client and Server production collectors now share conservative addition for callback and
 React CPU. Admission and observer work remain separately charged. The two-phase
 Client publication and held-navigation collectors use the same policy for both
 phases. Synchronous overlap may be counted twice; unrelated React work cannot be

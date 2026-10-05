@@ -10,7 +10,7 @@ export const ClientContext = createContext<
   | Readonly<{
       tableId: string;
       filterCommands: ReturnType<typeof createGridFilterCommands>;
-      rows: AstryxTableClientFacetRowsSource;
+      rows: AstryxTableClientFacetRowsSource | undefined;
       resultRows: Pick<
         AstryxTableClientRowPipelineAdapter<unknown>,
         "getResultRowCountSnapshot" | "subscribeResultRowCount" | "initializeResultRowCount"
@@ -23,6 +23,8 @@ export const ClientContext = createContext<
 export function useClientContext() {
   const context = useContext(ClientContext);
   if (context === undefined)
-    throw new Error("AstryxTable controls must be rendered inside AstryxTableClient.");
+    throw new Error(
+      "AstryxTable controls must be rendered inside AstryxTableClient or AstryxTableServer.",
+    );
   return context;
 }

@@ -28,6 +28,7 @@ export const ClientSetFilter = memo(function ClientSetFilter({
   readonly column: CompiledColumn;
 }) {
   const { rows, runtime } = useClientContext();
+  if (rows === undefined) throw new Error("Client facets require the complete Client source.");
   const store = useMemo(
     () => createAstryxTableClientFacetStore({ column, rows, runtime }),
     [column, rows, runtime],

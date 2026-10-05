@@ -17,6 +17,16 @@
       ]
     },
     {
+      "source": "migration/table/src/internal/benchmark-budget.ts",
+      "target": "packages/table/src/internal/benchmark-budget.ts",
+      "sha256": "c6cbbee8f9ad6cfd89353bcf2fa6b15f48e510e3fbcff9fe647f2539377b1440"
+    },
+    {
+      "source": "migration/table/src/internal/benchmark-profile.ts",
+      "target": "packages/table/src/internal/benchmark-profile.ts",
+      "sha256": "ffe0dc58a9a084d7cabf15eaeac283606948091cc680244c80af2edb85e8efb7"
+    },
+    {
       "source": "migration/table/src/internal/cell-edit-traversal.ts",
       "target": "packages/table/src/internal/cell-edit-traversal.ts",
       "sha256": "dec05f920d7374ec0331896866f6fb3d41039d453040ffe0e14c277b09915106"
@@ -45,6 +55,11 @@
       "source": "migration/table/src/internal/client-adapter.tsx",
       "target": "packages/table/src/internal/client-adapter.tsx",
       "sha256": "2ccf4e507988e3c203d0dc18ebae7271d66885d85f80795dcfa87698e74423cb"
+    },
+    {
+      "source": "migration/table/src/internal/client-grouping-focus.ts",
+      "target": "packages/table/src/internal/client-grouping-focus.ts",
+      "sha256": "a320ce2eae2030c2c51abb0f392ca15b7062a00cc893122cf0abb0411a9395d2"
     },
     {
       "source": "migration/table/src/internal/client-grouping-presentation.ts",
@@ -77,6 +92,16 @@
       ]
     },
     {
+      "source": "migration/table/src/internal/column-geometry.ts",
+      "target": "packages/table/src/internal/column-geometry.ts",
+      "sha256": "f8a30d4ed7ce28ba659d6983958f2a71365b5dcad509897ddc6ff45630331133"
+    },
+    {
+      "source": "migration/table/src/internal/column-gesture.ts",
+      "target": "packages/table/src/internal/column-gesture.ts",
+      "sha256": "950cbb02cb08ee69e09aeadd3d32b704048f3aa6d352ecd51abf3046305a34a7"
+    },
+    {
       "source": "migration/table/src/internal/column-helper-provenance.ts",
       "target": "packages/table/src/internal/column-helper-provenance.ts",
       "sha256": "4269853065a38728f5e34baa8be16b702f41802083e1889071f83cfb2f889f4d"
@@ -95,6 +120,16 @@
       "source": "migration/table/src/internal/development.d.ts",
       "target": "packages/table/src/internal/development.d.ts",
       "sha256": "12639cdbc35db9530cb08fb84246e4c5c8faa94288b894e0aab3cd2cd445390c"
+    },
+    {
+      "source": "migration/table/src/internal/focus-ownership.ts",
+      "target": "packages/table/src/internal/focus-ownership.ts",
+      "sha256": "0a99977e2fad20a6a5e69d5cd654e74648c05d14faa3c5f8946e1e9e3f275ae9"
+    },
+    {
+      "source": "migration/table/src/internal/focus.ts",
+      "target": "packages/table/src/internal/focus.ts",
+      "sha256": "6b5e3eac47856e5a902fd2e9c9a7e294116ddd2aee6e6cc73de0bbb311222c44"
     },
     {
       "source": "migration/table/src/internal/grid-command-instrumentation.ts",
@@ -142,21 +177,6 @@
       "sha256": "7faa468088a8f0737fdd596622df71902a14539ff2b3fcdd5fbede20a13f79c3"
     },
     {
-      "source": "packages/table/provenance/navigation.ts.reference",
-      "target": "packages/table/src/internal/navigation.ts",
-      "sha256": "fedb8de325f780dd595b7c1c4beb11034e56074d478e39108c0505ef81f8c03e",
-      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
-      "sourceGitPath": "packages/table/src/internal/navigation.ts",
-      "sourceBlob": "d5281ee58e809062524ba06007cba182c138730c",
-      "sourceSha256": "59d1d6a3f64f07051f52a53ff129b7c4cec621244fddabbe0f5eacfe13652426",
-      "renames": [
-        ["BrunoTable", "AstryxTable"],
-        ["brunoTable", "astryxTable"],
-        ["bruno-table", "astryx-table"],
-        ["BRUNO_TABLE", "ASTRYX_TABLE"]
-      ]
-    },
-    {
       "source": "migration/table/src/internal/preset-capability.ts",
       "target": "packages/table/src/internal/preset-capability.ts",
       "sha256": "72a268096d45edc45d623de05a9dddabebf3a56abd942374408536017fd167c8"
@@ -195,6 +215,26 @@
       "source": "migration/table/src/internal/select-value-type-provenance.ts",
       "target": "packages/table/src/internal/select-value-type-provenance.ts",
       "sha256": "8e778f79382e7e2a0b091f4aa6162e076ca3883f9be7367f5628313e5b5d2454"
+    },
+    {
+      "source": "migration/table/src/internal/server-query.ts",
+      "target": "packages/table/src/internal/server-query.ts",
+      "sha256": "311d6b221ddb1862e3f2786a37e7088aa5699909b65c8c919e95ee0b05348eb3"
+    },
+    {
+      "source": "migration/table/src/internal/server-row-pipeline.tsx",
+      "target": "packages/table/src/internal/server-row-pipeline.tsx",
+      "sha256": "f8df7b7c575ccd1a84d32c2bdd689da7347f0fc686c8120014e47f1b7e7d8472"
+    },
+    {
+      "source": "migration/table/src/internal/server-source-adapter.ts",
+      "target": "packages/table/src/internal/server-source-adapter.ts",
+      "sha256": "05590ca5db53a015bf561c7799e70512031de6701faf8171b96ab6363f54508d"
+    },
+    {
+      "source": "migration/table/src/internal/server-viewport-store.ts",
+      "target": "packages/table/src/internal/server-viewport-store.ts",
+      "sha256": "e778c529b4fc1ed4a5a10deb6a14030ac85afb1d026c1a51aa5e99ab6c7b8618"
     },
     {
       "source": "migration/table/src/internal/set-value-identity.ts",
@@ -245,36 +285,6 @@
         ["bruno-table", "astryx-table"],
         ["BRUNO_TABLE", "ASTRYX_TABLE"]
       ]
-    },
-    {
-      "source": "migration/table/src/internal/benchmark-budget.ts",
-      "target": "packages/table/src/internal/benchmark-budget.ts",
-      "sha256": "c6cbbee8f9ad6cfd89353bcf2fa6b15f48e510e3fbcff9fe647f2539377b1440"
-    },
-    {
-      "source": "migration/table/src/internal/benchmark-profile.ts",
-      "target": "packages/table/src/internal/benchmark-profile.ts",
-      "sha256": "ffe0dc58a9a084d7cabf15eaeac283606948091cc680244c80af2edb85e8efb7"
-    },
-    {
-      "source": "migration/table/src/internal/column-gesture.ts",
-      "target": "packages/table/src/internal/column-gesture.ts",
-      "sha256": "950cbb02cb08ee69e09aeadd3d32b704048f3aa6d352ecd51abf3046305a34a7"
-    },
-    {
-      "source": "migration/table/src/internal/column-geometry.ts",
-      "target": "packages/table/src/internal/column-geometry.ts",
-      "sha256": "f8a30d4ed7ce28ba659d6983958f2a71365b5dcad509897ddc6ff45630331133"
-    },
-    {
-      "source": "migration/table/src/internal/focus.ts",
-      "target": "packages/table/src/internal/focus.ts",
-      "sha256": "6b5e3eac47856e5a902fd2e9c9a7e294116ddd2aee6e6cc73de0bbb311222c44"
-    },
-    {
-      "source": "migration/table/src/internal/focus-ownership.ts",
-      "target": "packages/table/src/internal/focus-ownership.ts",
-      "sha256": "0a99977e2fad20a6a5e69d5cd654e74648c05d14faa3c5f8946e1e9e3f275ae9"
     }
   ],
   "paritySourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
@@ -352,6 +362,23 @@
       "sourceSha256": "b7e4653845bc6bf019a5c93a2d45a7597626dc3f10fc536e3bd07137a631b1c2",
       "reviewExempt": false,
       "reason": "Privately certify exact frozen compiler-owned native columns for bounded native group-result reuse. Cloned or custom semantics cannot acquire this proof. Requires semantic review and native/custom differential tests."
+    },
+    {
+      "source": "packages/table/provenance/navigation.ts.reference",
+      "target": "packages/table/src/internal/navigation.ts",
+      "sha256": "cc03451d1f49f050692f753a6fde8d19dbbb2d4f77fa54d95140925bd0f385bd",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/internal/navigation.ts",
+      "sourceBlob": "d5281ee58e809062524ba06007cba182c138730c",
+      "sourceSha256": "59d1d6a3f64f07051f52a53ff129b7c4cec621244fddabbe0f5eacfe13652426",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ],
+      "reviewExempt": false,
+      "reason": "Allow pointer activation of an unresolved logical Server coordinate only when the current source identity at that index is also undefined; reject non-integer indexes. Loaded identities remain authoritative. Requires independent review and public Browser regression; not a mechanical import."
     },
     {
       "source": "migration/table/src/public-types.ts",

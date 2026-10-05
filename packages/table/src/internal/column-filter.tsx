@@ -1,3 +1,4 @@
+import { useClientContext } from "./client-context";
 import {
   memo,
   useCallback,
@@ -59,6 +60,7 @@ export const ColumnFilter = memo(function ColumnFilter({
   onOpenChange,
   activate,
 }: Props) {
+  const { rows } = useClientContext();
   if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__)
     recordAstryxTableClientColumnFilterTriggerRender(column.columnId);
   const onHide = useCallback(() => onOpenChange(false), [onOpenChange]);
@@ -106,7 +108,9 @@ export const ColumnFilter = memo(function ColumnFilter({
       {renderPopover(
         isOpen ? (
           <div {...stylex.props(styles.editor)}>
-            {column.enableSetFilter ? <ClientSetFilter column={column} /> : null}
+            {column.enableSetFilter && rows !== undefined ? (
+              <ClientSetFilter column={column} />
+            ) : null}
             <ScalarFilterEditor column={column} runtime={runtime} />
           </div>
         ) : null,

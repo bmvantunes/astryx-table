@@ -1,6 +1,8 @@
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { prepareAstryxTableGroupingRemovalFocus } from "./client-grouping-focus";
-import { memo, useCallback, useState, useSyncExternalStore } from "react";
+import { memo, useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { AstryxTableMountedRowSlots } from "./mounted-row-slots";
+import { LoadingCell } from "./loading-grid";
 import * as stylex from "@stylexjs/stylex";
 import {
   AstryxTableViewCommitDiagnosticProbe,
@@ -11,6 +13,7 @@ import {
   nativeTableAppearance,
   useNativeTablePresentation,
   cellDomId,
+  unloadedCellDomId,
   headerDomId,
   type NativePinnedPresentation,
 } from "./native-table-presentation";
@@ -78,6 +81,7 @@ export type AstryxTableRowPipelineSnapshot =
       readonly queryGeneration: number;
       readonly queryNavigationMode: AstryxTableQueryNavigationMode;
       readonly loading: boolean;
+      readonly ariaRowCount?: number | undefined;
     }>
   | Readonly<{
       readonly kind: "invalid";
@@ -246,7 +250,8 @@ const GridSurface = memo(function GridSurface({
         aria-label={tableId}
         style={{ maxHeight: ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT }}
         aria-colcount={adapter.columns.length}
-        aria-rowcount={snapshot.rowSpace.totalRows + 1}
+        aria-busy={snapshot.loading || undefined}
+        aria-rowcount={snapshot.ariaRowCount ?? snapshot.rowSpace.totalRows + 1}
         tabIndex={0}
       >
         {__ASTRYX_TABLE_TEST_DIAGNOSTICS__ ? (
@@ -410,21 +415,40 @@ const Header = memo(function Header({
   );
 });
 
-const Rows = memo(function Rows({ adapter, snapshot, tableId }: SurfaceProps) {
-  const range = useSyncExternalStore(
-    adapter.subscribeRowRange,
-    adapter.getRowRangeSnapshot,
-    adapter.getRowRangeSnapshot,
+function useMountedSlots(
+  adapter: AstryxTableViewportAdapterState,
+  rowSpace: AstryxTableLogicalRowSpace,
+) {
+  const slots = useMemo(
+    () =>
+      new AstryxTableMountedRowSlots(
+        adapter.getRowRangeSnapshot,
+        rowSpace.identitySource?.getSnapshot() ?? rowSpace,
+      ),
+    [adapter.getRowRangeSnapshot, rowSpace],
   );
+  useLayoutEffect(() => {
+    const refresh = () => slots.setIdentities(rowSpace.identitySource?.getSnapshot() ?? rowSpace);
+    const unsubscribeRange = adapter.subscribeRowRange(refresh);
+    const unsubscribeIdentity = rowSpace.identitySource?.subscribe(refresh);
+    refresh();
+    return () => {
+      unsubscribeRange();
+      unsubscribeIdentity?.();
+    };
+  }, [slots, rowSpace, adapter.subscribeRowRange]);
+  return useSyncExternalStore(slots.subscribe, slots.getSnapshot, slots.getSnapshot);
+}
+
+const Rows = memo(function Rows({ adapter, snapshot, tableId }: SurfaceProps) {
+  const { range, rows } = useMountedSlots(adapter, snapshot.rowSpace);
   return (
     <table role="presentation" style={{ display: "block", borderCollapse: "collapse" }}>
       <tbody role="presentation" style={{ display: "block", height: range.totalHeight }}>
-        {Array.from({ length: range.rowEnd - range.rowStart }, (_, offset) => {
-          const rowIndex = range.rowStart + offset;
-          const rowId = snapshot.rowSpace.getRowId(rowIndex);
-          return rowId === undefined ? null : (
+        {rows.map(({ rowId, logicalRowIndex: rowIndex }, offset) => {
+          return (
             <Row
-              key={rowId}
+              key={rowId === undefined ? `loading:${rowIndex}` : `row:${rowId}`}
               adapter={adapter}
               tableId={tableId}
               runtime={snapshot.runtime}
@@ -450,7 +474,7 @@ const Row = memo(function Row({
   readonly tableId: string;
   readonly adapter: AstryxTableViewportAdapterState;
   readonly runtime: AstryxTableRuntimeView;
-  readonly rowId: string;
+  readonly rowId: string | undefined;
   readonly rowIndex: number;
   readonly top: number;
 }) {
@@ -469,19 +493,17 @@ const Row = memo(function Row({
   const layout = adapter.viewportSnapshot.virtualWindow;
   const ownedColumns = [...layout.pinnedStart, ...columns, ...layout.pinnedEnd];
   const startWidth = layout.pinnedStart.reduce((sum, column) => sum + column.semantics.width, 0);
+  const idForColumn = (columnId: string) =>
+    rowId === undefined
+      ? unloadedCellDomId(adapter.instanceId, tableId, rowIndex, columnId)
+      : cellDomId(adapter.instanceId, tableId, rowId, columnId);
   return (
     <TableRow
       {...stylex.props(styles.row)}
       ref={attachBodyLayer}
       role="row"
       aria-rowindex={rowIndex + 2}
-      aria-owns={
-        layout.pinnedStart.length + layout.pinnedEnd.length === 0
-          ? undefined
-          : ownedColumns
-              .map((column) => cellDomId(adapter.instanceId, tableId, rowId, column.columnId))
-              .join(" ")
-      }
+      aria-owns={ownedColumns.map((column) => idForColumn(column.columnId)).join(" ")}
       style={{
         top,
         height: ASTRYX_TABLE_ROW_HEIGHT,
@@ -496,17 +518,28 @@ const Row = memo(function Row({
           flexShrink: 0,
         }}
       />
-      {columns.map((column, index) => (
-        <Cell
-          key={column.columnId}
-          runtime={runtime}
-          rowId={rowId}
-          column={column}
-          id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
-          columnIndex={layout.pinnedStart.length + start + index}
-          preparedStage={preparedColumnStage(window, start + index)}
-        />
-      ))}
+      {columns.map((column, index) =>
+        rowId === undefined ? (
+          <LoadingCell
+            key={column.columnId}
+            column={column}
+            rowIndex={rowIndex}
+            id={idForColumn(column.columnId)}
+            columnIndex={layout.pinnedStart.length + start + index}
+            preparedStage={preparedColumnStage(window, start + index)}
+          />
+        ) : (
+          <Cell
+            key={column.columnId}
+            runtime={runtime}
+            rowId={rowId}
+            column={column}
+            id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
+            columnIndex={layout.pinnedStart.length + start + index}
+            preparedStage={preparedColumnStage(window, start + index)}
+          />
+        ),
+      )}
     </TableRow>
   );
 });
@@ -517,11 +550,7 @@ const PinnedRows = memo(function PinnedRows({
   tableId,
   presentation,
 }: SurfaceProps & PresentationProps) {
-  const range = useSyncExternalStore(
-    adapter.subscribeRowRange,
-    adapter.getRowRangeSnapshot,
-    adapter.getRowRangeSnapshot,
-  );
+  const { range, rows } = useMountedSlots(adapter, snapshot.rowSpace);
   const layout = adapter.viewportSnapshot.virtualWindow;
   return (
     <>
@@ -562,14 +591,11 @@ const PinnedRows = memo(function PinnedRows({
                   role="presentation"
                   style={{ display: "block", position: "relative", height: range.totalHeight }}
                 >
-                  {Array.from({ length: range.rowEnd - range.rowStart }, (_, offset) => {
-                    const rowIndex = range.rowStart + offset;
-                    const rowId = snapshot.rowSpace.getRowId(rowIndex);
-                    if (rowId === undefined) return null;
+                  {rows.map(({ rowId, logicalRowIndex: rowIndex }, offset) => {
                     return (
                       <TableRow
                         ref={adapter.attachBodyLayer}
-                        key={rowId}
+                        key={rowId === undefined ? `loading:${rowIndex}` : `row:${rowId}`}
                         role="presentation"
                         style={{
                           display: "flex",
@@ -579,21 +605,40 @@ const PinnedRows = memo(function PinnedRows({
                           width,
                         }}
                       >
-                        {columns.map((column, index) => (
-                          <Cell
-                            key={column.columnId}
-                            id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
-                            runtime={snapshot.runtime}
-                            rowId={rowId}
-                            column={column}
-                            columnIndex={
-                              side === "start"
-                                ? index
-                                : adapter.columns.length - columns.length + index
-                            }
-                            presentation={presentation.get(column.columnId)}
-                          />
-                        ))}
+                        {columns.map((column, index) =>
+                          rowId === undefined ? (
+                            <LoadingCell
+                              key={column.columnId}
+                              column={column}
+                              rowIndex={rowIndex}
+                              id={unloadedCellDomId(
+                                adapter.instanceId,
+                                tableId,
+                                rowIndex,
+                                column.columnId,
+                              )}
+                              columnIndex={
+                                side === "start"
+                                  ? index
+                                  : adapter.columns.length - columns.length + index
+                              }
+                            />
+                          ) : (
+                            <Cell
+                              key={column.columnId}
+                              id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
+                              runtime={snapshot.runtime}
+                              rowId={rowId}
+                              column={column}
+                              columnIndex={
+                                side === "start"
+                                  ? index
+                                  : adapter.columns.length - columns.length + index
+                              }
+                              presentation={presentation.get(column.columnId)}
+                            />
+                          ),
+                        )}
                       </TableRow>
                     );
                   })}

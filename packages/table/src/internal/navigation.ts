@@ -314,8 +314,13 @@ export class AstryxTableNavigationRuntime {
     this.setActive({ region: "header", rowIndex: 0, columnId });
   };
 
-  public readonly activateBody = (rowIndex: number, rowId: string, columnId: string): boolean => {
+  public readonly activateBody = (
+    rowIndex: number,
+    rowId: string | undefined,
+    columnId: string,
+  ): boolean => {
     if (
+      !Number.isSafeInteger(rowIndex) ||
       rowIndex < 0 ||
       rowIndex >= this.rowSpace.totalRows ||
       !this.columns.some((column) => column.columnId === columnId) ||
