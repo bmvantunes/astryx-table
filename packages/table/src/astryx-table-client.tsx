@@ -1,3 +1,4 @@
+import { AstryxTableRowSelectionRuntime } from "./internal/row-selection";
 import { SourceBody } from "./internal/source-body";
 import { SourceLifecycle } from "./internal/source-lifecycle-view";
 import { GroupingControls } from "./internal/grouping-controls";
@@ -32,13 +33,11 @@ const styles = stylex.create({
   grid: { gridColumn: 1, gridRow: 1, minWidth: 0 },
 });
 
-/** Read-only Client; Row Selection remains owned by the #13 delivery. */
-export type AstryxTableClientProps<TRow, TColumns extends AstryxTableColumns<TRow>> = Omit<
-  AstryxTableReadOnlyClientProps<TRow, TColumns>,
-  "rowSelection"
-> & {
-  readonly rowSelection?: never;
-};
+/** Read-only Client with optional identity-owned Row Selection. */
+export type AstryxTableClientProps<
+  TRow,
+  TColumns extends AstryxTableColumns<TRow>,
+> = AstryxTableReadOnlyClientProps<TRow, TColumns>;
 
 export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumns<TRow>>(
   props: AstryxTableClientProps<TRow, TColumns>,
@@ -46,8 +45,8 @@ export function AstryxTableClient<TRow, const TColumns extends AstryxTableColumn
   if (typeof props.tableId !== "string" || props.tableId.trim().length === 0) {
     throw new TypeError("AstryxTable tableId must be a non-empty string.");
   }
-  if (props.rowSelection !== undefined) {
-    throw new TypeError("Row Selection is not available in this Client slice (issue #13).");
+  if (props.rowSelection !== undefined && props.rowSelection !== true) {
+    throw new TypeError("AstryxTable rowSelection must be true or omitted.");
   }
   if (props.editable) {
     throw new TypeError("Editing is not available in this Client slice (issues #11–#12).");
@@ -59,6 +58,9 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   props: AstryxTableClientProps<TRow, TColumns>,
 ) {
   const scope = useRef<HTMLDivElement>(null);
+  const [selectionRuntime] = useState(() => new AstryxTableRowSelectionRuntime([]));
+  const rowSelection = props.rowSelection === true ? selectionRuntime : undefined;
+  const previouslyEnabled = useRef(props.rowSelection === true);
   const columns = useMemo(() => compileColumns(props.columns), [props.columns]);
   const groupRowsColumn = useMemo(
     () => compileAstryxTableGroupRowsColumn(props.groupRowsColumn),
@@ -86,6 +88,9 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         initialPersistedState: props.initialPersistedState,
         grouping: true,
         groupRowsWidth: groupRowsColumn.width,
+        beforeGroupingChange: (entering) => {
+          if (entering) selectionRuntime.enterGroupedProjection();
+        },
       },
     );
     return instance;
@@ -102,9 +107,19 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     [adapter, view, props.tableId],
   );
   const [projection] = useState(
-    () => new AstryxTableClientProjectionStore(view, adapter, undefined),
+    () => new AstryxTableClientProjectionStore(view, adapter, rowSelection),
   );
+  useLayoutEffect(() => projection.setRowSelection(rowSelection), [projection, rowSelection]);
   useLayoutEffect(() => projection.activate(), [projection]);
+  useLayoutEffect(() => {
+    const enabled = rowSelection !== undefined;
+    if (previouslyEnabled.current && !enabled) selectionRuntime.enterGroupedProjection();
+    else if (!previouslyEnabled.current && enabled && runtime.getGroupBySnapshot().length === 0) {
+      const source = adapter.getProjectionInputSnapshot().sourceRowIds;
+      selectionRuntime.leaveGroupedProjection(source.authoritative ? source.rowIds : []);
+    }
+    previouslyEnabled.current = enabled;
+  }, [adapter, rowSelection, runtime, selectionRuntime]);
   useLayoutEffect(() => {
     const publication = adapter.reconcile(
       props.clientSource,
@@ -156,17 +171,28 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
             <SortControls runtime={view} columns={columns} />
           </aside>
           <div {...stylex.props(styles.grid)}>
-            <SourceBody runtime={view} columns={columns} scope={scope} tableId={props.tableId}>
+            <SourceBody
+              rowSelection={rowSelection !== undefined}
+              runtime={view}
+              columns={columns}
+              scope={scope}
+              tableId={props.tableId}
+            >
               {(showRows) => (
                 <AstryxTableClientRowPipeline
                   runtime={view}
                   tableId={props.tableId}
                   columns={columns}
                   rowPipelineAdapter={adapter}
+                  rowSelection={rowSelection}
                 >
                   {(snapshot) =>
                     showRows ? (
-                      <AstryxTableView tableId={props.tableId} snapshot={snapshot} />
+                      <AstryxTableView
+                        tableId={props.tableId}
+                        snapshot={snapshot}
+                        rowSelection={rowSelection}
+                      />
                     ) : (
                       <></>
                     )

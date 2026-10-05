@@ -141,11 +141,9 @@ void invalidColumns;
 
 const checkedProps: AstryxTableClientProps<Row, typeof columns> = props;
 void (<AstryxTableClient {...checkedProps} />);
-// @ts-expect-error Row Selection belongs to the later selection slice.
 void (<AstryxTableClient {...props} rowSelection />);
 const selectionProps: AstryxTableClientProps<Row, typeof columns> = {
   ...props,
-  // @ts-expect-error The exported props agree with the current component capability.
   rowSelection: true,
 };
 void selectionProps;
@@ -236,3 +234,6 @@ void (
     }}
   />
 );
+
+// @ts-expect-error Row Selection is an opt-in true capability, never a controlled value.
+void (<AstryxTableClient {...props} rowSelection={false} />);

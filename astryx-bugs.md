@@ -1011,3 +1011,30 @@ cover deferred composition, normal completion, Clear invalidation, late completi
 and the next ordinary input. They also run against the installed package. Native
 Astryx input behavior, TanStack Pacer scheduling and session-only filter ownership
 remain unchanged; no upstream patch or persistence format change is needed.
+
+### Row Selection iframe modifiers and loading geometry
+
+Local review reproduced iframe Shift-click selecting only the clicked row rather
+than the inclusive interval. The integration read TanStack Hotkeys 0.8.0's
+singleton held-key tracker, whose listeners attach only to the importing document.
+The checkbox event guard already accepted the owning MouseEvent; its later
+held-state lookup silently read another document. The private hotkey adapter now
+translates the pointer event's modifiers through TanStack `parseKeyboardEvent`
+with an undispatched owning-realm KeyboardEvent. No handwritten matcher, held-key
+engine, listener or upstream dependency patch is added. Public iframe tests cover
+Shift, accompanying modifiers and detail-zero native keyboard activation.
+
+Review also reproduced loading data at column index 1 without the 40px selection
+gutter, followed by ready data at index 2. Loading now preserves the separate
+utility geometry, semantic ownership and shifted data indexes, including suspended
+pinning. Public loading-to-ready tests cover wide and narrow viewports and removal
+of the capability. Both failures are AstryxTable integration defects, not new
+Astryx Core bugs. The disabled-header focus correction is likewise local: owned
+focus returns to the grid when Select All becomes disabled, while intentional
+outside focus remains untouched.
+
+A subsequent public regression reproduced focus loss when selection was toggled
+while the same loading source remained active. The private viewport remounts for
+its changed gutter; source-body focus recovery now observes that same effective
+gutter discriminator. Paired enable/disable tests retain owned grid focus and
+preserve intentional outside focus.

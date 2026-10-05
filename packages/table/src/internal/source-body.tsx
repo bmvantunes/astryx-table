@@ -20,7 +20,9 @@ export const SourceBody = memo(function SourceBody({
   tableId,
   children,
   setRequiredRange,
+  rowSelection = false,
 }: {
+  readonly rowSelection?: boolean;
   readonly runtime: AstryxTableRuntimeView;
   readonly columns: readonly CompiledColumn[];
   readonly scope: RefObject<HTMLElement | null>;
@@ -46,6 +48,7 @@ export const SourceBody = memo(function SourceBody({
   useLayoutEffect(() => {
     if (__ASTRYX_TABLE_TEST_DIAGNOSTICS__) recordAstryxTableSourceLifecycleRender("body");
   });
+  const loadingRowSelection = rowSelection && grouping.groupBy.length === 0;
   const terminalEmpty =
     body.kind === "empty" && (chrome.status === "closed" || chrome.status === "error");
   const element = useRef<HTMLDivElement>(null);
@@ -64,7 +67,7 @@ export const SourceBody = memo(function SourceBody({
     const next = root.querySelector<HTMLElement>('[role="grid"]') ?? scope.current;
     ownedFocus.current = false;
     next?.focus({ preventScroll: true });
-  }, [body, scope, terminalEmpty]);
+  }, [body, scope, terminalEmpty, loadingRowSelection]);
   return (
     <div
       ref={element}
@@ -85,6 +88,7 @@ export const SourceBody = memo(function SourceBody({
     >
       {body.kind === "loading" ? (
         <LoadingGrid
+          rowSelection={loadingRowSelection}
           setRequiredRange={setRequiredRange}
           runtime={runtime}
           columns={columns}

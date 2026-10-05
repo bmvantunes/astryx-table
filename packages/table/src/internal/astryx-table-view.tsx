@@ -1,3 +1,5 @@
+import { SelectionHeader, SelectionCell, ROW_SELECTION_WIDTH } from "./row-selection-view";
+import { ASTRYX_TABLE_ROW_SELECTION_COLUMN_ID } from "./row-selection";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
 import { prepareAstryxTableGroupingRemovalFocus } from "./client-grouping-focus";
 import { memo, useCallback, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
@@ -172,18 +174,25 @@ const styles = stylex.create({
 export function AstryxTableView({
   tableId,
   snapshot,
+  rowSelection,
 }: {
+  readonly rowSelection?: AstryxTableRowSelectionRuntime | undefined;
   readonly tableId: string;
   readonly snapshot: AstryxTableRowPipelineSnapshot;
 }) {
   const [navigation] = useState(() => new AstryxTableNavigationRuntime());
   if (snapshot.kind === "invalid") return <div role="alert">Unable to display table values.</div>;
+  const selection =
+    snapshot.runtime.getInstalledClientProjectionSnapshot()?.kind === "grouped"
+      ? undefined
+      : rowSelection;
   return (
     <>
       {__ASTRYX_TABLE_TEST_DIAGNOSTICS__ ? (
         <AstryxTableViewCommitDiagnosticProbe commitEvidence={snapshot} tableId={tableId} />
       ) : null}
       <AstryxTableViewportAdapterBoundary
+        leadingUtilityWidth={selection === undefined ? 0 : ROW_SELECTION_WIDTH}
         runtime={snapshot.runtime}
         columns={snapshot.columns}
         rowSpace={snapshot.rowSpace}
@@ -194,6 +203,7 @@ export function AstryxTableView({
       >
         {(adapter) => (
           <GridSurface
+            selection={selection}
             tableId={tableId}
             snapshot={snapshot}
             adapter={adapter}
@@ -206,6 +216,7 @@ export function AstryxTableView({
 }
 
 type SurfaceProps = {
+  readonly selection?: AstryxTableRowSelectionRuntime | undefined;
   readonly tableId: string;
   readonly snapshot: Extract<AstryxTableRowPipelineSnapshot, { kind: "rows" }>;
   readonly adapter: AstryxTableViewportAdapterState;
@@ -215,14 +226,19 @@ const GridSurface = memo(function GridSurface({
   snapshot,
   adapter,
   navigation,
+  selection,
 }: SurfaceProps & { readonly navigation: AstryxTableNavigationRuntime }) {
   const [attachRowLayer] = useState(() => adapter.attachRowLayer);
-  const { presentation, attach } = useNativeTablePresentation(adapter);
+  const { presentation, attach } = useNativeTablePresentation(
+    adapter,
+    selection === undefined ? 0 : ROW_SELECTION_WIDTH,
+  );
   const [announcement, setAnnouncement] = useState({ sequence: 0, message: "" });
   const announce = useCallback((message: string) => {
     setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
   }, []);
   const interactions = useColumnInteractions({
+    rowSelection: selection,
     tableId,
     findRowIndex: (rowId) =>
       (snapshot.rowSpace.identitySource?.getSnapshot() ?? snapshot.rowSpace).findRowIndex(rowId),
@@ -249,7 +265,7 @@ const GridSurface = memo(function GridSurface({
         role="grid"
         aria-label={tableId}
         style={{ maxHeight: ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT }}
-        aria-colcount={adapter.columns.length}
+        aria-colcount={adapter.columns.length + (selection === undefined ? 0 : 1)}
         aria-busy={snapshot.loading || undefined}
         aria-rowcount={snapshot.ariaRowCount ?? snapshot.rowSpace.totalRows + 1}
         tabIndex={0}
@@ -262,6 +278,8 @@ const GridSurface = memo(function GridSurface({
         ) : null}
         <TableContext value={nativeTableAppearance}>
           <Header
+            selection={selection}
+            tableId={tableId}
             adapter={adapter}
             runtime={snapshot.runtime}
             presentation={presentation}
@@ -273,11 +291,12 @@ const GridSurface = memo(function GridSurface({
           <div
             {...stylex.props(styles.layer)}
             ref={attachRowLayer}
-            style={{ width: renderedWidth(adapter) }}
+            style={{ width: renderedWidth(adapter, selection !== undefined) }}
           >
-            <Rows adapter={adapter} snapshot={snapshot} tableId={tableId} />
+            <Rows adapter={adapter} snapshot={snapshot} tableId={tableId} selection={selection} />
           </div>
           <PinnedRows
+            selection={selection}
             adapter={adapter}
             snapshot={snapshot}
             tableId={tableId}
@@ -312,6 +331,8 @@ type GestureProps = {
 type PresentationProps = { readonly presentation: ReadonlyMap<string, NativePinnedPresentation> };
 
 const Header = memo(function Header({
+  selection,
+  tableId,
   adapter,
   runtime,
   presentation,
@@ -321,6 +342,8 @@ const Header = memo(function Header({
   onColumnReorder,
 }: PresentationProps &
   GestureProps & {
+    readonly selection?: AstryxTableRowSelectionRuntime | undefined;
+    readonly tableId: string;
     readonly announce: (message: string) => void;
     readonly navigation: AstryxTableNavigationRuntime;
     readonly adapter: AstryxTableViewportAdapterState;
@@ -337,7 +360,7 @@ const Header = memo(function Header({
     <table
       role="presentation"
       {...stylex.props(styles.header)}
-      style={{ width: renderedWidth(adapter) }}
+      style={{ width: renderedWidth(adapter, selection !== undefined) }}
     >
       <thead role="presentation" style={{ display: "block", width: "100%" }}>
         <TableRow
@@ -347,6 +370,9 @@ const Header = memo(function Header({
           aria-rowindex={1}
           style={{ display: "flex", height: ASTRYX_TABLE_ROW_HEIGHT, width: "100%" }}
         >
+          {selection === undefined ? null : (
+            <SelectionHeader selection={selection} tableId={tableId} />
+          )}
           {[
             ...layout.pinnedStart.map((column, index) => (
               <HeaderCell
@@ -358,7 +384,7 @@ const Header = memo(function Header({
                 onColumnResize={onColumnResize}
                 onColumnReorder={onColumnReorder}
                 column={column}
-                columnIndex={index}
+                columnIndex={index + (selection === undefined ? 0 : 1)}
                 presentation={presentation.get(column.columnId)}
               />
             )),
@@ -377,7 +403,12 @@ const Header = memo(function Header({
                 onColumnResize={onColumnResize}
                 onColumnReorder={onColumnReorder}
                 column={column}
-                columnIndex={layout.pinnedStart.length + window.centerStartIndex + index}
+                columnIndex={
+                  layout.pinnedStart.length +
+                  window.centerStartIndex +
+                  index +
+                  (selection === undefined ? 0 : 1)
+                }
               />
             )),
             <th
@@ -404,7 +435,12 @@ const Header = memo(function Header({
                 onColumnResize={onColumnResize}
                 onColumnReorder={onColumnReorder}
                 column={column}
-                columnIndex={adapter.columns.length - layout.pinnedEnd.length + index}
+                columnIndex={
+                  adapter.columns.length -
+                  layout.pinnedEnd.length +
+                  index +
+                  (selection === undefined ? 0 : 1)
+                }
                 presentation={presentation.get(column.columnId)}
               />
             )),
@@ -440,7 +476,7 @@ function useMountedSlots(
   return useSyncExternalStore(slots.subscribe, slots.getSnapshot, slots.getSnapshot);
 }
 
-const Rows = memo(function Rows({ adapter, snapshot, tableId }: SurfaceProps) {
+const Rows = memo(function Rows({ adapter, snapshot, tableId, selection }: SurfaceProps) {
   const { range, rows } = useMountedSlots(adapter, snapshot.rowSpace);
   return (
     <table role="presentation" style={{ display: "block", borderCollapse: "collapse" }}>
@@ -448,6 +484,7 @@ const Rows = memo(function Rows({ adapter, snapshot, tableId }: SurfaceProps) {
         {rows.map(({ rowId, logicalRowIndex: rowIndex }, offset) => {
           return (
             <Row
+              selection={selection}
               key={rowId === undefined ? `loading:${rowIndex}` : `row:${rowId}`}
               adapter={adapter}
               tableId={tableId}
@@ -464,6 +501,7 @@ const Rows = memo(function Rows({ adapter, snapshot, tableId }: SurfaceProps) {
 });
 
 const Row = memo(function Row({
+  selection,
   adapter,
   runtime,
   rowId,
@@ -474,6 +512,7 @@ const Row = memo(function Row({
   readonly tableId: string;
   readonly adapter: AstryxTableViewportAdapterState;
   readonly runtime: AstryxTableRuntimeView;
+  readonly selection?: AstryxTableRowSelectionRuntime | undefined;
   readonly rowId: string | undefined;
   readonly rowIndex: number;
   readonly top: number;
@@ -503,18 +542,21 @@ const Row = memo(function Row({
       ref={attachBodyLayer}
       role="row"
       aria-rowindex={rowIndex + 2}
-      aria-owns={ownedColumns.map((column) => idForColumn(column.columnId)).join(" ")}
+      aria-owns={[
+        ...(selection === undefined ? [] : [idForColumn(ASTRYX_TABLE_ROW_SELECTION_COLUMN_ID)]),
+        ...ownedColumns.map((column) => idForColumn(column.columnId)),
+      ].join(" ")}
       style={{
         top,
         height: ASTRYX_TABLE_ROW_HEIGHT,
-        width: renderedWidth(adapter),
+        width: renderedWidth(adapter, selection !== undefined),
       }}
     >
       <td
         aria-hidden="true"
         style={{
           padding: 0,
-          width: `calc(var(${astryxTablePinnedWidthCssVariable("start")}, ${startWidth}px) + var(${ASTRYX_TABLE_PREPARED_LEFT_PADDING_CSS_VARIABLE}, var(${ASTRYX_TABLE_LIVE_LEFT_PADDING_CSS_VARIABLE}, ${window.leftPadding}px)))`,
+          width: `calc(${selection === undefined ? 0 : ROW_SELECTION_WIDTH}px + var(${astryxTablePinnedWidthCssVariable("start")}, ${startWidth}px) + var(${ASTRYX_TABLE_PREPARED_LEFT_PADDING_CSS_VARIABLE}, var(${ASTRYX_TABLE_LIVE_LEFT_PADDING_CSS_VARIABLE}, ${window.leftPadding}px)))`,
           flexShrink: 0,
         }}
       />
@@ -525,7 +567,9 @@ const Row = memo(function Row({
             column={column}
             rowIndex={rowIndex}
             id={idForColumn(column.columnId)}
-            columnIndex={layout.pinnedStart.length + start + index}
+            columnIndex={
+              layout.pinnedStart.length + start + index + (selection === undefined ? 0 : 1)
+            }
             preparedStage={preparedColumnStage(window, start + index)}
           />
         ) : (
@@ -535,7 +579,9 @@ const Row = memo(function Row({
             rowId={rowId}
             column={column}
             id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
-            columnIndex={layout.pinnedStart.length + start + index}
+            columnIndex={
+              layout.pinnedStart.length + start + index + (selection === undefined ? 0 : 1)
+            }
             preparedStage={preparedColumnStage(window, start + index)}
           />
         ),
@@ -545,6 +591,7 @@ const Row = memo(function Row({
 });
 
 const PinnedRows = memo(function PinnedRows({
+  selection,
   adapter,
   snapshot,
   tableId,
@@ -556,8 +603,9 @@ const PinnedRows = memo(function PinnedRows({
     <>
       {(["start", "end"] as const).map((side) => {
         const columns = side === "start" ? layout.pinnedStart : layout.pinnedEnd;
-        if (columns.length === 0) return null;
-        const width = `var(${astryxTablePinnedWidthCssVariable(side)}, ${columns.reduce((sum, column) => sum + column.semantics.width, 0)}px)`;
+        const gutter = side === "start" && selection !== undefined;
+        if (columns.length === 0 && !gutter) return null;
+        const width = `calc(${gutter ? ROW_SELECTION_WIDTH : 0}px + var(${astryxTablePinnedWidthCssVariable(side)}, ${columns.reduce((sum, column) => sum + column.semantics.width, 0)}px))`;
         return (
           <div
             key={side}
@@ -566,7 +614,7 @@ const PinnedRows = memo(function PinnedRows({
               position: "absolute",
               insetInlineStart: 0,
               top: ASTRYX_TABLE_ROW_HEIGHT,
-              width: renderedWidth(adapter),
+              width: renderedWidth(adapter, selection !== undefined),
               height: range.totalHeight,
               pointerEvents: "none",
               zIndex: 1,
@@ -605,6 +653,29 @@ const PinnedRows = memo(function PinnedRows({
                           width,
                         }}
                       >
+                        {gutter ? (
+                          <SelectionCell
+                            selection={selection!}
+                            tableId={tableId}
+                            rowId={rowId}
+                            rowIndex={rowIndex}
+                            id={
+                              rowId === undefined
+                                ? unloadedCellDomId(
+                                    adapter.instanceId,
+                                    tableId,
+                                    rowIndex,
+                                    ASTRYX_TABLE_ROW_SELECTION_COLUMN_ID,
+                                  )
+                                : cellDomId(
+                                    adapter.instanceId,
+                                    tableId,
+                                    rowId,
+                                    ASTRYX_TABLE_ROW_SELECTION_COLUMN_ID,
+                                  )
+                            }
+                          />
+                        ) : null}
                         {columns.map((column, index) =>
                           rowId === undefined ? (
                             <LoadingCell
@@ -619,8 +690,11 @@ const PinnedRows = memo(function PinnedRows({
                               )}
                               columnIndex={
                                 side === "start"
-                                  ? index
-                                  : adapter.columns.length - columns.length + index
+                                  ? index + (selection === undefined ? 0 : 1)
+                                  : adapter.columns.length -
+                                    columns.length +
+                                    index +
+                                    (selection === undefined ? 0 : 1)
                               }
                             />
                           ) : (
@@ -632,8 +706,11 @@ const PinnedRows = memo(function PinnedRows({
                               column={column}
                               columnIndex={
                                 side === "start"
-                                  ? index
-                                  : adapter.columns.length - columns.length + index
+                                  ? index + (selection === undefined ? 0 : 1)
+                                  : adapter.columns.length -
+                                    columns.length +
+                                    index +
+                                    (selection === undefined ? 0 : 1)
                               }
                               presentation={presentation.get(column.columnId)}
                             />
@@ -1082,6 +1159,6 @@ function viewportFill(adapter: AstryxTableViewportAdapterState): number {
   return virtualWindow.pinnedEnd.length === 0 ? 0 : Math.max(0, width - virtualWindow.totalWidth);
 }
 
-function renderedWidth(adapter: AstryxTableViewportAdapterState): string {
-  return `var(${ASTRYX_TABLE_LIVE_TOTAL_WIDTH_CSS_VARIABLE}, ${adapter.viewportSnapshot.virtualWindow.totalWidth + viewportFill(adapter)}px)`;
+function renderedWidth(adapter: AstryxTableViewportAdapterState, selection: boolean): string {
+  return `calc(var(${ASTRYX_TABLE_LIVE_TOTAL_WIDTH_CSS_VARIABLE}, ${adapter.viewportSnapshot.virtualWindow.totalWidth + viewportFill(adapter)}px) + ${selection ? ROW_SELECTION_WIDTH : 0}px)`;
 }

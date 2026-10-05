@@ -1,3 +1,4 @@
+import { LoadingSelectionCell, ROW_SELECTION_WIDTH } from "./row-selection-view";
 import { Skeleton } from "@astryxdesign/core/Skeleton";
 import { TableContext, TableRow, TableCell } from "@astryxdesign/core/Table";
 import { memo, useLayoutEffect, useState } from "react";
@@ -29,7 +30,9 @@ export const LoadingGrid = memo(function LoadingGrid({
   ariaRowCount,
   tableId,
   setRequiredRange,
+  rowSelection = false,
 }: {
+  readonly rowSelection?: boolean;
   readonly setRequiredRange?: ((start: number, end: number) => void) | undefined;
   readonly runtime: AstryxTableRuntimeView;
   readonly columns: readonly CompiledColumn[];
@@ -40,6 +43,8 @@ export const LoadingGrid = memo(function LoadingGrid({
 }) {
   return (
     <AstryxTableLoadingViewportAdapterBoundary
+      key={rowSelection ? "selection" : "ordinary"}
+      leadingUtilityWidth={rowSelection ? ROW_SELECTION_WIDTH : 0}
       runtime={runtime}
       compiledColumns={columns}
       structuralColumns={structuralColumns}
@@ -50,6 +55,7 @@ export const LoadingGrid = memo(function LoadingGrid({
     >
       {(adapter) => (
         <LoadingSurface
+          rowSelection={rowSelection}
           adapter={adapter}
           tableId={tableId}
           ariaRowCount={ariaRowCount}
@@ -74,7 +80,9 @@ function LoadingSurface({
   tableId,
   ariaRowCount,
   setRequiredRange,
+  rowSelection,
 }: {
+  readonly rowSelection: boolean;
   readonly setRequiredRange?: ((start: number, end: number) => void) | undefined;
   readonly adapter: AstryxTableLoadingViewportAdapterState;
   readonly tableId: string;
@@ -87,11 +95,14 @@ function LoadingSurface({
   useLayoutEffect(() => {
     setRequiredRange?.(layout.rowStart, layout.rowEnd);
   }, [setRequiredRange, layout.rowStart, layout.rowEnd]);
+  const utilityWidth = rowSelection ? ROW_SELECTION_WIDTH : 0;
+  const utilityColumns = rowSelection ? 1 : 0;
+  const selectionId = (rowIndex: number) => `loading-selection-${adapter.instanceId}-${rowIndex}`;
   const fill =
     layout.pinnedEnd.length === 0
       ? 0
-      : Math.max(0, adapter.viewportSnapshot.width - layout.totalWidth);
-  const width = layout.totalWidth + fill;
+      : Math.max(0, adapter.viewportSnapshot.width - layout.totalWidth - utilityWidth);
+  const width = layout.totalWidth + fill + utilityWidth;
   const startWidth = layout.pinnedStart.reduce((sum, column) => sum + column.semantics.width, 0);
   const ownedColumns = [...layout.pinnedStart, ...layout.center, ...layout.pinnedEnd];
   const offsets = Array.from({ length: layout.rowEnd - layout.rowStart }, (_, offset) => offset);
@@ -104,7 +115,7 @@ function LoadingSurface({
       aria-label="Loading table rows"
       aria-busy="true"
       aria-rowcount={ariaRowCount}
-      aria-colcount={adapter.columns.length}
+      aria-colcount={adapter.columns.length + utilityColumns}
       tabIndex={0}
       style={{
         overflow: "auto",
@@ -128,13 +139,14 @@ function LoadingSurface({
                     role="row"
                     aria-rowindex={rowIndex + 1}
                     aria-owns={
-                      layout.pinnedStart.length + layout.pinnedEnd.length === 0
+                      !rowSelection && layout.pinnedStart.length + layout.pinnedEnd.length === 0
                         ? undefined
-                        : ownedColumns
-                            .map((column) =>
+                        : [
+                            ...(rowSelection ? [selectionId(rowIndex)] : []),
+                            ...ownedColumns.map((column) =>
                               loadingCellId(adapter, tableId, rowIndex, column.columnId),
-                            )
-                            .join(" ")
+                            ),
+                          ].join(" ")
                     }
                     style={{
                       display: "flex",
@@ -143,14 +155,19 @@ function LoadingSurface({
                       height: ASTRYX_TABLE_ROW_HEIGHT,
                       width,
                       boxSizing: "border-box",
-                      paddingInlineStart: startWidth + layout.leftPadding,
+                      paddingInlineStart: utilityWidth + startWidth + layout.leftPadding,
                     }}
                   >
                     {layout.center.map((column, index) => (
                       <LoadingCell
                         key={column.columnId}
                         column={column}
-                        columnIndex={layout.pinnedStart.length + layout.centerStartIndex + index}
+                        columnIndex={
+                          utilityColumns +
+                          layout.pinnedStart.length +
+                          layout.centerStartIndex +
+                          index
+                        }
                         id={loadingCellId(adapter, tableId, rowIndex, column.columnId)}
                       />
                     ))}
@@ -161,8 +178,10 @@ function LoadingSurface({
           </table>
           {(["start", "end"] as const).map((side) => {
             const columns = side === "start" ? layout.pinnedStart : layout.pinnedEnd;
-            if (columns.length === 0) return null;
-            const pinnedWidth = columns.reduce((sum, column) => sum + column.semantics.width, 0);
+            if (columns.length === 0 && !(side === "start" && rowSelection)) return null;
+            const pinnedWidth =
+              (side === "start" ? utilityWidth : 0) +
+              columns.reduce((sum, column) => sum + column.semantics.width, 0);
             return (
               <div
                 key={side}
@@ -211,14 +230,20 @@ function LoadingSurface({
                               width: pinnedWidth,
                             }}
                           >
+                            {side === "start" && rowSelection ? (
+                              <LoadingSelectionCell id={selectionId(rowIndex)} />
+                            ) : null}
                             {columns.map((column, index) => (
                               <LoadingCell
                                 key={column.columnId}
                                 column={column}
                                 columnIndex={
                                   side === "start"
-                                    ? index
-                                    : adapter.columns.length - columns.length + index
+                                    ? utilityColumns + index
+                                    : utilityColumns +
+                                      adapter.columns.length -
+                                      columns.length +
+                                      index
                                 }
                                 id={loadingCellId(adapter, tableId, rowIndex, column.columnId)}
                               />

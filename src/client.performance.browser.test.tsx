@@ -1,3 +1,4 @@
+import { installAstryxTableRowSelectionRenderListener } from "../packages/table/src/internal/row-selection";
 import { installAstryxTableSourceLifecycleRenderListener } from "../packages/table/src/internal/source-lifecycle-instrumentation";
 import { installAstryxTableToolbarSubscriptionListener } from "../packages/table/src/internal/toolbar-instrumentation";
 import { installAstryxTableSortControlRenderListener } from "../packages/table/src/internal/sort-control-instrumentation";
@@ -74,7 +75,7 @@ const nextFrame = () => new Promise<number>((resolve) => nativeFrame(resolve));
 type Work = { callbackDurationMs: number; reactDurationMs: number };
 afterEach(cleanup);
 
-test.for(["raw", "pinned", "filters", "grouped"] as const)(
+test.for(["raw", "pinned", "filters", "grouped", "row-selection"] as const)(
   "production Client accounts for complete two-axis frame work over 5,000 × 150 rows (%s)",
   { timeout: 30_000 },
   async (layout, { annotate }) => {
@@ -108,17 +109,19 @@ test.for(["raw", "pinned", "filters", "grouped"] as const)(
         ...(layout === "filters"
           ? { field: "symbol" as const, valueType: "text" as const }
           : { field: "sequence" as const, valueType: "number" as const }),
-        ...(index === (layout === "pinned" ? 24 : 10) ? { cellRenderer: customRenderer } : {}),
-        ...(layout === "pinned" && index === 0
+        ...(index === (layout === "pinned" || layout === "row-selection" ? 24 : 10)
+          ? { cellRenderer: customRenderer }
+          : {}),
+        ...((layout === "pinned" || layout === "row-selection") && index === 0
           ? { pinned: "start" as const }
-          : layout === "pinned" && index === 149
+          : (layout === "pinned" || layout === "row-selection") && index === 149
             ? { pinned: "end" as const }
             : {}),
       };
     }) satisfies AstryxTableColumns<Row>;
     const tableId = `production-client-${layout}`;
     // Begin beyond the retained header overscan in the narrower pinned centre region.
-    const horizontalStart = layout === "pinned" ? 2400 : 880;
+    const horizontalStart = layout === "pinned" || layout === "row-selection" ? 2400 : 880;
     let pending: Work | undefined;
     let scheduling: Work | undefined;
     let profilerCalls = 0;
@@ -161,6 +164,7 @@ test.for(["raw", "pinned", "filters", "grouped"] as const)(
         >
           <div style={{ width: 1024 }}>
             <AstryxTableClient
+              rowSelection={layout === "row-selection" ? true : undefined}
               tableId={tableId}
               columns={columns}
               getRowId={(row: Row) => row.id}
@@ -309,8 +313,15 @@ test.for(["raw", "pinned", "filters", "grouped"] as const)(
       expect(roots).toBe(0);
       expect(surfaces).toBe(0);
       expect(grid.querySelectorAll('[role="row"]').length).toBeLessThanOrEqual(33);
-      expect(grid.querySelectorAll('[role="columnheader"]').length).toBeLessThanOrEqual(37);
-      if (layout === "pinned") {
+      expect(
+        grid.querySelectorAll('[role="columnheader"]').length -
+          (layout === "row-selection" ? 1 : 0),
+      ).toBeLessThanOrEqual(37);
+      if (layout === "row-selection") {
+        expect(page.getByRole("checkbox").elements().length).toBeGreaterThan(1);
+        expect(page.getByRole("checkbox").elements().length).toBeLessThanOrEqual(33);
+      }
+      if (layout === "pinned" || layout === "row-selection") {
         for (const name of ["Column 0", "Column 149"]) {
           const header = page.getByRole("columnheader", { name, exact: true }).element();
           expect(getComputedStyle(header).position).toBe("sticky");
@@ -375,12 +386,18 @@ test.for([
   "open-sort-picker",
   "row-counts",
   "command-toolbar",
+  "row-selection",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
   async (variant, { annotate }) => {
     const tableId = "TABLE_ID_PRODUCTION_20_HZ";
     const reconciliationEvents: AstryxTableClientReconciliationEvent[] = [];
+    const selectionRenders = vi.fn();
+    const removeSelectionRenders = installAstryxTableRowSelectionRenderListener(
+      tableId,
+      selectionRenders,
+    );
     const sourceRenders = vi.fn();
     const removeSourceRenders = installAstryxTableSourceLifecycleRenderListener(sourceRenders);
     const viewRenders = vi.fn();
@@ -586,6 +603,7 @@ test.for([
       }, []);
       return (
         <AstryxTableClient
+          rowSelection={variant === "row-selection" ? true : undefined}
           tableId={tableId}
           getRowId={(row: ProductionWorkloadRow) => row.id}
           columns={instrumentedColumns}
@@ -788,6 +806,11 @@ test.for([
         await expect
           .element(screen.getByRole("status", { name: "Loaded rows", exact: true }))
           .toHaveTextContent("5000 loaded rows");
+      } else if (variant === "row-selection") {
+        await screen.getByRole("checkbox", { name: "Select all rows", exact: true }).click();
+        await expect
+          .element(screen.getByRole("checkbox", { name: "Select row 2", exact: true }))
+          .toBeChecked();
       } else if (variant !== "plain") {
         await screen.getByRole("button", { name: /^Filter Column 1(?: \(active\))?$/ }).click();
         await expect
@@ -821,6 +844,8 @@ test.for([
       );
       expect(activeCountSubscriptions).toBe(variant === "command-toolbar" ? 2 : 0);
       expect(commandRenders).toHaveBeenCalledTimes(variant === "command-toolbar" ? 1 : 0);
+      const initialSelectionRenders = selectionRenders.mock.calls.length;
+      if (variant === "row-selection") expect(initialSelectionRenders).toBeGreaterThan(0);
       const initialActiveCountNotifications = activeCountNotifications;
       const initialCountNotifications = countNotifications;
       const initialFacetNotifications = facetNotifications;
@@ -844,8 +869,9 @@ test.for([
         screen
           .getByRole("grid")
           .element()
-          .querySelector('[role="row"][aria-rowindex="3"] [role="gridcell"][aria-colindex="1"]') ??
-        undefined;
+          .querySelector(
+            `[role="row"][aria-rowindex="3"] [role="gridcell"][aria-colindex="${variant === "row-selection" ? 2 : 1}"]`,
+          ) ?? undefined;
       expect(observedCell).toBeDefined();
       const initialSourceRenders = sourceRenders.mock.calls.length;
       expect(initialSourceRenders).toBeGreaterThan(0);
@@ -921,33 +947,35 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "command-toolbar"
-              ? "client-command-toolbar-live-publication-5000x150-20hz"
-              : variant === "row-counts"
-                ? "client-row-counts-live-publication-5000x150-20hz"
-                : variant === "open-sort-controls"
-                  ? "client-open-sort-controls-live-publication-5000x150-20hz"
-                  : variant === "open-sort-picker"
-                    ? "client-open-sort-picker-live-publication-5000x150-20hz"
-                    : variant === "open-column-visibility"
-                      ? "client-open-column-visibility-live-publication-5000x150-20hz"
-                      : variant === "open-compound-filter"
-                        ? "client-open-compound-filter-live-publication-5000x150-20hz"
-                        : variant === "quick-filter"
-                          ? "client-quick-filter-live-publication-5000x150-20hz"
-                          : variant === "open-active-filters"
-                            ? "client-open-active-filters-live-publication-5000x150-20hz"
-                            : variant === "open-set-filter"
-                              ? "client-open-set-filter-live-publication-5000x150-20hz"
-                              : variant === "open-select-filter"
-                                ? "client-open-select-filter-live-publication-5000x150-20hz"
-                                : variant === "open-boolean-filter"
-                                  ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                                  : variant === "open-list-filter"
-                                    ? "client-open-list-filter-live-publication-5000x150-20hz"
-                                    : variant === "open-filter"
-                                      ? "client-open-filter-live-publication-5000x150-20hz"
-                                      : "client-live-publication-5000x150-20hz",
+            variant === "row-selection"
+              ? "client-row-selection-live-publication-5000x150-20hz"
+              : variant === "command-toolbar"
+                ? "client-command-toolbar-live-publication-5000x150-20hz"
+                : variant === "row-counts"
+                  ? "client-row-counts-live-publication-5000x150-20hz"
+                  : variant === "open-sort-controls"
+                    ? "client-open-sort-controls-live-publication-5000x150-20hz"
+                    : variant === "open-sort-picker"
+                      ? "client-open-sort-picker-live-publication-5000x150-20hz"
+                      : variant === "open-column-visibility"
+                        ? "client-open-column-visibility-live-publication-5000x150-20hz"
+                        : variant === "open-compound-filter"
+                          ? "client-open-compound-filter-live-publication-5000x150-20hz"
+                          : variant === "quick-filter"
+                            ? "client-quick-filter-live-publication-5000x150-20hz"
+                            : variant === "open-active-filters"
+                              ? "client-open-active-filters-live-publication-5000x150-20hz"
+                              : variant === "open-set-filter"
+                                ? "client-open-set-filter-live-publication-5000x150-20hz"
+                                : variant === "open-select-filter"
+                                  ? "client-open-select-filter-live-publication-5000x150-20hz"
+                                  : variant === "open-boolean-filter"
+                                    ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                                    : variant === "open-list-filter"
+                                      ? "client-open-list-filter-live-publication-5000x150-20hz"
+                                      : variant === "open-filter"
+                                        ? "client-open-filter-live-publication-5000x150-20hz"
+                                        : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -958,6 +986,7 @@ test.for([
       expect(evidence.summary.sampleCount).toBe(
         ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
       );
+      expect(selectionRenders).toHaveBeenCalledTimes(initialSelectionRenders);
       expect(sourceRenders).toHaveBeenCalledTimes(initialSourceRenders);
       expect(viewRenders).toHaveBeenCalledTimes(initialViewRenders);
       expect(gridSurfaceRenders).toHaveBeenCalledTimes(initialGridRenders);
@@ -1030,6 +1059,7 @@ test.for([
       recordingPublications = false;
       restoreFrameProbe?.();
       publicationObservers.restore();
+      removeSelectionRenders();
       removeSourceRenders();
       removeGrid();
       removeView();

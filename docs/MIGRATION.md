@@ -180,8 +180,9 @@ change. The remaining 47 active modules and two source contracts remain exact.
 
 The range-runtime identity-attribute comment on PR #18 concerns the future #13
 integration. The current Client never constructs or attaches that runtime, and
-Row Selection is explicitly unavailable. Its type-only renderer references do
-not activate pointer hits or range registration. #13 must connect stable cell
+Row Selection was unavailable in that initial slice and is activated separately
+below. The range type-only renderer references do not activate pointer hits or
+range registration. #13 must connect stable cell
 identities and prove range behavior through the public Browser seam before that
 capability becomes available; adding unused legacy attributes is not evidence
 of that integration.
@@ -718,3 +719,34 @@ expression is explicitly outside the mechanical exemption. Existing focus fixes,
 Server metadata, CI consumer setup and native controls remain intact.
 These prerequisites do not claim numeric filter parity or a View Server release.
 See [numeric-control research](research/astryx-numeric-controls.md).
+
+## Native Client Row Selection
+
+The read-only Client now admits the existing `rowSelection?: true` capability.
+The unchanged, provenance-verified Row Selection Runtime owns raw identities,
+filtered Select All, Shift anchors, insertion/deletion reconciliation and narrow
+header/per-row subscriptions. Published Astryx `CheckboxInput`, `TableHeaderCell`
+and `TableCell` supply native presentation and indeterminate accessibility.
+
+One 40px leading sticky utility gutter is accounted for separately by the retained
+viewport runtime. It remains mounted with bounded visible rows when ordinary
+pinning suspends and never enters consumer column order, navigation, query or
+persisted preferences. The renderer adjusts semantic column indexes and ordered
+row ownership. Native sticky presentation uses the same gutter-aware offsets as
+resize previews. Group By clears selection before projection; grouped views hide
+all selection controls, and ungrouping or re-enabling starts empty.
+
+TanStack's existing key bindings own Space, Shift+Space and Mod+A. The private
+adapter translates owning-document pointer modifiers through TanStack's
+`parseKeyboardEvent` for Shift-click intent. A checkbox gesture commits only its
+own row and header; value-only source updates leave selection controls untouched.
+When a focused Select All becomes disabled, focus returns to its own grid without
+stealing focus from another control.
+
+Public Browser and installed-package cases cover raw identity/filter/live behavior,
+keyboard and pointer selection, grouping, capability toggling, empty-result focus,
+RTL, virtual rows, active/suspended pinning, ARIA ownership and exact minimum reveal.
+The production gate adds pinned two-axis selection work/cadence and 20Hz live
+selection isolation with the existing workloads, accounting and thresholds. See
+`research/astryx-row-selection.md`. Linear Cell Ranges, atomic Copy and edit-owned
+clipboard precedence remain separate unfinished parts of issue #13.

@@ -1,5 +1,6 @@
 import {
   detectPlatform,
+  parseKeyboardEvent,
   getKeyStateTracker,
   useHotkeys,
   useKeyHold,
@@ -464,6 +465,23 @@ export function astryxTableHotkeyRegistrationBound(
 export function AstryxTableHeldShiftHotkeyAdapter(): null {
   useKeyHold("Shift");
   return null;
+}
+
+/** Translate native pointer evidence through TanStack without cross-document held state. */
+export function isAstryxTableShiftPointerActivation(event: Event, document: Document): boolean {
+  const realm = document.defaultView;
+  if (realm === null || !(event instanceof realm.MouseEvent) || event.detail <= 0) return false;
+  // This event is never dispatched: TanStack owns modifier normalization, while
+  // the original pointer event remains authoritative in any document/iframe.
+  return parseKeyboardEvent(
+    new realm.KeyboardEvent("keydown", {
+      key: "Unidentified",
+      ctrlKey: event.ctrlKey,
+      altKey: event.altKey,
+      shiftKey: event.shiftKey,
+      metaKey: event.metaKey,
+    }),
+  ).shift;
 }
 
 /** Reads TanStack's shared held-key state synchronously for a pointer command. */

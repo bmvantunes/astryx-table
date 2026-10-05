@@ -10,11 +10,13 @@ import { createColumnReorder } from "./column-reorder";
 import { clampAstryxTableColumnWidth } from "./column-management";
 import { useAstryxTableGridHotkeys } from "./hotkey-adapter";
 import type { PointerEvent as ReactPointerEvent } from "react";
+import type { AstryxTableRowSelectionRuntime } from "./row-selection";
 import type { AstryxTableViewportAdapterState } from "./react-compiler-adapters";
 import type { AstryxTableRuntimeView } from "./grid-runtime";
 import type { AstryxTableNavigationRuntime } from "./navigation";
 
 type Bindings = Readonly<{
+  rowSelection?: AstryxTableRowSelectionRuntime | undefined;
   tableId: string;
   findRowIndex: (rowId: string) => number | undefined;
   queryGeneration: number;
@@ -199,6 +201,59 @@ export function useColumnInteractions(bindings: Bindings) {
   });
   useAstryxTableGridHotkeys(grid, {
     ...navigationCommands,
+    ...(bindings.rowSelection === undefined
+      ? {}
+      : {
+          selectAll: (event: import("./hotkey-adapter").AstryxTableHotkeyGesture) => {
+            const element = grid.current;
+            const selection = latest.current.rowSelection;
+            if (!element || !selection || event.defaultPrevented || session.current !== undefined)
+              return;
+            const OwnerElement = element.ownerDocument.defaultView!.Element;
+            const checkbox =
+              event.target instanceof OwnerElement
+                ? event.target.closest("[data-astryx-row-selection-checkbox]")
+                : null;
+            if (event.target !== element && checkbox?.closest('[role="grid"]') !== element) return;
+            event.preventDefault();
+            const header = selection.getHeaderSnapshot();
+            if (header.disabled || header.checked) return;
+            selection.toggleAll(true);
+            latest.current.announce(
+              `${selection.getHeaderSnapshot().selectedCount} matching rows selected`,
+            );
+          },
+        }),
+    activate: (event, intent, alt, shift) => {
+      const selection = latest.current.rowSelection;
+      if (
+        selection !== undefined &&
+        intent === "space" &&
+        !alt &&
+        event.target === grid.current &&
+        !event.defaultPrevented &&
+        session.current === undefined
+      ) {
+        latest.current.navigation.activateForFocus();
+        const active = latest.current.navigation.getSnapshot();
+        if (active?.region === "body" && active.rowId !== undefined) {
+          event.preventDefault();
+          const result = selection.toggleRow(
+            active.rowId,
+            !selection.getRowSnapshot(active.rowId),
+            shift,
+          );
+          if (result.kind !== "ignored")
+            latest.current.announce(
+              result.kind === "range" && result.rowCount > 1
+                ? `${result.rowCount} rows ${result.checked ? "selected" : "deselected"}, rows ${result.startIndex + 1} through ${result.endIndex + 1}`
+                : `Row ${active.rowIndex + 1} ${result.checked ? "selected" : "deselected"}`,
+            );
+          return;
+        }
+      }
+      navigationCommands.activate(event, intent, alt, shift);
+    },
     documentEscapeActive: () => session.current !== undefined,
     escape: (event) => {
       if (session.current !== undefined) {

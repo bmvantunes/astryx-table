@@ -98,8 +98,8 @@ test("restored grouping uses Group Key presentation instead of fabricated raw ro
   await expect.element(page.getByRole("gridcell", { name: "One", exact: true })).toBeVisible();
   await expect.element(page.getByRole("columnheader", { name: "Rows", exact: true })).toBeVisible();
 });
-test("untyped consumers cannot silently enable Row Selection", async () => {
-  const untyped = { ...props, rowSelection: true };
+test("untyped consumers cannot supply an invalid Row Selection capability", async () => {
+  const untyped = { ...props, rowSelection: false };
   // Deliberately cross the type boundary as a JavaScript consumer would.
   await render(
     <Boundary>
@@ -108,5 +108,5 @@ test("untyped consumers cannot silently enable Row Selection", async () => {
   );
   await expect
     .element(page.getByRole("alert"))
-    .toHaveTextContent("Row Selection is not available in this Client slice");
+    .toHaveTextContent("AstryxTable rowSelection must be true or omitted.");
 });
