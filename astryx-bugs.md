@@ -1179,3 +1179,17 @@ row-aware custom presentation; the same cases run against the installed tarball.
 These are local integration/inherited defects, with no Astryx Core patch. The
 changed imported query modules are recorded as semantic adaptations requiring
 independent review, outside the mechanical-copy exemption.
+
+## Server Set Filter could overwrite newer intent within one event
+
+The new Server facet integration initially derived checkbox commands from its
+last rendered filter intent. A public `AstryxTableFilterControl` command issued
+by an ancestor's change-capture handler could exclude Alpha before the Beta
+checkbox handler ran; that handler then replaced the newer exclusion with Beta
+alone. A real-source Browser regression reproduced the lost Alpha exclusion.
+
+The Server now reads current column/filter intent at the gesture boundary, as the
+Client already does, while retaining the displayed source-owned facet evidence.
+An obsolete column cannot dispatch a command. The regression proves that both
+exclusions survive and only the third row remains; it also runs against the
+installed package. This is a local integration defect, not an Astryx Core bug.

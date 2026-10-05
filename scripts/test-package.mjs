@@ -160,13 +160,15 @@ if (code === 0) {
       2,
     ),
   );
-  writeFileSync(
-    join(directory, "server.browser.test.tsx"),
-    consumerFixture("src/server.browser.test.tsx", 'from "../packages/table/src"').replace(
-      'import "./styles.css";',
-      'import "@astryxdesign/core/reset.css";\nimport "@astryxdesign/core/astryx.css";\nimport "@astryxdesign/theme-neutral/theme.css";\nimport "@bmvantunes/astryx-table/styles.css";',
-    ),
-  );
+  for (const name of ["server.browser.test.tsx", "server-facets.browser.test.tsx"]) {
+    writeFileSync(
+      join(directory, name),
+      consumerFixture(`src/${name}`, 'from "../packages/table/src"').replace(
+        'import "./styles.css";',
+        'import "@astryxdesign/core/reset.css";\nimport "@astryxdesign/core/astryx.css";\nimport "@astryxdesign/theme-neutral/theme.css";\nimport "@bmvantunes/astryx-table/styles.css";',
+      ),
+    );
+  }
   // This temporary consumer intentionally gains dependencies after the Effect-free phase.
   // Refresh its generated lockfile even when the outer runner sets CI=true.
   run("pnpm", ["install", "--ignore-scripts", "--no-frozen-lockfile"]);
@@ -178,6 +180,7 @@ if (code === 0) {
     "vitest.server.config.ts",
     "--run",
     "server.browser.test.tsx",
+    "server-facets.browser.test.tsx",
   ]);
   process.chdir(root);
   if (serverCode !== 0) process.exitCode = serverCode;

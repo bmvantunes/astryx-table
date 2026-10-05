@@ -88,6 +88,12 @@ function report() {
                 16.66,
               ],
               [
+                "server-open-facet-live-values-5000-options-5000x150-pinned",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+              ],
+              [
                 "server-sustained-scroll-request-loading-delivery-5000x150-pinned",
                 "chromium-capable-hardware-v1",
                 8.33,
@@ -353,7 +359,7 @@ function report() {
   };
 }
 test("accepts complete evidence for the exact clean commit", () => {
-  assert.equal(validatePerformanceEvidence(report(), commit).length, 51);
+  assert.equal(validatePerformanceEvidence(report(), commit).length, 52);
 });
 for (const [name, change] of [
   [

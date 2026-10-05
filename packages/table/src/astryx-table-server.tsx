@@ -1,6 +1,11 @@
 import type { LiveQueryViewportBaseRow } from "effect-view-server/react/viewport-base-row";
 import { useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
+import {
+  AstryxTableServerFacetProvider,
+  AstryxTableServerFacetRuntime,
+} from "./internal/server-facet";
+import { useAstryxTableServerFacetHookSource } from "./internal/react-compiler-adapters";
 import { Toolbar } from "@astryxdesign/core/Toolbar";
 import type {
   AstryxTableColumns,
@@ -101,6 +106,24 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
       view.getColumnStructureSnapshot().allColumns,
     ),
   });
+  const facetSource = useAstryxTableServerFacetHookSource(props.viewportSource);
+  const facetInputs = useRef({
+    externalFilters: props.externalFilters,
+    routeBy: props.routeBy,
+    source: facetSource,
+  });
+  const [facetRuntime] = useState(
+    () =>
+      new AstryxTableServerFacetRuntime({
+        externalFilters: props.externalFilters,
+        routeBy: props.routeBy,
+        source: facetSource,
+        quickFilterFields: view.getQuickFilterFieldsSnapshot(),
+        querySnapshot: view.getQuerySnapshot(),
+        runtime: view,
+        transportIdentity: props.viewportSource.viewport,
+      }),
+  );
   const staging = useRef(false);
   const context = useMemo(
     () => ({
@@ -119,6 +142,7 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
   }, [
     columns,
     groupRowsColumn,
+    facetSource,
     props.externalFilters,
     props.quickFilterFields,
     props.routeBy,
@@ -146,9 +170,22 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
       presentationColumns: presentation.install(columns, structure.allColumns),
     });
     adapter.replace(props.viewportSource.viewport, view.getQuerySnapshot(), inputs.current, true);
+    facetInputs.current = {
+      externalFilters: props.externalFilters,
+      routeBy: props.routeBy,
+      source: facetSource,
+    };
+    facetRuntime.reconcile({
+      ...facetInputs.current,
+      quickFilterFields: view.getQuickFilterFieldsSnapshot(),
+      querySnapshot: view.getQuerySnapshot(),
+      runtime: view,
+      transportIdentity: props.viewportSource.viewport,
+    });
   }, [
     columns,
     groupRowsColumn,
+    facetSource,
     props.externalFilters,
     props.quickFilterFields,
     props.routeBy,
@@ -158,6 +195,7 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
     presentation,
     runtime,
     view,
+    facetRuntime,
   ]);
   useLayoutEffect(() => {
     const replace = (reset: boolean) => {
@@ -174,6 +212,13 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
         inputs.current,
         reset,
       );
+      facetRuntime.reconcile({
+        ...facetInputs.current,
+        quickFilterFields: view.getQuickFilterFieldsSnapshot(),
+        querySnapshot: view.getQuerySnapshot(),
+        runtime: view,
+        transportIdentity: props.viewportSource.viewport,
+      });
     };
     const query = view.subscribeQuery(() => replace(false));
     const structure = view.subscribeColumnStructure(() => replace(true));
@@ -182,7 +227,7 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
       structure();
       adapter.release();
     };
-  }, [props.viewportSource.viewport, adapter, presentation, view]);
+  }, [props.viewportSource.viewport, adapter, presentation, view, facetRuntime]);
   useLayoutEffect(() => {
     const notify = props.onPersistChange;
     runtime.setOnPersistChange(
@@ -200,54 +245,56 @@ function ServerInstance<TRow, const TColumns extends AstryxTableColumns<TRow>, T
   );
 
   return (
-    <ClientContext value={context}>
-      <div
-        ref={scope}
-        {...stylex.props(styles.root)}
-        data-astryx-table={props.tableId}
-        role="region"
-        aria-label={props.tableId}
-        tabIndex={-1}
-      >
-        {!hasToolbarContent(props.children) ? null : (
-          <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
-        )}
-        <GroupingControls runtime={view} scope={scope} />
-        <SourceLifecycle runtime={view} scope={scope} />
-        <div {...stylex.props(styles.body)}>
-          <aside {...stylex.props(styles.rail)} aria-label={`${props.tableId} column management`}>
-            <ColumnManagement runtime={view} columns={columns} />
-            <SortControls runtime={view} columns={columns} />
-          </aside>
-          <div {...stylex.props(styles.grid)}>
-            <SourceBody
-              runtime={view}
-              columns={columns}
-              scope={scope}
-              tableId={props.tableId}
-              setRequiredRange={adapter.setRequiredRange}
-            >
-              {(showRows) => (
-                <AstryxTableServerRowPipeline
-                  runtime={view}
-                  tableId={props.tableId}
-                  columns={columns}
-                  rowPipelineAdapter={adapter}
-                >
-                  {(snapshot) =>
-                    showRows ? (
-                      <ServerView runtime={view} tableId={props.tableId} snapshot={snapshot} />
-                    ) : (
-                      <></>
-                    )
-                  }
-                </AstryxTableServerRowPipeline>
-              )}
-            </SourceBody>
+    <AstryxTableServerFacetProvider runtime={facetRuntime}>
+      <ClientContext value={context}>
+        <div
+          ref={scope}
+          {...stylex.props(styles.root)}
+          data-astryx-table={props.tableId}
+          role="region"
+          aria-label={props.tableId}
+          tabIndex={-1}
+        >
+          {!hasToolbarContent(props.children) ? null : (
+            <Toolbar label={`${props.tableId} controls`} size="sm" startContent={props.children} />
+          )}
+          <GroupingControls runtime={view} scope={scope} />
+          <SourceLifecycle runtime={view} scope={scope} />
+          <div {...stylex.props(styles.body)}>
+            <aside {...stylex.props(styles.rail)} aria-label={`${props.tableId} column management`}>
+              <ColumnManagement runtime={view} columns={columns} />
+              <SortControls runtime={view} columns={columns} />
+            </aside>
+            <div {...stylex.props(styles.grid)}>
+              <SourceBody
+                runtime={view}
+                columns={columns}
+                scope={scope}
+                tableId={props.tableId}
+                setRequiredRange={adapter.setRequiredRange}
+              >
+                {(showRows) => (
+                  <AstryxTableServerRowPipeline
+                    runtime={view}
+                    tableId={props.tableId}
+                    columns={columns}
+                    rowPipelineAdapter={adapter}
+                  >
+                    {(snapshot) =>
+                      showRows ? (
+                        <ServerView runtime={view} tableId={props.tableId} snapshot={snapshot} />
+                      ) : (
+                        <></>
+                      )
+                    }
+                  </AstryxTableServerRowPipeline>
+                )}
+              </SourceBody>
+            </div>
           </div>
         </div>
-      </div>
-    </ClientContext>
+      </ClientContext>
+    </AstryxTableServerFacetProvider>
   );
 }
 

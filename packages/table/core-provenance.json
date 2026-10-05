@@ -285,6 +285,13 @@
         ["from \"@bruno/table\"", "from \"../src\""]
       ],
       "sha256": "9146042c87aae5cebee306902ad6853043db82237e87bff2611d23ddd8ec69d5"
+    },
+    {
+      "source": "migration/table/src/internal/server-facet.test.ts",
+      "target": "packages/table/tests/server-facet.test.ts",
+      "sourceSha256": "d11734662036178938c2afb253cea2e7942ac4fe0c7b4693606a8c25a5df47c8",
+      "sha256": "4128c72020680295a80b8050eafe05df74a50bc17cc7a105d1b497f0f38df3fa",
+      "renames": [["from \"./", "from \"../src/internal/"]]
     }
   ],
   "reviewedChanges": [
@@ -401,6 +408,14 @@
       "sourceSha256": "2ccf4e507988e3c203d0dc18ebae7271d66885d85f80795dcfa87698e74423cb",
       "reviewExempt": false,
       "reason": "Accept the shared private query-value exception at the existing raw row-model invalid boundary, retaining canonical decode evidence and allowing recovery from corrected source publications. This error-containment correction requires independent review and public/installed Browser regressions."
+    },
+    {
+      "source": "migration/table/src/internal/server-facet.tsx",
+      "target": "packages/table/src/internal/server-facet.tsx",
+      "sourceSha256": "9cd4d92982da6998b1a72da3437a29f72857bfe692fe3d3d56c67afa52aadd29",
+      "sha256": "3bf3e5a71b57f41d2bb26ab6106f39de80902cee523b02e374ca725085832cee",
+      "reviewExempt": false,
+      "reason": "Activate the retained source-owned whole-result Server facet runtime with the shared native Astryx Set Filter view. Preserve own-column filter exclusion, query/source coherence, exact values, lifecycle and lazy subscription ownership. Native presentation and command integration require independent review, public Browser and installed-package tests and production performance evidence; not a mechanical import."
     }
   ]
 }
