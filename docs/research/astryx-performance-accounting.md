@@ -25,3 +25,7 @@ accounting policy and must not be treated as directly comparable performance num
 This strengthens the existing proof, not the complete parity claim. Deferred edit,
 paste, fill and other release scenarios still belong to their implementation issues
 and #16. No npm release is authorized by this change.
+
+The pointer-autoscroll collector also uses this shared helper. Its previous literal
+addition already charged both durations; this consolidation changes no measurement
+formula, workload, threshold or scenario.
