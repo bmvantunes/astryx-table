@@ -402,7 +402,9 @@ export function AstryxTableViewportAdapterBoundary({
       revealCell: viewport.revealCell,
     };
   });
-  const appliedColumnLayoutSignatureRef = useRef<string | undefined>(undefined);
+  // Initial layout already belongs to the viewport constructor. Only a later
+  // column change may request a reveal; queued mount work must not undo scrolling.
+  const appliedColumnLayoutSignatureRef = useRef(logicalColumnLayoutSignature);
   const viewportSnapshot = useSyncExternalStore(
     viewportBindings.subscribe,
     viewportBindings.getSnapshot,
