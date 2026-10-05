@@ -16,7 +16,7 @@ The numbered stories refer to `SPEC.md`. No renderer or release row is complete.
 | [#10](https://github.com/bmvantunes/astryx-table/issues/10) | Server filters and grouping                              | 14         | server-query, server-facet; ADR 0026                                                      | Pending renderer/package validation                                                                                                                                                                                                                                              |
 | [#11](https://github.com/bmvantunes/astryx-table/issues/11) | Immediate editing and live confirmation                  | 17–18, 20  | editing-and-conflicts; cell-edit, save-operations, accepted-save-reconciliation           | Pending renderer/package validation                                                                                                                                                                                                                                              |
 | [#12](https://github.com/bmvantunes/astryx-table/issues/12) | Batch history/conflicts and edit reviews                 | 19, 21     | ADRs 0022, 0023, 0028, 0032; edit-memory, client-edit-source                              | Pending renderer/package validation                                                                                                                                                                                                                                              |
-| [#13](https://github.com/bmvantunes/astryx-table/issues/13) | Row/range selection and atomic copy                      | 22–23      | ADRs 0016, 0020, 0030; row-selection, cell-range-clipboard                                | Opt-in raw Client Row Selection integrated with native checkboxes, stable identities, grouped clearing, keyboard commands and sticky utility geometry; linear ranges and atomic copy remain pending                                                                              |
+| [#13](https://github.com/bmvantunes/astryx-table/issues/13) | Row/range selection and atomic copy                      | 22–23      | ADRs 0016, 0020, 0030; row-selection, cell-range-clipboard                                | Raw Client Row Selection, keyboard/pointer linear ranges and canonical Client/Server Copy integrated; exact identity, grouped clearing and virtual/pinned behavior covered; editable clipboard precedence and final publication pending                                          |
 | [#14](https://github.com/bmvantunes/astryx-table/issues/14) | Atomic paste and repetition-only fill                    | 24         | ADRs 0017–0019, 0021; cell-paste, drag-fill                                               | Pending renderer/package validation                                                                                                                                                                                                                                              |
 | [#15](https://github.com/bmvantunes/astryx-table/issues/15) | Themes, accessibility and custom renderers               | 25–26      | requirements; cell-presentation, public JSX and Browser suites                            | Pending renderer/package validation                                                                                                                                                                                                                                              |
 | [#16](https://github.com/bmvantunes/astryx-table/issues/16) | Emitted package, optional Effect and performance         | 27–30      | benchmark-profile, RELEASE; production Browser suites, emitted consumers, release scripts | Pending renderer/package validation                                                                                                                                                                                                                                              |
@@ -32,95 +32,95 @@ tests without legacy UI dependencies. These are overlapping counts, not additive
 All entries below remain hash-verified. “Fixture” means the complete pinned import
 fixture, never a claim of Astryx renderer or installed-package compatibility.
 
-| File                                                      | Current execution boundary                                                                   |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `astryx-table-client.browser.test.tsx`                    | Pending migrated Browser/performance gate                                                    |
-| `astryx-table-client.test.tsx`                            | Fixture Node gate                                                                            |
-| `astryx-table-server.browser.test.tsx`                    | Pending migrated Browser/performance gate                                                    |
-| `astryx-table-server.test.tsx`                            | Fixture Node gate                                                                            |
-| `cell-edit.browser.test.tsx`                              | Pending migrated Browser/performance gate                                                    |
-| `cell-paste.browser.test.tsx`                             | Pending migrated Browser/performance gate                                                    |
-| `cell-range-clipboard.browser.test.tsx`                   | Pending migrated Browser/performance gate                                                    |
-| `client-grouping.browser.test.tsx`                        | Local public activation regressions; grouped production and installed validation in progress |
-| `column-helpers.test.ts`                                  | Fixture Node gate                                                                            |
-| `column-management.browser.test.tsx`                      | Pending migrated Browser/performance gate                                                    |
-| `drag-fill-acceptance.browser.test.tsx`                   | Pending migrated Browser/performance gate                                                    |
-| `drag-fill-performance.browser.test.tsx`                  | Pending migrated Browser/performance gate                                                    |
-| `drag-fill.browser.test.tsx`                              | Pending migrated Browser/performance gate                                                    |
-| `edit-memory.browser.test.tsx`                            | Pending migrated Browser/performance gate                                                    |
-| `edit-review-projected-row.browser.test.tsx`              | Pending migrated Browser/performance gate                                                    |
-| `effect.test-d.ts`                                        | Fixture source type gate                                                                     |
-| `effect.test.ts`                                          | Fixture Node gate                                                                            |
-| `internal/accepted-save-reconciliation.test.ts`           | Fixture Node gate                                                                            |
-| `internal/benchmark-budget.test.ts`                       | Fixture Node gate                                                                            |
-| `internal/benchmark-profile.test.ts`                      | Fixture Node gate                                                                            |
-| `internal/benchmark-runner.test.ts`                       | Fixture Node gate                                                                            |
-| `internal/browser-test-helpers.test.ts`                   | Fixture Node gate                                                                            |
-| `internal/cell-edit-traversal.bench.ts`                   | Pending migrated benchmark gate (#16)                                                        |
-| `internal/cell-edit-traversal.test.ts`                    | Fixture Node gate                                                                            |
-| `internal/cell-edit.test.ts`                              | Fixture Node gate                                                                            |
-| `internal/cell-paste.test.ts`                             | Fixture Node gate                                                                            |
-| `internal/cell-range-clipboard.bench.ts`                  | Pending migrated benchmark gate (#16)                                                        |
-| `internal/cell-range-clipboard.test.ts`                   | Fixture Node gate                                                                            |
-| `internal/cell-value.test.ts`                             | Fixture Node gate                                                                            |
-| `internal/client-edit-source.test.ts`                     | Fixture Node gate                                                                            |
-| `internal/client-facet.test.ts`                           | Activated engine + reviewed incremental projection; retained Node gate                       |
-| `internal/client-grouping.bench.ts`                       | Pending migrated benchmark gate (#16)                                                        |
-| `internal/client-grouping.test.ts`                        | Fixture Node gate                                                                            |
-| `internal/client-projection.test.ts`                      | Fixture Node gate                                                                            |
-| `internal/client-row-model.test.ts`                       | Fixture Node gate                                                                            |
-| `internal/client-row-pipeline.test.ts`                    | Fixture Node gate                                                                            |
-| `internal/client-source-adapter.bench.ts`                 | Pending migrated benchmark gate (#16)                                                        |
-| `internal/column-geometry.test.ts`                        | Fixture Node gate                                                                            |
-| `internal/column-gesture.test.ts`                         | Fixture Node gate                                                                            |
-| `internal/column-management.bench.ts`                     | Pending migrated benchmark gate (#16)                                                        |
-| `internal/column-management.test.ts`                      | Fixture Node gate                                                                            |
-| `internal/compile-columns.test.ts`                        | Fixture Node gate                                                                            |
-| `internal/drag-fill-chrome.browser.test.tsx`              | Pending migrated Browser/performance gate                                                    |
-| `internal/drag-fill-planner.bench.ts`                     | Pending migrated benchmark gate (#16)                                                        |
-| `internal/drag-fill-planner.test.ts`                      | Fixture Node gate                                                                            |
-| `internal/drag-fill.browser.test.tsx`                     | Pending migrated Browser/performance gate                                                    |
-| `internal/drag-fill.test.ts`                              | Fixture Node gate                                                                            |
-| `internal/edit-memory.bench.ts`                           | Pending migrated benchmark gate (#16)                                                        |
-| `internal/edit-memory.test.ts`                            | Fixture Node gate                                                                            |
-| `internal/focus-ownership.test.ts`                        | Fixture Node gate                                                                            |
-| `internal/grid-preferences.test.ts`                       | Fixture Node gate                                                                            |
-| `internal/grid-runtime.test.ts`                           | Fixture Node gate                                                                            |
-| `internal/grid-subscription-instrumentation.test.ts`      | Fixture Node gate                                                                            |
-| `internal/hotkey-adapter.bench.ts`                        | Pending migrated benchmark gate (#16)                                                        |
-| `internal/hotkey-adapter.browser.bench.tsx`               | Pending migrated Browser/performance gate                                                    |
-| `internal/hotkey-adapter.browser.test.tsx`                | Pending migrated Browser/performance gate                                                    |
-| `internal/hotkey-adapter.test.ts`                         | Fixture Node gate                                                                            |
-| `internal/listener-registry.test.ts`                      | Fixture Node gate                                                                            |
-| `internal/mounted-row-slots.test.ts`                      | Fixture Node gate                                                                            |
-| `internal/navigation.test.ts`                             | Fixture Node gate                                                                            |
-| `internal/quick-filter.test.ts`                           | Fixture Node gate                                                                            |
-| `internal/react-compiler-contract.test.ts`                | Fixture Node gate                                                                            |
-| `internal/render-instrumentation.test.ts`                 | Fixture Node gate                                                                            |
-| `internal/row-selection.bench.ts`                         | Pending migrated benchmark gate (#16)                                                        |
-| `internal/row-selection.test.ts`                          | Fixture Node gate                                                                            |
-| `internal/save-operations.test.ts`                        | Fixture Node gate                                                                            |
-| `internal/server-facet.test.ts`                           | Fixture Node gate                                                                            |
-| `internal/server-query.test.ts`                           | Fixture Node gate                                                                            |
-| `internal/server-source-adapter.test.ts`                  | Fixture Node gate                                                                            |
-| `internal/server-viewport-store.bench.ts`                 | Pending migrated benchmark gate (#16)                                                        |
-| `internal/server-viewport-store.test.ts`                  | Fixture Node gate                                                                            |
-| `internal/set-value-identity.test.ts`                     | Fixture Node gate                                                                            |
-| `internal/sorting.test.ts`                                | Fixture Node gate                                                                            |
-| `internal/table-identity-registry.test.ts`                | Fixture Node gate                                                                            |
-| `internal/toolbar-capabilities.bench.ts`                  | Pending migrated benchmark gate (#16)                                                        |
-| `internal/value-semantics.test.ts`                        | Fixture Node gate                                                                            |
-| `internal/virtual-viewport.test.ts`                       | Fixture Node gate                                                                            |
-| `production-accessibility.performance.browser.test.tsx`   | Pending migrated Browser/performance gate                                                    |
-| `production-capabilities.performance.browser.test.tsx`    | Pending migrated Browser/performance gate                                                    |
-| `production-held-navigation.performance.browser.test.tsx` | Six native work/cadence scenarios implemented; clean publication pending                     |
-| `production-interactions.performance.browser.test.tsx`    | Pending migrated Browser/performance gate                                                    |
-| `production-server-workload.performance.browser.test.tsx` | Pending migrated Browser/performance gate                                                    |
-| `production-workload.performance.browser.test.tsx`        | Pending migrated Browser/performance gate                                                    |
-| `public-jsx.test-d.tsx`                                   | Fixture source type gate                                                                     |
-| `public-types.test-d.ts`                                  | Fixture source type gate                                                                     |
-| `row-selection.browser.test.tsx`                          | Pending migrated Browser/performance gate                                                    |
-| `sorting.browser.test.tsx`                                | Native sort controls and live-order regressions implemented; clean publication pending       |
+| File                                                      | Current execution boundary                                                                                             |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `astryx-table-client.browser.test.tsx`                    | Pending migrated Browser/performance gate                                                                              |
+| `astryx-table-client.test.tsx`                            | Fixture Node gate                                                                                                      |
+| `astryx-table-server.browser.test.tsx`                    | Pending migrated Browser/performance gate                                                                              |
+| `astryx-table-server.test.tsx`                            | Fixture Node gate                                                                                                      |
+| `cell-edit.browser.test.tsx`                              | Pending migrated Browser/performance gate                                                                              |
+| `cell-paste.browser.test.tsx`                             | Pending migrated Browser/performance gate                                                                              |
+| `cell-range-clipboard.browser.test.tsx`                   | Native keyboard/pointer ranges and atomic Copy regressions integrated; editing-dependent cases and publication pending |
+| `client-grouping.browser.test.tsx`                        | Local public activation regressions; grouped production and installed validation in progress                           |
+| `column-helpers.test.ts`                                  | Fixture Node gate                                                                                                      |
+| `column-management.browser.test.tsx`                      | Pending migrated Browser/performance gate                                                                              |
+| `drag-fill-acceptance.browser.test.tsx`                   | Pending migrated Browser/performance gate                                                                              |
+| `drag-fill-performance.browser.test.tsx`                  | Pending migrated Browser/performance gate                                                                              |
+| `drag-fill.browser.test.tsx`                              | Pending migrated Browser/performance gate                                                                              |
+| `edit-memory.browser.test.tsx`                            | Pending migrated Browser/performance gate                                                                              |
+| `edit-review-projected-row.browser.test.tsx`              | Pending migrated Browser/performance gate                                                                              |
+| `effect.test-d.ts`                                        | Fixture source type gate                                                                                               |
+| `effect.test.ts`                                          | Fixture Node gate                                                                                                      |
+| `internal/accepted-save-reconciliation.test.ts`           | Fixture Node gate                                                                                                      |
+| `internal/benchmark-budget.test.ts`                       | Fixture Node gate                                                                                                      |
+| `internal/benchmark-profile.test.ts`                      | Fixture Node gate                                                                                                      |
+| `internal/benchmark-runner.test.ts`                       | Fixture Node gate                                                                                                      |
+| `internal/browser-test-helpers.test.ts`                   | Fixture Node gate                                                                                                      |
+| `internal/cell-edit-traversal.bench.ts`                   | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/cell-edit-traversal.test.ts`                    | Fixture Node gate                                                                                                      |
+| `internal/cell-edit.test.ts`                              | Fixture Node gate                                                                                                      |
+| `internal/cell-paste.test.ts`                             | Fixture Node gate                                                                                                      |
+| `internal/cell-range-clipboard.bench.ts`                  | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/cell-range-clipboard.test.ts`                   | Fixture Node gate                                                                                                      |
+| `internal/cell-value.test.ts`                             | Fixture Node gate                                                                                                      |
+| `internal/client-edit-source.test.ts`                     | Fixture Node gate                                                                                                      |
+| `internal/client-facet.test.ts`                           | Activated engine + reviewed incremental projection; retained Node gate                                                 |
+| `internal/client-grouping.bench.ts`                       | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/client-grouping.test.ts`                        | Fixture Node gate                                                                                                      |
+| `internal/client-projection.test.ts`                      | Fixture Node gate                                                                                                      |
+| `internal/client-row-model.test.ts`                       | Fixture Node gate                                                                                                      |
+| `internal/client-row-pipeline.test.ts`                    | Fixture Node gate                                                                                                      |
+| `internal/client-source-adapter.bench.ts`                 | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/column-geometry.test.ts`                        | Fixture Node gate                                                                                                      |
+| `internal/column-gesture.test.ts`                         | Fixture Node gate                                                                                                      |
+| `internal/column-management.bench.ts`                     | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/column-management.test.ts`                      | Fixture Node gate                                                                                                      |
+| `internal/compile-columns.test.ts`                        | Fixture Node gate                                                                                                      |
+| `internal/drag-fill-chrome.browser.test.tsx`              | Pending migrated Browser/performance gate                                                                              |
+| `internal/drag-fill-planner.bench.ts`                     | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/drag-fill-planner.test.ts`                      | Fixture Node gate                                                                                                      |
+| `internal/drag-fill.browser.test.tsx`                     | Pending migrated Browser/performance gate                                                                              |
+| `internal/drag-fill.test.ts`                              | Fixture Node gate                                                                                                      |
+| `internal/edit-memory.bench.ts`                           | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/edit-memory.test.ts`                            | Fixture Node gate                                                                                                      |
+| `internal/focus-ownership.test.ts`                        | Fixture Node gate                                                                                                      |
+| `internal/grid-preferences.test.ts`                       | Fixture Node gate                                                                                                      |
+| `internal/grid-runtime.test.ts`                           | Fixture Node gate                                                                                                      |
+| `internal/grid-subscription-instrumentation.test.ts`      | Fixture Node gate                                                                                                      |
+| `internal/hotkey-adapter.bench.ts`                        | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/hotkey-adapter.browser.bench.tsx`               | Pending migrated Browser/performance gate                                                                              |
+| `internal/hotkey-adapter.browser.test.tsx`                | Pending migrated Browser/performance gate                                                                              |
+| `internal/hotkey-adapter.test.ts`                         | Fixture Node gate                                                                                                      |
+| `internal/listener-registry.test.ts`                      | Fixture Node gate                                                                                                      |
+| `internal/mounted-row-slots.test.ts`                      | Fixture Node gate                                                                                                      |
+| `internal/navigation.test.ts`                             | Fixture Node gate                                                                                                      |
+| `internal/quick-filter.test.ts`                           | Fixture Node gate                                                                                                      |
+| `internal/react-compiler-contract.test.ts`                | Fixture Node gate                                                                                                      |
+| `internal/render-instrumentation.test.ts`                 | Fixture Node gate                                                                                                      |
+| `internal/row-selection.bench.ts`                         | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/row-selection.test.ts`                          | Fixture Node gate                                                                                                      |
+| `internal/save-operations.test.ts`                        | Fixture Node gate                                                                                                      |
+| `internal/server-facet.test.ts`                           | Fixture Node gate                                                                                                      |
+| `internal/server-query.test.ts`                           | Fixture Node gate                                                                                                      |
+| `internal/server-source-adapter.test.ts`                  | Fixture Node gate                                                                                                      |
+| `internal/server-viewport-store.bench.ts`                 | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/server-viewport-store.test.ts`                  | Fixture Node gate                                                                                                      |
+| `internal/set-value-identity.test.ts`                     | Fixture Node gate                                                                                                      |
+| `internal/sorting.test.ts`                                | Fixture Node gate                                                                                                      |
+| `internal/table-identity-registry.test.ts`                | Fixture Node gate                                                                                                      |
+| `internal/toolbar-capabilities.bench.ts`                  | Pending migrated benchmark gate (#16)                                                                                  |
+| `internal/value-semantics.test.ts`                        | Fixture Node gate                                                                                                      |
+| `internal/virtual-viewport.test.ts`                       | Fixture Node gate                                                                                                      |
+| `production-accessibility.performance.browser.test.tsx`   | Pending migrated Browser/performance gate                                                                              |
+| `production-capabilities.performance.browser.test.tsx`    | Pending migrated Browser/performance gate                                                                              |
+| `production-held-navigation.performance.browser.test.tsx` | Six native work/cadence scenarios implemented; clean publication pending                                               |
+| `production-interactions.performance.browser.test.tsx`    | Pending migrated Browser/performance gate                                                                              |
+| `production-server-workload.performance.browser.test.tsx` | Pending migrated Browser/performance gate                                                                              |
+| `production-workload.performance.browser.test.tsx`        | Pending migrated Browser/performance gate                                                                              |
+| `public-jsx.test-d.tsx`                                   | Fixture source type gate                                                                                               |
+| `public-types.test-d.ts`                                  | Fixture source type gate                                                                                               |
+| `row-selection.browser.test.tsx`                          | Pending migrated Browser/performance gate                                                                              |
+| `sorting.browser.test.tsx`                                | Native sort controls and live-order regressions implemented; clean publication pending                                 |
 
 ## Source-main reconciliation
 
@@ -130,3 +130,12 @@ The parity target includes merged source main
 follow-up since the initial import, including #101–#111. Five active modules and
 the Select helper/type contracts already consume those fixes. The old repository's
 uncommitted work is preserved and is not treated as a reviewed baseline.
+
+## Pointer range integration follow-up
+
+Client pointer drag and Shift-click now use the retained one-axis identity-span
+runtime across native pinned/virtual cells. Public browser regressions cover LTR,
+RTL, axis acquisition, cancellation, geometry changes and source invalidation.
+Installed-package and production autoscroll gates include the same integration;
+publication evidence remains required for the final reviewed commit. This does not
+complete editable clipboard precedence or close #13.

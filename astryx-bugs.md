@@ -1082,3 +1082,16 @@ the existing full-window autoscroll tests in that file. It still requires real
 autoscroll, source unmount, bounded mounted headers, exactly one durable command,
 correct pinning and restored focus. No runtime speed, sample count, performance
 budget or assertion is changed. This is test synchronization, not an Astryx fix.
+
+## Pointer range integration: cancel captured geometry on viewport changes
+
+The first native pointer-range binding kept its captured horizontal direction when
+an ancestor changed from LTR to RTL during a drag. The gesture could continue with
+stale geometry. A public Browser regression reproduced the failure before the fix.
+The viewport's existing environment subscription now cancels the range gesture and
+restores the exact previous selection and Active Cell. This is an AstryxTable
+integration defect, not a defect attributed to Astryx itself.
+
+The inherited navigation test emitted pointerdown without pointerup before sending
+ArrowDown. With real selection capture enabled, navigation correctly remains locked
+until release. The regression now checks both that lock and navigation after release.

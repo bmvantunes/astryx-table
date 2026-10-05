@@ -40,6 +40,7 @@ for (const name of [
   "client-capabilities.browser.test.tsx",
   "client-row-selection.browser.test.tsx",
   "client-cell-range.browser.test.tsx",
+  "client-pointer-range.browser.test.tsx",
   "client-grouping.browser.test.tsx",
   "source-lifecycle.browser.test.tsx",
   "client-toolbar.browser.test.tsx",

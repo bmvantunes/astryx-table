@@ -165,6 +165,9 @@ test("pointer activation retains stable row and column identities", async () => 
   await expect.poll(() => active()).toBe(cell);
   await expect.element(page.getByRole("grid")).toHaveFocus();
   await userEvent.keyboard("{ArrowDown}");
+  expect(active()).toBe(cell);
+  cell.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0 }));
+  await userEvent.keyboard("{ArrowDown}");
   expect(active()?.textContent).toBe("4");
   expect(active()?.getAttribute("aria-colindex")).toBe("2");
 });
