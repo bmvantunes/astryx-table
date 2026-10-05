@@ -10,6 +10,7 @@ export default defineConfig({
       "@astryxdesign/core/MultiSelector",
       "@astryxdesign/core/List",
       "@astryxdesign/core/Text",
+      "@astryxdesign/core/Stack",
       "@astryxdesign/core/VisuallyHidden",
       "react",
       "react-dom",

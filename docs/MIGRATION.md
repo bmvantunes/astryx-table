@@ -647,3 +647,29 @@ A production scenario adds both counters to 5,000 × 150 cells at 20 Hz with no
 count notifications for unchanged totals. All 33 production scenarios, the clean
 review round and exact-commit evidence are required before publication. Active
 filter/sort count-only controls, Server counts and full parity remain separate.
+
+## Client command and toolbar composition
+
+The optional toolbar now exposes `AstryxTableFilterControl` with typed Grid Filter
+replace/clear/reset/clear-all commands and explicit external ownership. A stable
+private command capability reads current column authority on invocation, avoiding
+an extra schema cache or subscription. Removed/disabled columns and invalid or
+over-budget replacements are rejected before dispatch. External children are
+composition only; Server External Filters remain unimplemented.
+
+`AstryxTableActiveFilterCount` and `AstryxTableActiveSortCount` complete the four
+independent numeric projections. All support custom numeric children. Count-only
+subscriptions remain isolated from value-only publications and same-cardinality
+expression changes. Clear All does not clear session-only Quick Filter.
+
+`AstryxTableToolbar` is transparent inside the Client's existing native Toolbar;
+standalone usage creates one native Toolbar. The Client keeps its table-specific
+accessible name, while standalone composition uses `Table controls`. Empty known
+wrappers do not create a landmark. `AstryxTableToolbarSpacer` uses native StackItem
+and retains the prior minimum spacing. Keyboard LTR/RTL and roving focus belong to
+Astryx. See `research/astryx-toolbar-capabilities.md` for the source comparison.
+
+Source/emitted type checks, public/installed Browser regressions and production
+isolation of commands plus all four counters are required. All 34 performance
+scenarios and clean exact-commit evidence must pass before publication. Numeric
+editors, Server filtering and full parity remain pending.

@@ -56,6 +56,7 @@ export default defineConfig({
       "react-dom/client",
       "react/jsx-runtime",
       "@astryxdesign/core/Toolbar",
+      "@astryxdesign/core/Stack",
       "@astryxdesign/core/Divider",
       "@astryxdesign/core/Button",
       "@astryxdesign/core/Text",

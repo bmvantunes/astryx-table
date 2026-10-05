@@ -10,6 +10,11 @@ import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import {
   AstryxTableClient,
+  AstryxTableFilterControl,
+  AstryxTableToolbar,
+  AstryxTableToolbarSpacer,
+  AstryxTableActiveFilterCount,
+  AstryxTableActiveSortCount,
   AstryxTableResultRowCount,
   AstryxTableLoadedRowCount,
   AstryxTableActiveFilters,
@@ -333,6 +338,7 @@ test.for([
   "open-sort-controls",
   "open-sort-picker",
   "row-counts",
+  "command-toolbar",
 ] as const)(
   "keeps 20 Hz publications bounded and isolated with stable row references (%s)",
   { timeout: LIVE_PUBLICATION_TEST_TIMEOUT_MS },
@@ -343,14 +349,18 @@ test.for([
     const gridSurfaceRenders = vi.fn();
     const toolbarCommits = vi.fn();
     const cellRenderCounts = new Map<string, number>();
+    const commandRenders = vi.fn();
+    let activeCountSubscriptions = 0;
+    let activeCountNotifications = 0;
     let countSubscriptions = 0;
     let countNotifications = 0;
     const removeCountSubscriptions = installAstryxTableToolbarSubscriptionListener((event) => {
-      if (
-        event.tableId !== tableId ||
-        (event.projection !== "result-row-count" && event.projection !== "loaded-row-count")
-      )
+      if (event.tableId !== tableId) return;
+      if (event.projection === "active-filter-count" || event.projection === "active-sort-count") {
+        if (event.phase === "subscribe") activeCountSubscriptions++;
+        if (event.phase === "notify") activeCountNotifications++;
         return;
+      }
       if (event.phase === "subscribe") countSubscriptions++;
       if (event.phase === "notify") countNotifications++;
     });
@@ -603,6 +613,25 @@ test.for([
           }}
         >
           <ToolbarProbe />
+          {variant === "command-toolbar" ? (
+            <AstryxTableToolbar>
+              <AstryxTableFilterControl<Row, typeof columns> ownership="grid">
+                {(commands) => {
+                  commandRenders();
+                  return (
+                    <button type="button" onClick={() => commands.clearAll()}>
+                      Clear Grid Filters
+                    </button>
+                  );
+                }}
+              </AstryxTableFilterControl>
+              <AstryxTableToolbarSpacer />
+              <AstryxTableActiveFilterCount />
+              <AstryxTableActiveSortCount />
+              <AstryxTableResultRowCount />
+              <AstryxTableLoadedRowCount />
+            </AstryxTableToolbar>
+          ) : null}
           {variant === "row-counts" ? (
             <>
               <AstryxTableResultRowCount />
@@ -714,7 +743,7 @@ test.for([
         ).toHaveLength(64);
         expect(filterRenders).toBeGreaterThan(0);
         expect(filterTriggers).toBeGreaterThan(0);
-      } else if (variant === "row-counts") {
+      } else if (variant === "row-counts" || variant === "command-toolbar") {
         await expect
           .element(screen.getByRole("status", { name: "Result rows", exact: true }))
           .toHaveTextContent("5000 result rows");
@@ -749,7 +778,12 @@ test.for([
       }
       await settleAstryxTableBrowserFrames(2);
       expect(facetSubscriptions).toBe(variant === "open-set-filter" ? 1 : 0);
-      expect(countSubscriptions).toBe(variant === "row-counts" ? 2 : 0);
+      expect(countSubscriptions).toBe(
+        variant === "row-counts" || variant === "command-toolbar" ? 2 : 0,
+      );
+      expect(activeCountSubscriptions).toBe(variant === "command-toolbar" ? 2 : 0);
+      expect(commandRenders).toHaveBeenCalledTimes(variant === "command-toolbar" ? 1 : 0);
+      const initialActiveCountNotifications = activeCountNotifications;
       const initialCountNotifications = countNotifications;
       const initialFacetNotifications = facetNotifications;
       const initialSortRenders = { ...sortRenders };
@@ -847,31 +881,33 @@ test.for([
           measuredSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.measuredSampleCount,
           profile: "chromium-capable-hardware-v1",
           scenario:
-            variant === "row-counts"
-              ? "client-row-counts-live-publication-5000x150-20hz"
-              : variant === "open-sort-controls"
-                ? "client-open-sort-controls-live-publication-5000x150-20hz"
-                : variant === "open-sort-picker"
-                  ? "client-open-sort-picker-live-publication-5000x150-20hz"
-                  : variant === "open-column-visibility"
-                    ? "client-open-column-visibility-live-publication-5000x150-20hz"
-                    : variant === "open-compound-filter"
-                      ? "client-open-compound-filter-live-publication-5000x150-20hz"
-                      : variant === "quick-filter"
-                        ? "client-quick-filter-live-publication-5000x150-20hz"
-                        : variant === "open-active-filters"
-                          ? "client-open-active-filters-live-publication-5000x150-20hz"
-                          : variant === "open-set-filter"
-                            ? "client-open-set-filter-live-publication-5000x150-20hz"
-                            : variant === "open-select-filter"
-                              ? "client-open-select-filter-live-publication-5000x150-20hz"
-                              : variant === "open-boolean-filter"
-                                ? "client-open-boolean-filter-live-publication-5000x150-20hz"
-                                : variant === "open-list-filter"
-                                  ? "client-open-list-filter-live-publication-5000x150-20hz"
-                                  : variant === "open-filter"
-                                    ? "client-open-filter-live-publication-5000x150-20hz"
-                                    : "client-live-publication-5000x150-20hz",
+            variant === "command-toolbar"
+              ? "client-command-toolbar-live-publication-5000x150-20hz"
+              : variant === "row-counts"
+                ? "client-row-counts-live-publication-5000x150-20hz"
+                : variant === "open-sort-controls"
+                  ? "client-open-sort-controls-live-publication-5000x150-20hz"
+                  : variant === "open-sort-picker"
+                    ? "client-open-sort-picker-live-publication-5000x150-20hz"
+                    : variant === "open-column-visibility"
+                      ? "client-open-column-visibility-live-publication-5000x150-20hz"
+                      : variant === "open-compound-filter"
+                        ? "client-open-compound-filter-live-publication-5000x150-20hz"
+                        : variant === "quick-filter"
+                          ? "client-quick-filter-live-publication-5000x150-20hz"
+                          : variant === "open-active-filters"
+                            ? "client-open-active-filters-live-publication-5000x150-20hz"
+                            : variant === "open-set-filter"
+                              ? "client-open-set-filter-live-publication-5000x150-20hz"
+                              : variant === "open-select-filter"
+                                ? "client-open-select-filter-live-publication-5000x150-20hz"
+                                : variant === "open-boolean-filter"
+                                  ? "client-open-boolean-filter-live-publication-5000x150-20hz"
+                                  : variant === "open-list-filter"
+                                    ? "client-open-list-filter-live-publication-5000x150-20hz"
+                                    : variant === "open-filter"
+                                      ? "client-open-filter-live-publication-5000x150-20hz"
+                                      : "client-live-publication-5000x150-20hz",
           warmupSampleCount: ASTRYX_TABLE_CAPABLE_HARDWARE_SAMPLE_PROTOCOL.warmupSampleCount,
         },
       );
@@ -905,7 +941,12 @@ test.for([
             .querySelectorAll('input[type="text"]'),
         ).toHaveLength(64);
       expect(countNotifications).toBe(initialCountNotifications);
-      expect(countSubscriptions).toBe(variant === "row-counts" ? 2 : 0);
+      expect(activeCountNotifications).toBe(initialActiveCountNotifications);
+      expect(activeCountSubscriptions).toBe(variant === "command-toolbar" ? 2 : 0);
+      expect(commandRenders).toHaveBeenCalledTimes(variant === "command-toolbar" ? 1 : 0);
+      expect(countSubscriptions).toBe(
+        variant === "row-counts" || variant === "command-toolbar" ? 2 : 0,
+      );
       expect(sortRenders).toEqual(initialSortRenders);
       if (variant === "open-sort-controls")
         expect(

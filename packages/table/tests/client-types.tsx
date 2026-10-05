@@ -1,5 +1,10 @@
 import {
   AstryxTableClient,
+  AstryxTableFilterControl,
+  AstryxTableToolbar,
+  AstryxTableToolbarSpacer,
+  AstryxTableActiveFilterCount,
+  AstryxTableActiveSortCount,
   AstryxTableResultRowCount,
   AstryxTableLoadedRowCount,
   AstryxTableBigIntColumn,
@@ -151,3 +156,43 @@ void (<AstryxTableLoadedRowCount>{(count) => count.toFixed(0)}</AstryxTableLoade
 void (<AstryxTableResultRowCount>{(count: string) => count}</AstryxTableResultRowCount>);
 // @ts-expect-error Counts do not expose their private runtime.
 void (<AstryxTableLoadedRowCount runtime={{}} />);
+
+void (
+  <AstryxTableToolbar>
+    <AstryxTableToolbarSpacer />
+    <AstryxTableActiveFilterCount>{(count) => count.toFixed(0)}</AstryxTableActiveFilterCount>
+    <AstryxTableActiveSortCount>{(count) => count.toFixed(0)}</AstryxTableActiveSortCount>
+  </AstryxTableToolbar>
+);
+void (
+  <AstryxTableFilterControl<Row, typeof columns> ownership="grid">
+    {(commands) => {
+      const accepted: boolean = commands.replace({
+        columnId: "COL_ID_AMOUNT",
+        type: "equals",
+        filter: 9007199254740993n,
+      });
+      commands.clear("COL_ID_NAME");
+      commands.reset("COL_ID_AMOUNT");
+      commands.clearAll();
+      // @ts-expect-error Unknown column identities cannot be cleared.
+      commands.clear("COL_ID_UNKNOWN");
+      // @ts-expect-error Exact bigint filters cannot accept a number operand.
+      commands.replace({ columnId: "COL_ID_AMOUNT", type: "equals", filter: 1 });
+      // @ts-expect-error Command-only controls expose no runtime or state reader.
+      commands.getQuerySnapshot();
+      return String(accepted);
+    }}
+  </AstryxTableFilterControl>
+);
+void (
+  <AstryxTableFilterControl ownership="external">
+    <button>Application filter</button>
+  </AstryxTableFilterControl>
+);
+const invalidExternal = { ownership: "external" as const, children: (_commands: unknown) => null };
+// @ts-expect-error External ownership supplies no grid command callback.
+void AstryxTableFilterControl(invalidExternal);
+const invalidGrid = { ownership: "grid" as const, children: "Plain children" };
+// @ts-expect-error Grid ownership requires a command callback.
+void AstryxTableFilterControl<Row, typeof columns>(invalidGrid);
