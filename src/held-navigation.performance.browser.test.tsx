@@ -1,3 +1,4 @@
+import { sumProductionSampleWork } from "./performance-frame-work";
 import { detectPlatform } from "@tanstack/react-hotkeys";
 import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler } from "react";
@@ -9,7 +10,6 @@ import "./styles.css";
 import type { AstryxTableColumnId, AstryxTableColumns } from "../packages/table/src";
 import {
   captureAstryxTableReactCommitWork,
-  combineAstryxTableBenchmarkFrameWork,
   finalizeAstryxTableBenchmarkEvidence,
 } from "../packages/table/src/internal/benchmark-budget";
 import {
@@ -170,8 +170,7 @@ async function collectHeldNavigationSamples(
   await drain();
   setFrameWorkSample(undefined);
   const work = samples.map(
-    (sample) =>
-      combineAstryxTableBenchmarkFrameWork(sample) + sample.presentationFrame.observerDurationMs,
+    (sample) => sumProductionSampleWork(sample) + sample.presentationFrame.observerDurationMs,
   );
   return Object.freeze({ cadence: Object.freeze(cadence), work: Object.freeze(work) });
 }

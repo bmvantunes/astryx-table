@@ -766,3 +766,13 @@ production pointer-autoscroll workloads add four work/cadence scenarios without
 changing frame budgets. Only the overall runner deadline grows for the added work.
 The root API remains unchanged; editable clipboard precedence and the rest of #13
 remain unfinished. See `research/astryx-pointer-cell-range.md`.
+
+## Production benchmark accounting
+
+The active Client, Server, lifecycle, grouping, column-gesture, navigation and
+selection collectors now conservatively sum React and callback CPU. The previous
+maximum assumed execution overlap without establishing it. Two gate regressions
+prove the omitted-work false pass and its correction. The historical retained core
+fixtures stay immutable; current harnesses use `src/performance-frame-work.ts`.
+Thresholds, workloads and scenario coverage are unchanged. See
+`research/astryx-performance-accounting.md`; issue #16 remains open.

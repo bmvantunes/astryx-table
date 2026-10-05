@@ -1,3 +1,4 @@
+import { sumProductionFrameWork, sumProductionSampleWork } from "./performance-frame-work";
 import { installAstryxTableRowSelectionRenderListener } from "../packages/table/src/internal/row-selection";
 import { installAstryxTableSourceLifecycleRenderListener } from "../packages/table/src/internal/source-lifecycle-instrumentation";
 import { installAstryxTableToolbarSubscriptionListener } from "../packages/table/src/internal/toolbar-instrumentation";
@@ -27,7 +28,6 @@ import {
 } from "../packages/table/src";
 import {
   captureAstryxTableReactCommitWork,
-  combineAstryxTableBenchmarkFrameWork,
   finalizeAstryxTableBenchmarkEvidence,
 } from "../packages/table/src/internal/benchmark-budget";
 import { getAstryxTableBenchmarkEnvironment } from "../packages/table/src/internal/benchmark-profile";
@@ -232,11 +232,12 @@ test.for(["raw", "pinned", "filters", "grouped", "row-selection"] as const)(
         cancellationProbe.mockRestore();
       };
       // Every interval belongs to a sample, including preparation after presentation.
-      // Keep React and callback work together to avoid double-charging synchronous commits.
+      // Conservatively charge React separately; execution overlap is not established.
       function captureInterval() {
         if (!pending) throw new Error("Scroll work has no owning sample.");
         const duration =
-          Math.max(pending.callbackDurationMs, pending.reactDurationMs) + observers.take();
+          sumProductionFrameWork(pending.callbackDurationMs, pending.reactDurationMs) +
+          observers.take();
         pending = { callbackDurationMs: 0, reactDurationMs: 0 };
         scheduling = pending;
         return duration;
@@ -933,7 +934,7 @@ test.for([
       const evidence = finalizeAstryxTableBenchmarkEvidence(
         publicationSamples.map(
           (sample) =>
-            combineAstryxTableBenchmarkFrameWork({
+            sumProductionSampleWork({
               admissionDurationMs: sample.admissionDurationMs,
               renderedFrame: sample.rendered,
               presentationFrame: sample.presentation,

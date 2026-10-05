@@ -1,3 +1,4 @@
+import { sumProductionFrameWork } from "./performance-frame-work";
 import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
@@ -153,7 +154,8 @@ test.for(["vertical", "horizontal"] as const)(
       const capture = () => {
         // React can commit outside RAF execution. Sum conservatively rather
         // than assume those intervals overlap and omit independent React work.
-        const result = interval.callbacks + interval.react + observers.take();
+        const result =
+          sumProductionFrameWork(interval.callbacks, interval.react) + observers.take();
         interval = { callbacks: 0, react: 0 };
         return result;
       };

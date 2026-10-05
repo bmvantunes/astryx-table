@@ -1095,3 +1095,14 @@ integration defect, not a defect attributed to Astryx itself.
 The inherited navigation test emitted pointerdown without pointerup before sending
 ArrowDown. With real selection capture enabled, navigation correctly remains locked
 until release. The regression now checks both that lock and navigation after release.
+
+## Benchmark harness: independent React CPU could be omitted
+
+The production collectors used the larger of measured callback CPU and React CPU
+without proving those intervals overlap. Two gate regressions reproduced a false
+pass when independent React work put the combined cost over 8.33 ms. Active
+collectors now conservatively add both, retain separately charged admission and
+observer work, and keep existing thresholds and workloads. Overlap may be counted
+twice, but independent React work cannot disappear. This corrects our benchmark
+harness; it is not an Astryx component defect. See
+`docs/research/astryx-performance-accounting.md` for the measurement-policy limits.
