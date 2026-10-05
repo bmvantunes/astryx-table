@@ -1,3 +1,5 @@
+import { copyCanonicalCells, navigateCellRange } from "./cell-range-integration";
+import type { AstryxTableCellRangeRuntime } from "./cell-range-clipboard";
 import { requestAstryxTableHotkeyWorkflowAction } from "./hotkey-adapter";
 import { useLayoutEffect, useRef } from "react";
 import type { AstryxTableRuntimeView } from "./grid-runtime";
@@ -24,6 +26,7 @@ function usable(candidate: InteractiveElement) {
   );
 }
 type Bindings = {
+  cellRange?: AstryxTableCellRangeRuntime | undefined;
   tableId: string;
   runtime: AstryxTableRuntimeView;
   findRowIndex: (rowId: string) => number | undefined;
@@ -37,6 +40,7 @@ type Bindings = {
 // onto mounted native cells without subscribing the structural React tree.
 export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindings: Bindings) {
   const latest = useRef(bindings);
+  const copyToken = useRef(0);
   const yieldTabStop = useAstryxTableGridTabStopHandoff();
   useLayoutEffect(() => {
     latest.current = bindings;
@@ -240,6 +244,14 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
             : latest.current.findRowIndex(rowId);
         if (rowIndex !== undefined) navigation.activateBody(rowIndex, rowId, columnId);
       }
+      const range = latest.current.cellRange;
+      const structure = range?.getStructure();
+      const active = navigation.getSnapshot();
+      if (range !== undefined && structure !== undefined) {
+        if (active?.region === "body" && active.rowId !== undefined)
+          range.replace({ rowId: active.rowId, columnId: active.columnId }, structure);
+        else range.clear();
+      }
       const control = target.closest(interactive);
       if (control === null || control === element) {
         event.preventDefault();
@@ -382,16 +394,33 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
         active.rowId,
       );
   };
-  const navigate: AstryxTableGridHotkeyCommands["navigate"] = (event, command) => {
+  const navigate: AstryxTableGridHotkeyCommands["navigate"] = (event, command, extend = false) => {
     if (!ownsSurface(event)) return;
     event.preventDefault();
     if (latest.current.isGestureActive()) return;
-    navigation.activateForFocus();
-    navigation.navigate(command);
+    navigateCellRange(navigation, latest.current.cellRange, command, extend);
     reveal();
   };
   return {
     navigate,
+    copy: (event: AstryxTableHotkeyGesture) => {
+      const element = grid.current;
+      if (element === null || !ownsSurface(event) || latest.current.isGestureActive()) return;
+      const token = ++copyToken.current;
+      if (
+        copyCanonicalCells({
+          runtime: latest.current.runtime,
+          navigation,
+          range: latest.current.cellRange,
+          document: element.ownerDocument,
+          announce: (message) => {
+            if (copyToken.current === token && grid.current === element)
+              latest.current.announce(message);
+          },
+        })
+      )
+        event.preventDefault();
+    },
     headerMenu: (event) => {
       const element = grid.current;
       if (element === null || event.defaultPrevented || latest.current.isGestureActive()) return;
@@ -415,20 +444,36 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
         if (requestAstryxTableHotkeyWorkflowAction(trigger)) event.preventDefault();
       }
     },
-    page: (event, direction) => {
+    page: (event, direction, extend = false) => {
       const element = grid.current;
       if (element === null) return;
-      navigate(event, {
-        type: "page",
-        rowDelta:
-          direction *
-          Math.max(
-            1,
-            Math.floor((element.clientHeight - ASTRYX_TABLE_ROW_HEIGHT) / ASTRYX_TABLE_ROW_HEIGHT),
-          ),
-      });
+      navigate(
+        event,
+        {
+          type: "page",
+          rowDelta:
+            direction *
+            Math.max(
+              1,
+              Math.floor(
+                (element.clientHeight - ASTRYX_TABLE_ROW_HEIGHT) / ASTRYX_TABLE_ROW_HEIGHT,
+              ),
+            ),
+        },
+        extend,
+      );
     },
     escape: (event) => {
+      if (ownsSurface(event) && latest.current.cellRange?.getSnapshot().range !== undefined) {
+        event.preventDefault();
+        const range = latest.current.cellRange;
+        const active = navigation.getSnapshot();
+        const structure = range.getStructure();
+        if (active?.region === "body" && active.rowId !== undefined && structure !== undefined)
+          range.replace({ rowId: active.rowId, columnId: active.columnId }, structure);
+        else range.clear();
+        return;
+      }
       const element = grid.current;
       const target = event.target;
       if (
@@ -509,6 +554,6 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
     },
   } satisfies Pick<
     AstryxTableGridHotkeyCommands,
-    "navigate" | "page" | "escape" | "shiftTab" | "activate" | "headerMenu"
+    "navigate" | "page" | "escape" | "shiftTab" | "activate" | "headerMenu" | "copy"
   >;
 }

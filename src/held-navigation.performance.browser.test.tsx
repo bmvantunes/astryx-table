@@ -1,3 +1,4 @@
+import { detectPlatform } from "@tanstack/react-hotkeys";
 import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler } from "react";
 import { afterEach, describe, expect, test, vi } from "vite-plus/test";
@@ -101,10 +102,11 @@ function activeCell(grid: HTMLElement): HTMLElement {
 
 async function collectHeldNavigationSamples(
   grid: HTMLElement,
-  key: "ArrowDown" | "ArrowRight",
+  key: "ArrowDown" | "ArrowRight" | "ArrowUp",
   setFrameWorkSample: (sample: RenderedFrameWorkSample | undefined) => void,
   drain: () => Promise<void>,
   repeatsPerFrame = 1,
+  selectAndCopy = false,
 ): Promise<HeldNavigationSamples> {
   const cadence: number[] = [];
   const samples: {
@@ -126,10 +128,22 @@ async function collectHeldNavigationSamples(
         bubbles: true,
         cancelable: true,
         key,
+        shiftKey: selectAndCopy,
         repeat: repeatsPerFrame > 1 || sample > 0,
       });
       grid.dispatchEvent(event);
       expect(event.defaultPrevented).toBe(true);
+      if (selectAndCopy) {
+        const copyEvent = new KeyboardEvent("keydown", {
+          bubbles: true,
+          cancelable: true,
+          key: "c",
+          metaKey: detectPlatform() === "mac",
+          ctrlKey: detectPlatform() !== "mac",
+        });
+        grid.dispatchEvent(copyEvent);
+        expect(copyEvent.defaultPrevented).toBe(true);
+      }
     }
     const admissionDuration = performance.now() - startedAt;
     const renderedFrameTimestamp = await nextAnimationFrameTimestamp();
@@ -196,6 +210,7 @@ function finalizeHeldNavigationCadenceEvidence(scenario: string, samples: readon
 
 afterEach(async () => {
   await cleanup();
+  vi.restoreAllMocks();
 });
 
 describe("AstryxTable production held-key navigation performance", () => {
@@ -422,6 +437,40 @@ describe("AstryxTable production held-key navigation performance", () => {
       );
       expect(columnCommandNotificationCount).toBe(0);
       expect(unownedWork).toBe(0);
+      const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+      const rangeSamples = await collectHeldNavigationSamples(
+        grid,
+        "ArrowUp",
+        setFrameWorkSample,
+        drain,
+        1,
+        true,
+      );
+      const rangeEvidence = finalizeHeldNavigationEvidence(
+        "client-range-shift-copy-input-through-render-work-5000x150-pinned",
+        rangeSamples.work,
+      );
+      const rangeCadenceEvidence = finalizeHeldNavigationCadenceEvidence(
+        "client-range-shift-copy-presentation-frame-cadence-5000x150-pinned",
+        rangeSamples.cadence,
+      );
+      expect(write).toHaveBeenCalledTimes(TOTAL_SAMPLE_COUNT);
+      expect(write).toHaveBeenLastCalledWith(
+        Array.from(
+          { length: TOTAL_SAMPLE_COUNT + 1 },
+          (_, index) => `Held navigation row ${String(448 + index).padStart(4, "0")}`,
+        ).join("\n"),
+      );
+      expect(activeCell(grid).textContent).toBe("Held navigation row 0448");
+      expect(
+        grid.querySelectorAll('[role="gridcell"][aria-selected="true"]').length,
+      ).toBeGreaterThan(1);
+      expect(mountedBodyRows(grid).length).toBeLessThanOrEqual(33);
+      expect(mountedDataCells(grid).length).toBeLessThanOrEqual(33 * 37);
+      expect(viewRenderCount).toBe(0);
+      expect(columnCommandNotificationCount).toBe(0);
+      expect(unownedWork).toBe(0);
+      write.mockRestore();
       recording = false;
       await annotate(
         JSON.stringify({
@@ -433,6 +482,8 @@ describe("AstryxTable production held-key navigation performance", () => {
             horizontalCadenceEvidence,
             sustainedEvidence,
             sustainedCadenceEvidence,
+            rangeEvidence,
+            rangeCadenceEvidence,
           ],
           samples: {
             measured: MEASURED_SAMPLE_COUNT,

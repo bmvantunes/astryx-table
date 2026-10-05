@@ -28,6 +28,20 @@ function report() {
           {
             evidence: [
               [
+                "client-range-shift-copy-input-through-render-work-5000x150-pinned",
+                "chromium-capable-hardware-v1",
+                8.33,
+                16.66,
+                200,
+              ],
+              [
+                "client-range-shift-copy-presentation-frame-cadence-5000x150-pinned",
+                "chromium-production-presentation-cadence-v1",
+                20,
+                20,
+                200,
+              ],
+              [
                 "client-row-selection-two-axis-custom-renderer-work-5000x150",
                 "chromium-capable-hardware-v1",
                 8.33,
@@ -311,7 +325,7 @@ function report() {
   };
 }
 test("accepts complete evidence for the exact clean commit", () => {
-  assert.equal(validatePerformanceEvidence(report(), commit).length, 45);
+  assert.equal(validatePerformanceEvidence(report(), commit).length, 47);
 });
 for (const [name, change] of [
   [
@@ -443,5 +457,15 @@ test("held navigation requires its retained 200 measured samples", () => {
   );
   assert.ok(held);
   held.summary.sampleCount = 100;
+  assert.throws(() => validatePerformanceEvidence(r, commit), /sample count/);
+});
+
+test("range Copy requires all 200 measured samples", () => {
+  const r = report();
+  const range = r.tests[0].evidence[0].evidence.find(
+    (item) => item.scenario === "client-range-shift-copy-input-through-render-work-5000x150-pinned",
+  );
+  assert.ok(range);
+  range.summary.sampleCount = 100;
   assert.throws(() => validatePerformanceEvidence(r, commit), /sample count/);
 });

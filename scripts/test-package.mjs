@@ -39,6 +39,7 @@ cpSync(
 for (const name of [
   "client-capabilities.browser.test.tsx",
   "client-row-selection.browser.test.tsx",
+  "client-cell-range.browser.test.tsx",
   "client-grouping.browser.test.tsx",
   "source-lifecycle.browser.test.tsx",
   "client-toolbar.browser.test.tsx",
@@ -178,4 +179,44 @@ if (code === 0) {
   ]);
   process.chdir(root);
   if (serverCode !== 0) process.exitCode = serverCode;
+}
+
+// Conditional dependency-patch evidence is deliberately separate from the two
+// unpatched consumer phases above. pnpm workspace patches do not travel inside
+// the library tarball. Issue #16 must resolve this before npm publication.
+if (code === 0 && !process.exitCode) {
+  console.log("Conditional iframe evidence: explicitly applying @tanstack/hotkeys@0.8.0 patch");
+  cpSync(
+    resolve(root, "patches/@tanstack__hotkeys@0.8.0.patch"),
+    join(directory, "hotkeys-iframe.patch"),
+  );
+  writeFileSync(
+    join(directory, "pnpm-workspace.yaml"),
+    'patchedDependencies:\n  "@tanstack/hotkeys@0.8.0": hotkeys-iframe.patch\n',
+  );
+  const manifest = JSON.parse(readFileSync(join(directory, "package.json"), "utf8"));
+  manifest.dependencies["@tanstack/react-hotkeys"] =
+    versions.dependencies["@tanstack/react-hotkeys"];
+  writeFileSync(join(directory, "package.json"), JSON.stringify(manifest, null, 2));
+  writeFileSync(
+    join(directory, "client-iframe-hotkeys.browser.test.tsx"),
+    consumerFixture(
+      "src/client-iframe-hotkeys.browser.test.tsx",
+      'from "../packages/table/src"',
+    ).replace(
+      'import "./styles.css";',
+      'import "@astryxdesign/core/reset.css";\nimport "@astryxdesign/core/astryx.css";\nimport "@astryxdesign/theme-neutral/theme.css";\nimport "@bmvantunes/astryx-table/styles.css";',
+    ),
+  );
+  run("pnpm", ["install", "--ignore-scripts", "--no-frozen-lockfile"]);
+  process.chdir(directory);
+  const iframeCode = await runBrowserValidation("vp", [
+    "test",
+    "--config",
+    "vitest.config.ts",
+    "--run",
+    "client-iframe-hotkeys.browser.test.tsx",
+  ]);
+  process.chdir(root);
+  if (iframeCode !== 0) process.exitCode = iframeCode;
 }

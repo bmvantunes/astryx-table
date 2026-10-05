@@ -547,9 +547,7 @@ export function useAstryxTableGridHotkeys(
   }, [commands]);
   useLayoutEffect(() => {
     const ownerDocument = target.current?.ownerDocument ?? null;
-    const currentWindow = typeof window === "undefined" ? undefined : window;
-    reactDocumentTargetRef.current =
-      ownerDocument?.defaultView === currentWindow ? ownerDocument : null;
+    reactDocumentTargetRef.current = ownerDocument;
     const registration = documentEscapeRegistrationRef.current;
     if (ownerDocument === null || registration === undefined) return;
     let registrations = documentEscapeRegistrations.get(ownerDocument);

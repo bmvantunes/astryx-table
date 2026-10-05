@@ -16,6 +16,7 @@ overrides:
 patchedDependencies:
   '@astryxdesign/core@0.6.5': 59063c8619313d708ddfbe038ba4115b80ea91bc2a04785d98837f0405c757ef
   '@stylexjs/unplugin@0.19.0': ea9bf1145f5a1c82a82d958088629fdf1515e45d74a928432e39b4750649b70c
+  '@tanstack/hotkeys@0.8.0': 6b65bf6de708969a2adaab7e3ac25cc959df1b98b0ae112b2e8cbce2187c3a00
   babel-plugin-react-compiler@1.0.0: 2a807ad70d2aaab1810a4b5d1182e091c8626466bf2f918dd8456c43e83d393c
   react-dom@19.2.8: 40ad9327740c6d8377912436f55f3188326376bea913cc7978a15b653292c20c
 
@@ -2784,7 +2785,7 @@ snapshots:
 
   '@tanstack/devtools-event-client@0.5.0': {}
 
-  '@tanstack/hotkeys@0.8.0':
+  '@tanstack/hotkeys@0.8.0(patch_hash=6b65bf6de708969a2adaab7e3ac25cc959df1b98b0ae112b2e8cbce2187c3a00)':
     dependencies:
       '@tanstack/store': 0.11.1
 
@@ -2795,7 +2796,7 @@ snapshots:
 
   '@tanstack/react-hotkeys@0.10.0(react-dom@19.2.8(patch_hash=40ad9327740c6d8377912436f55f3188326376bea913cc7978a15b653292c20c)(react@19.2.8))(react@19.2.8)':
     dependencies:
-      '@tanstack/hotkeys': 0.8.0
+      '@tanstack/hotkeys': 0.8.0(patch_hash=6b65bf6de708969a2adaab7e3ac25cc959df1b98b0ae112b2e8cbce2187c3a00)
       '@tanstack/react-store': 0.11.2(react-dom@19.2.8(patch_hash=40ad9327740c6d8377912436f55f3188326376bea913cc7978a15b653292c20c)(react@19.2.8))(react@19.2.8)
       react: 19.2.8
       react-dom: 19.2.8(patch_hash=40ad9327740c6d8377912436f55f3188326376bea913cc7978a15b653292c20c)(react@19.2.8)

@@ -842,3 +842,31 @@ test.each([
     await expect.element(grid).toHaveFocus();
   },
 );
+
+test("Server Copy uses one loaded authoritative cell and Shift never creates a range", async () => {
+  const write = vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+  try {
+    const f = fixture(3);
+    const screen = await render(<AstryxTableServer {...f.props} />);
+    f.requests[0]!.sink.setRowData(
+      { 0: { name: "First", amount: 1 }, 1: { name: "Second", amount: 2 } },
+      { 0: "opaque-first", 1: "opaque-second" },
+    );
+    const grid = screen.getByRole("grid");
+    await screen.getByRole("gridcell", { name: "First", exact: true }).click();
+    await userEvent.keyboard("{Shift>}{ArrowDown}{/Shift}{ControlOrMeta>}c{/ControlOrMeta}");
+    expect(write).toHaveBeenLastCalledWith("Second");
+    expect(grid.element().querySelectorAll('[aria-selected="true"]')).toHaveLength(0);
+    write.mockClear();
+    await userEvent.keyboard("{ArrowDown}{ControlOrMeta>}c{/ControlOrMeta}");
+    expect(write).not.toHaveBeenCalled();
+    f.requests[0]!.sink.setRowData({ 2: { name: "Delivered", amount: 3 } }, { 2: "opaque-third" });
+    await expect
+      .element(screen.getByRole("gridcell", { name: "Delivered", exact: true }))
+      .toBeVisible();
+    await userEvent.keyboard("{ControlOrMeta>}c{/ControlOrMeta}");
+    expect(write).toHaveBeenLastCalledWith("Delivered");
+  } finally {
+    write.mockRestore();
+  }
+});

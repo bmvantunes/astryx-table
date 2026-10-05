@@ -175,8 +175,10 @@ export function AstryxTableView({
   tableId,
   snapshot,
   rowSelection,
+  cellRange,
 }: {
   readonly rowSelection?: AstryxTableRowSelectionRuntime | undefined;
+  readonly cellRange?: AstryxTableCellRangeRuntime | undefined;
   readonly tableId: string;
   readonly snapshot: AstryxTableRowPipelineSnapshot;
 }) {
@@ -203,6 +205,7 @@ export function AstryxTableView({
       >
         {(adapter) => (
           <GridSurface
+            cellRange={cellRange}
             selection={selection}
             tableId={tableId}
             snapshot={snapshot}
@@ -227,7 +230,11 @@ const GridSurface = memo(function GridSurface({
   adapter,
   navigation,
   selection,
-}: SurfaceProps & { readonly navigation: AstryxTableNavigationRuntime }) {
+  cellRange,
+}: SurfaceProps & {
+  readonly navigation: AstryxTableNavigationRuntime;
+  readonly cellRange?: AstryxTableCellRangeRuntime | undefined;
+}) {
   const [attachRowLayer] = useState(() => adapter.attachRowLayer);
   const { presentation, attach } = useNativeTablePresentation(
     adapter,
@@ -238,6 +245,7 @@ const GridSurface = memo(function GridSurface({
     setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
   }, []);
   const interactions = useColumnInteractions({
+    cellRange,
     rowSelection: selection,
     tableId,
     findRowIndex: (rowId) =>
@@ -253,9 +261,10 @@ const GridSurface = memo(function GridSurface({
   const attachGrid = useCallback(
     (element: HTMLDivElement | null) => {
       attachResizeGrid(element);
+      cellRange?.attachGrid(element);
       attach(element);
     },
-    [attach, attachResizeGrid],
+    [attach, attachResizeGrid, cellRange],
   );
   return (
     <>
@@ -264,6 +273,7 @@ const GridSurface = memo(function GridSurface({
         ref={attachGrid}
         role="grid"
         aria-label={tableId}
+        aria-multiselectable={cellRange === undefined ? undefined : true}
         style={{ maxHeight: ASTRYX_TABLE_DEFAULT_VIEWPORT_HEIGHT }}
         aria-colcount={adapter.columns.length + (selection === undefined ? 0 : 1)}
         aria-busy={snapshot.loading || undefined}

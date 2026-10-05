@@ -1,3 +1,4 @@
+import { AstryxTableCellRangeRuntime } from "./internal/cell-range-clipboard";
 import { AstryxTableRowSelectionRuntime } from "./internal/row-selection";
 import { SourceBody } from "./internal/source-body";
 import { SourceLifecycle } from "./internal/source-lifecycle-view";
@@ -58,6 +59,8 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
   props: AstryxTableClientProps<TRow, TColumns>,
 ) {
   const scope = useRef<HTMLDivElement>(null);
+  const [cellRange] = useState(() => new AstryxTableCellRangeRuntime(props.tableId));
+  useLayoutEffect(() => () => cellRange.dispose(), [cellRange]);
   const [selectionRuntime] = useState(() => new AstryxTableRowSelectionRuntime([]));
   const rowSelection = props.rowSelection === true ? selectionRuntime : undefined;
   const previouslyEnabled = useRef(props.rowSelection === true);
@@ -89,6 +92,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
         grouping: true,
         groupRowsWidth: groupRowsColumn.width,
         beforeGroupingChange: (entering) => {
+          cellRange.clear();
           if (entering) selectionRuntime.enterGroupedProjection();
         },
       },
@@ -110,6 +114,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
     () => new AstryxTableClientProjectionStore(view, adapter, rowSelection),
   );
   useLayoutEffect(() => projection.setRowSelection(rowSelection), [projection, rowSelection]);
+  useLayoutEffect(() => projection.setCellRange(cellRange), [projection, cellRange]);
   useLayoutEffect(() => projection.activate(), [projection]);
   useLayoutEffect(() => {
     const enabled = rowSelection !== undefined;
@@ -184,6 +189,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
                   tableId={props.tableId}
                   columns={columns}
                   rowPipelineAdapter={adapter}
+                  cellRange={cellRange}
                   rowSelection={rowSelection}
                 >
                   {(snapshot) =>
@@ -191,6 +197,7 @@ function AstryxTableClientInstance<TRow, const TColumns extends AstryxTableColum
                       <AstryxTableView
                         tableId={props.tableId}
                         snapshot={snapshot}
+                        cellRange={cellRange}
                         rowSelection={rowSelection}
                       />
                     ) : (

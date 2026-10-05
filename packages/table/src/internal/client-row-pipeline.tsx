@@ -1,3 +1,4 @@
+import { reconcileClientCellRange } from "./cell-range-integration";
 import { memo, useLayoutEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import type { NamedExoticComponent, ReactElement } from "react";
@@ -169,6 +170,7 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
   columns,
   rowPipelineAdapter,
   rowSelection,
+  cellRange,
   children,
   filters,
   filterCollection,
@@ -239,8 +241,9 @@ const ClientRawResolvedRowOrder = memo(function ClientRawResolvedRowOrder({
     invalid === undefined && rowModel.kind === "ready" ? rowModel.rowIds : EMPTY_ROW_IDS;
   const [rawOrderStore] = useState(() => new ClientRowOrderStore(rawRowIds, queryGeneration));
   useLayoutEffect(() => {
+    reconcileClientCellRange(cellRange, rawRowIds, columnLayout.columns);
     rawOrderStore.publish(rawRowIds, queryGeneration);
-  }, [queryGeneration, rawOrderStore, rawRowIds]);
+  }, [cellRange, columnLayout.columns, queryGeneration, rawOrderStore, rawRowIds]);
   const rawOrderSnapshot = useSyncExternalStore(
     rawOrderStore.subscribe,
     rawOrderStore.getSnapshot,
@@ -419,6 +422,7 @@ export class AstryxTableClientProjectionStore {
   private activation = 0;
   private reconciling = false;
   private reconcileRequested = false;
+  private cellRange: ClientResolvedRowOrderProps["cellRange"];
   private rowSelection: ClientResolvedRowOrderProps["rowSelection"];
   private unsubscribeProjectionInput: (() => void) | undefined;
   private unsubscribeQuery: (() => void) | undefined;
@@ -453,6 +457,11 @@ export class AstryxTableClientProjectionStore {
       this.unsubscribeColumnStructure = undefined;
       this.groupingInputCache.clear();
     };
+  }
+
+  public setCellRange(cellRange: ClientResolvedRowOrderProps["cellRange"]): void {
+    this.cellRange = cellRange;
+    this.requestReconcile();
   }
 
   public setRowSelection(rowSelection: ClientResolvedRowOrderProps["rowSelection"]): void {
@@ -614,6 +623,7 @@ export class AstryxTableClientProjectionStore {
       });
     }
     this.coordinator ??= new AstryxTableClientProjectionCoordinator(candidate);
+    reconcileClientCellRange(this.cellRange, candidate.rowIds, candidate.columns);
     this.coordinator.commit(candidate, (publication) =>
       this.runtime.reconcileClientProjection(
         publication,
