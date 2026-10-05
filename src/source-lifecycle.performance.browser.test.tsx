@@ -1,3 +1,4 @@
+import { sumProductionFrameWork } from "./performance-frame-work";
 import { Profiler, createElement } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -122,7 +123,8 @@ test(
       function captureInterval() {
         if (pending === undefined) throw new Error("Loading work has no owning sample");
         const duration =
-          Math.max(pending.callbackDurationMs, pending.reactDurationMs) + observers.take();
+          sumProductionFrameWork(pending.callbackDurationMs, pending.reactDurationMs) +
+          observers.take();
         pending = { callbackDurationMs: 0, reactDurationMs: 0 };
         scheduling = pending;
         return duration;

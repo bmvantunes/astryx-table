@@ -712,9 +712,24 @@ actual app/pack fixtures verify memoization, CSS extraction and source maps.
 React's separate patch changes only its two development diagnostic serializers.
 No compiler opt-out or lossy numeric conversion is introduced.
 
-The provenance ledger now contains 49 mechanical modules, two contract files and
-seven semantic adaptations. The hotkey adapter's equivalent document-target
+The provenance ledger now contains 48 mechanical modules, two contract files and
+eight semantic adaptations. The hotkey adapter's equivalent document-target
 expression is explicitly outside the mechanical exemption. Existing focus fixes,
 Server metadata, CI consumer setup and native controls remain intact.
 These prerequisites do not claim numeric filter parity or a View Server release.
 See [numeric-control research](research/astryx-numeric-controls.md).
+
+## Public Client Source update contract
+
+CodeRabbit review of grouping-cache integration requested that the existing immutable
+row contract be visible directly in consumer IntelliSense. `AstryxTableClientSource.rows`
+now documents fresh references for changed rows and stable references for unchanged
+rows. The public type structure and runtime behavior are unchanged. The documentation
+adaptation of `public-types.ts` leaves the mechanical exemption and records source
+and target hashes with independent review in `core-provenance.json`.
+
+The lifecycle review also exposed an inherited benchmark accounting assumption.
+All currently active Client collectors now conservatively sum React and callback
+CPU rather than assuming they overlap. Admission, observers, thresholds, workloads
+and sample counts remain unchanged. Historical core fixtures stay intact; see
+`research/astryx-performance-accounting.md` for the policy and its limitations.

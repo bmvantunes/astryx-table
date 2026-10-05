@@ -1,3 +1,4 @@
+import { sumProductionFrameWork } from "./performance-frame-work";
 import { createElement, Profiler } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
@@ -210,7 +211,7 @@ test.for(["scroll", "delivery"] as const)(
       observers.take();
       const capture = () => {
         if (pending === undefined) throw new Error("Server work has no owning sample");
-        const result = Math.max(pending.callback, pending.react) + observers.take();
+        const result = sumProductionFrameWork(pending.callback, pending.react) + observers.take();
         pending.callback = 0;
         pending.react = 0;
         return result;
