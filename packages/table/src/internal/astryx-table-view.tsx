@@ -1,3 +1,4 @@
+import { Banner } from "@astryxdesign/core/Banner";
 import { SelectionHeader, SelectionCell, ROW_SELECTION_WIDTH } from "./row-selection-view";
 import { ASTRYX_TABLE_ROW_SELECTION_COLUMN_ID } from "./row-selection";
 import { EmptyState } from "@astryxdesign/core/EmptyState";
@@ -52,6 +53,7 @@ import {
   resolveAstryxTableCellClassName,
 } from "./cell-presentation";
 
+import { isAstryxTableInvalidCellValue } from "./grid-runtime";
 import type { CSSProperties, ReactElement } from "react";
 import type { CompiledColumn } from "./compile-columns";
 import type {
@@ -183,7 +185,20 @@ export function AstryxTableView({
   readonly snapshot: AstryxTableRowPipelineSnapshot;
 }) {
   const [navigation] = useState(() => new AstryxTableNavigationRuntime());
-  if (snapshot.kind === "invalid") return <div role="alert">Unable to display table values.</div>;
+  if (snapshot.kind === "invalid") {
+    const column = snapshot.columns.find(
+      (candidate) => candidate.columnId === snapshot.invalid.columnId,
+    );
+    const label = column?.headerName ?? "Column";
+    return (
+      <Banner
+        status="error"
+        title="Unable to display table values."
+        description={`${label}: ${snapshot.invalid.message}`}
+        container="section"
+      />
+    );
+  }
   const selection =
     snapshot.runtime.getInstalledClientProjectionSnapshot()?.kind === "grouped"
       ? undefined
@@ -778,10 +793,19 @@ const Cell = memo(function Cell({
   const cell = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
   const row = "row" in cell ? cell.row : undefined;
   const value = cell.kind === "available" ? cell.value : undefined;
-  const customClass = resolveAstryxTableCellClassName(column, row, value);
-  const content = resolveAstryxTableCellContent(column, row, value);
+  const invalid = isAstryxTableInvalidCellValue(value) ? value : undefined;
+  const customClass =
+    invalid === undefined ? resolveAstryxTableCellClassName(column, row, value) : undefined;
+  const content =
+    invalid === undefined ? (
+      resolveAstryxTableCellContent(column, row, value)
+    ) : (
+      <span role="alert">
+        {column.headerName}: {invalid.invalid.message}
+      </span>
+    );
   const managedContent =
-    column.cellRenderer === undefined ? (
+    invalid !== undefined || column.cellRenderer === undefined ? (
       content
     ) : (
       <span data-astryx-custom-cell="" style={{ display: "contents" }}>
