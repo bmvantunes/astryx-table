@@ -275,11 +275,6 @@
         ["bruno-table", "astryx-table"],
         ["BRUNO_TABLE", "ASTRYX_TABLE"]
       ]
-    },
-    {
-      "source": "migration/table/src/public-types.ts",
-      "target": "packages/table/src/public-types.ts",
-      "sha256": "18f84c5118e7647143518ed5ecac511a940b9e7b5de4d7fb6da173579050ce71"
     }
   ],
   "paritySourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
@@ -390,6 +385,14 @@
       "sourceSha256": "462fba17a6bfbef439005d2a339c295bcb82a92a23d048e34b4995d13a2e9183",
       "reviewExempt": false,
       "reason": "Rename retained DOM attributes to Astryx and use the owning document for cell guards, MutationObserver and animation-frame decoration. Cross-realm behavior is a semantic integration correction requiring independent review and public iframe regressions, not a mechanical import."
+    },
+    {
+      "source": "migration/table/src/public-types.ts",
+      "target": "packages/table/src/public-types.ts",
+      "sha256": "73ff636d77894edd299a1027185ccfd6fd8d1d8347649e8fdb27748611fdafe9",
+      "sourceSha256": "18f84c5118e7647143518ed5ecac511a940b9e7b5de4d7fb6da173579050ce71",
+      "reviewExempt": false,
+      "reason": "Document the existing immutable Client Source row-update contract directly on the consumer-facing rows property, including stable references for unchanged rows. Documentation-only adaptation for PR #33 review comment 4180119716; public type structure and runtime behavior remain unchanged. Requires independent review and emitted declaration verification rather than the mechanical-copy exemption."
     }
   ]
 }

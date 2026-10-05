@@ -1,3 +1,4 @@
+import { sumProductionFrameWork } from "./performance-frame-work";
 import { measureMutationObserverWork } from "./performance-observers";
 import { Profiler } from "react";
 import { afterEach, expect, test, vi } from "vite-plus/test";
@@ -159,7 +160,8 @@ test.for(["preview", "autoscroll"] as const)(
         cancelProbe.mockRestore();
       };
       const capture = () => {
-        const result = Math.max(interval.callbacks, interval.react) + observers.take();
+        const result =
+          sumProductionFrameWork(interval.callbacks, interval.react) + observers.take();
         interval = { callbacks: 0, react: 0 };
         return result;
       };

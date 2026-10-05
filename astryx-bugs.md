@@ -1082,3 +1082,17 @@ the existing full-window autoscroll tests in that file. It still requires real
 autoscroll, source unmount, bounded mounted headers, exactly one durable command,
 correct pinning and restored focus. No runtime speed, sample count, performance
 budget or assertion is changed. This is test synchronization, not an Astryx fix.
+
+## Benchmark harness: independent React CPU could be omitted
+
+The loading collector and inherited active Client collectors used the larger of
+callback and React CPU without proving overlap. Two gate regressions reproduce
+false passes when independent React work puts the total over 8.33 ms. They now
+conservatively add both, retaining admission and observer work and every existing
+threshold, workload and sample count. Overlap may be counted twice. This is a
+benchmark-harness correction, not an Astryx component defect. See
+`docs/research/astryx-performance-accounting.md`.
+
+The Server viewport collector uses the same conservative addition when activated.
+Its scrolling and delivery workload, observer charges, windows, sample counts and
+8.33 ms gate remain unchanged; the shared false-pass regressions cover the helper.

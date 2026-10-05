@@ -76,7 +76,9 @@ type ColumnIdWhitespace =
   | "\ufeff";
 type ColumnIdPattern = `COL_ID_${ColumnIdFirstCharacter}${Uppercase<string>}`;
 type AstryxTableRowsSystemColumnId = "COL_ID_ASTRYX_TABLE_ROWS";
-type AstryxTableReservedColumnId = AstryxTableRowsSystemColumnId | "COL_ID_ASTRYX_TABLE_ROW_SELECTION";
+type AstryxTableReservedColumnId =
+  | AstryxTableRowsSystemColumnId
+  | "COL_ID_ASTRYX_TABLE_ROW_SELECTION";
 
 export type AstryxTableColumnId<TColumnId extends ColumnIdPattern = ColumnIdPattern> =
   TColumnId extends AstryxTableReservedColumnId
@@ -359,6 +361,10 @@ export type AstryxTableSourceChrome = {
 };
 
 export type AstryxTableClientSource<TRow> = AstryxTableSourceChrome & {
+  /**
+   * Publish a fresh row reference whenever its data changes; do not mutate rows in place.
+   * Keep references stable for unchanged rows so value and grouping caches can be reused.
+   */
   readonly rows: readonly TRow[];
 };
 
@@ -1482,7 +1488,10 @@ type PersistedFilterExpressionForColumn<
       readonly condition: PersistedFilterExpressionForColumn<TColumns, TColumnId>;
     };
 
-export type AstryxTablePersistedFilterExpression<TRow, TColumns extends AstryxTableColumns<TRow>> = {
+export type AstryxTablePersistedFilterExpression<
+  TRow,
+  TColumns extends AstryxTableColumns<TRow>,
+> = {
   readonly [TColumnId in AstryxTableFilterableColumnId<TColumns>]: PersistedFilterExpressionForColumn<
     TColumns,
     TColumnId
@@ -1514,9 +1523,13 @@ export type AstryxTablePersistedState<
       readonly groupBy: TGrouping extends true
         ? readonly AstryxTableGroupableColumnId<TColumns>[]
         : readonly [];
-      readonly groupOrderBy: TGrouping extends true ? AstryxTableGroupSortBy<TColumns> : readonly [];
+      readonly groupOrderBy: TGrouping extends true
+        ? AstryxTableGroupSortBy<TColumns>
+        : readonly [];
       readonly columnOrder: readonly AstryxTableColumnIdOf<TColumns>[];
-      readonly columnVisibility: Readonly<Partial<Record<AstryxTableColumnIdOf<TColumns>, boolean>>>;
+      readonly columnVisibility: Readonly<
+        Partial<Record<AstryxTableColumnIdOf<TColumns>, boolean>>
+      >;
       readonly columnWidths: Readonly<
         Partial<
           Record<
@@ -1592,12 +1605,19 @@ export type AstryxTableEditRowProjector<
   TRowVersion = unknown,
 > = (input: AstryxTableEditRowProjectorInput<TRow, TColumns, TRowVersion>) => TRow;
 
-export type AstryxTableSaveCellChangeSet<TRow, TColumns extends AstryxTableColumns<TRow>> = readonly [
+export type AstryxTableSaveCellChangeSet<
+  TRow,
+  TColumns extends AstryxTableColumns<TRow>,
+> = readonly [
   AstryxTableSaveCellChange<TRow, TColumns>,
   ...AstryxTableSaveCellChange<TRow, TColumns>[],
 ];
 
-export type AstryxTableSaveRowChange<TRow, TColumns extends AstryxTableColumns<TRow>, TRowVersion> = {
+export type AstryxTableSaveRowChange<
+  TRow,
+  TColumns extends AstryxTableColumns<TRow>,
+  TRowVersion,
+> = {
   readonly rowId: AstryxTableRowId;
   readonly baseRow: TRow;
   readonly expectedVersion: TRowVersion;
