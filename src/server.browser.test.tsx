@@ -731,3 +731,114 @@ test("published View Server hook delivers real rows and releases cleanly in Stri
     await Effect.runPromise(source.close);
   }
 });
+
+test.each([
+  ["ltr", 640],
+  ["rtl", 640],
+  ["ltr", 180],
+  ["rtl", 180],
+] as const)(
+  "%s %ipx Server keyboard reveal spans segmented rows with minimum deltas",
+  async (direction, width) => {
+    const total = 20_000_000;
+    const f = fixture(total);
+    const definition = [
+      ...columns,
+      {
+        columnId: "COL_ID_RAW_ID",
+        headerName: "Record ID",
+        field: "id",
+        valueType: "text",
+        width: 180,
+        pinned: "end",
+      },
+    ] as const satisfies AstryxTableColumns<Row>;
+    const screen = await render(
+      <div dir={direction} style={{ width }}>
+        <AstryxTableServer {...f.props} columns={definition} />
+      </div>,
+    );
+    const grid = screen.getByRole("grid");
+    await expect
+      .poll(
+        () =>
+          getComputedStyle(
+            screen.getByRole("columnheader", { name: "Name", exact: true }).element(),
+          ).position === "sticky",
+      )
+      .toBe(width === 640);
+    const active = () =>
+      document.getElementById(grid.element().getAttribute("aria-activedescendant") ?? "");
+    const activeRowIndex = () => {
+      const cell = active();
+      if (cell === null) return undefined;
+      const owners = [...grid.element().querySelectorAll('[role="row"]')].filter(
+        (row) => row.contains(cell) || row.getAttribute("aria-owns")?.split(" ").includes(cell.id),
+      );
+      return owners.length === 1 ? owners[0]!.getAttribute("aria-rowindex") : undefined;
+    };
+    grid.element().focus();
+    await userEvent.keyboard("{ControlOrMeta>}{End}{/ControlOrMeta}");
+    await expect.poll(() => f.windows.at(-1)?.lastRow ?? 0).toBe(total - 1);
+    await expect.poll(activeRowIndex).toBe(String(total + 1));
+    expect(active()?.getAttribute("aria-colindex")).toBe("3");
+    expect(active()?.getAttribute("data-astryx-row-id")).toBeNull();
+    const sink = f.requests[0]!.sink;
+    sink.setRowData(
+      { [total - 1]: { id: "raw-last", name: "Last record", amount: total - 1 } },
+      { [total - 1]: "source-last" },
+    );
+    await expect.poll(() => active()?.getAttribute("data-astryx-row-id")).toBe("source-last");
+    expect(active()?.textContent).toBe("raw-last");
+    expect(grid.element().querySelectorAll('[role="row"]').length).toBeLessThan(40);
+    const atEnd = grid.element().scrollTop;
+    const horizontalAtEnd = grid.element().scrollLeft;
+    expect(atEnd).toBe(grid.element().scrollHeight - grid.element().clientHeight);
+    expect(grid.element().scrollHeight).toBeLessThan(20_000_000);
+    const rowHeight = active()!.getBoundingClientRect().height;
+    const headerHeight = screen
+      .getByRole("columnheader", { name: "Record ID", exact: true })
+      .element()
+      .getBoundingClientRect().height;
+    await userEvent.keyboard("{ArrowUp>20/}");
+    const target = total - 21;
+    await expect.poll(activeRowIndex).toBe(String(target + 2));
+    const minimumDelta = Math.max(0, headerHeight + 21 * rowHeight - grid.element().clientHeight);
+    expect(minimumDelta).toBeGreaterThan(0);
+    await expect.poll(() => grid.element().scrollTop).toBeCloseTo(atEnd - minimumDelta, 0);
+    expect(grid.element().scrollLeft).toBe(horizontalAtEnd);
+    sink.setRowData(
+      { [target]: { id: "raw-target", name: "Target record", amount: target } },
+      { [target]: "source-target" },
+    );
+    await expect.poll(() => active()?.getAttribute("data-astryx-row-id")).toBe("source-target");
+    expect(active()?.textContent).toBe("raw-target");
+    expect(grid.element().querySelectorAll('[role="row"]').length).toBeLessThan(40);
+    expect(active()!.getBoundingClientRect().top).toBeCloseTo(
+      grid.element().getBoundingClientRect().top + grid.element().clientTop + headerHeight,
+      0,
+    );
+    const revealedTop = grid.element().scrollTop;
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(activeRowIndex).toBe(String(target + 3));
+    expect(grid.element().scrollTop).toBe(revealedTop);
+    await userEvent.keyboard("{ControlOrMeta>}{Home}{/ControlOrMeta}");
+    await expect.poll(() => active()?.getAttribute("role")).toBe("columnheader");
+    expect(active()?.getAttribute("aria-colindex")).toBe("1");
+    expect(grid.element().scrollTop).toBe(revealedTop);
+    await userEvent.keyboard("{ArrowDown}");
+    await expect.poll(() => f.windows.at(-1)?.firstRow).toBe(0);
+    await expect.poll(() => grid.element().scrollTop).toBe(0);
+    sink.setRowData(
+      { 0: { id: "raw-first", name: "First record", amount: 0 } },
+      { 0: "source-first" },
+    );
+    await expect.poll(() => active()?.getAttribute("data-astryx-row-id")).toBe("source-first");
+    expect(active()?.textContent).toBe("First record");
+    expect(active()?.getAttribute("aria-colindex")).toBe("1");
+    expect(grid.element().querySelectorAll('[role="row"]').length).toBeLessThan(40);
+    expect(f.requests).toHaveLength(1);
+    expect(f.release).not.toHaveBeenCalled();
+    await expect.element(grid).toHaveFocus();
+  },
+);
