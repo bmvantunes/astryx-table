@@ -177,21 +177,6 @@
       "sha256": "0accfba76c4858163e70fb4d5059b6fc72debe516bc3a00ca37623ac9b76028a"
     },
     {
-      "source": "packages/table/provenance/react-compiler-adapters.ts.reference",
-      "target": "packages/table/src/internal/react-compiler-adapters.ts",
-      "sha256": "fb59e408a0d2a4bebe8dd5fbe8f3250975f19fd7018e6f3f99d57f0245b46079",
-      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
-      "sourceGitPath": "packages/table/src/internal/react-compiler-adapters.ts",
-      "sourceBlob": "7ca81ffc05fc01a64d986607607a4279a6806c6a",
-      "sourceSha256": "3b1873c6ffd9f2aa68ed81f085cb8a2313600cbeaeeb77913b4e28be37417764",
-      "renames": [
-        ["BrunoTable", "AstryxTable"],
-        ["brunoTable", "astryxTable"],
-        ["bruno-table", "astryx-table"],
-        ["BRUNO_TABLE", "ASTRYX_TABLE"]
-      ]
-    },
-    {
       "source": "migration/table/src/internal/render-instrumentation.ts",
       "target": "packages/table/src/internal/render-instrumentation.ts",
       "sha256": "0bef29c88af4562ab5271f15d114a2c06f15b34d7ea950a37091c5770b08d41b"
@@ -393,6 +378,23 @@
       "sourceSha256": "18f84c5118e7647143518ed5ecac511a940b9e7b5de4d7fb6da173579050ce71",
       "reviewExempt": false,
       "reason": "Document the existing immutable Client Source row-update contract directly on the consumer-facing rows property, including stable references for unchanged rows. Documentation-only adaptation for PR #33 review comment 4180119716; public type structure and runtime behavior remain unchanged. Requires independent review and emitted declaration verification rather than the mechanical-copy exemption."
+    },
+    {
+      "source": "packages/table/provenance/react-compiler-adapters.ts.reference",
+      "target": "packages/table/src/internal/react-compiler-adapters.ts",
+      "sha256": "512f5b2ebf6860ffff23d68a9d2ee3512f76f4f5bb6aad60f3455691200937ae",
+      "sourceRevision": "00efa81616b2a999714db595fd1fec48caa55c58",
+      "sourceGitPath": "packages/table/src/internal/react-compiler-adapters.ts",
+      "sourceBlob": "7ca81ffc05fc01a64d986607607a4279a6806c6a",
+      "sourceSha256": "3b1873c6ffd9f2aa68ed81f085cb8a2313600cbeaeeb77913b4e28be37417764",
+      "renames": [
+        ["BrunoTable", "AstryxTable"],
+        ["brunoTable", "astryxTable"],
+        ["bruno-table", "astryx-table"],
+        ["BRUNO_TABLE", "ASTRYX_TABLE"]
+      ],
+      "reviewExempt": false,
+      "reason": "Initialize the applied column-layout signature from the layout already installed in the viewport constructor. Initial mount must not enqueue a redundant active-cell reveal that overwrites newer manual scrolling before the first frame. Later column-layout changes retain their existing reveal. Deterministic public LTR/RTL Browser and installed-package regressions plus independent review required; inherited semantic defect, not mechanical import."
     }
   ]
 }

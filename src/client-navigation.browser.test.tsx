@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { afterEach, expect, test } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
@@ -646,6 +647,41 @@ test.each(["ltr", "rtl"] as const)(
     grid.element().scrollTop = 720;
     await expect.poll(() => grid.element().scrollTop).toBe(720);
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    await userEvent.keyboard("{ArrowUp}{ArrowRight}");
+    await expect.poll(() => active()?.getAttribute("role")).toBe("columnheader");
+    expect(active()?.getAttribute("aria-colindex")).toBe("2");
+    expect(grid.element().scrollTop).toBe(720);
+    await expect.element(grid).toHaveFocus();
+  },
+);
+
+test.each(["ltr", "rtl"] as const)(
+  "%s preserves manual scrolling between initial layout and its first animation frame",
+  async (direction) => {
+    function InitiallyScrolledTable() {
+      useLayoutEffect(() => {
+        const grid = page.getByRole("grid").element();
+        grid.focus();
+        grid.scrollTop = 720;
+      }, []);
+      return (
+        <div dir={direction} style={{ width: 400 }}>
+          <AstryxTableClient
+            tableId="initial-scroll"
+            columns={columns}
+            getRowId={(row: Row) => row.id}
+            initialOrderBy={[{ columnId: "COL_ID_A", direction: "asc" }]}
+            clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
+          />
+        </div>
+      );
+    }
+    await render(<InitiallyScrolledTable />);
+    // The parent's layout effect scrolls after the table's layout effects and
+    // before any pending initial reveal can run, independent of runner timing.
+    await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    const grid = page.getByRole("grid");
+    expect(grid.element().scrollTop).toBe(720);
     await userEvent.keyboard("{ArrowUp}{ArrowRight}");
     await expect.poll(() => active()?.getAttribute("role")).toBe("columnheader");
     expect(active()?.getAttribute("aria-colindex")).toBe("2");
