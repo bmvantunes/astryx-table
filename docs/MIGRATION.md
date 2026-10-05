@@ -713,8 +713,8 @@ actual app/pack fixtures verify memoization, CSS extraction and source maps.
 React's separate patch changes only its two development diagnostic serializers.
 No compiler opt-out or lossy numeric conversion is introduced.
 
-The provenance ledger now contains 49 mechanical modules, two contract files and
-seven semantic adaptations. The hotkey adapter's equivalent document-target
+The provenance ledger now contains 48 mechanical modules, two contract files and
+eight semantic adaptations. The hotkey adapter's equivalent document-target
 expression is explicitly outside the mechanical exemption. Existing focus fixes,
 Server metadata, CI consumer setup and native controls remain intact.
 These prerequisites do not claim numeric filter parity or a View Server release.
@@ -767,12 +767,17 @@ changing frame budgets. Only the overall runner deadline grows for the added wor
 The root API remains unchanged; editable clipboard precedence and the rest of #13
 remain unfinished. See `research/astryx-pointer-cell-range.md`.
 
-## Production benchmark accounting
+## Public Client Source update contract
 
-The active Client, Server, lifecycle, grouping, column-gesture, navigation and
-selection collectors now conservatively sum React and callback CPU. The previous
-maximum assumed execution overlap without establishing it. Two gate regressions
-prove the omitted-work false pass and its correction. The historical retained core
-fixtures stay immutable; current harnesses use `src/performance-frame-work.ts`.
-Thresholds, workloads and scenario coverage are unchanged. See
-`research/astryx-performance-accounting.md`; issue #16 remains open.
+CodeRabbit review of grouping-cache integration requested that the existing immutable
+row contract be visible directly in consumer IntelliSense. `AstryxTableClientSource.rows`
+now documents fresh references for changed rows and stable references for unchanged
+rows. The public type structure and runtime behavior are unchanged. The documentation
+adaptation of `public-types.ts` leaves the mechanical exemption and records source
+and target hashes with independent review in `core-provenance.json`.
+
+The lifecycle review also exposed an inherited benchmark accounting assumption.
+All currently active Client collectors now conservatively sum React and callback
+CPU rather than assuming they overlap. Admission, observers, thresholds, workloads
+and sample counts remain unchanged. Historical core fixtures stay intact; see
+`research/astryx-performance-accounting.md` for the policy and its limitations.
