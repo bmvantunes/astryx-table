@@ -1069,3 +1069,16 @@ Hotkeys patch in a separately labelled iframe phase. That phase proves the emitt
 library with the patch, not an unpatched npm release. Issue #16 must resolve the
 runtime dependency corrections before publication. No upstream release or npm
 publication is claimed.
+
+## Autoscroll regression completion on shared CI
+
+PR #40's push validation reproduced the earlier intermittent RTL reorder-test
+failure: the source header had not yet left the overscanned window inside the
+default one-second polling interval. Its concurrent PR validation passed the same
+commit. The gesture advances by 64 pixels only after the preceding virtual window
+commits; leaving the retained header window needs multiple scroll/render cycles.
+The regression now uses the same five-second functional completion deadline as
+the existing full-window autoscroll tests in that file. It still requires real
+autoscroll, source unmount, bounded mounted headers, exactly one durable command,
+correct pinning and restored focus. No runtime speed, sample count, performance
+budget or assertion is changed. This is test synchronization, not an Astryx fix.
