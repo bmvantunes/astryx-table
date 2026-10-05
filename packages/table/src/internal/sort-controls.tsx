@@ -61,6 +61,12 @@ const SortReview = memo(function SortReview({ runtime, columns }: Props) {
     runtime.getSortingSnapshot,
     runtime.getSortingSnapshot,
   );
+  const grouping = useSyncExternalStore(
+    runtime.subscribeInstalledGroupingStructure,
+    runtime.getInstalledGroupingStructureSnapshot,
+    runtime.getInstalledGroupingStructureSnapshot,
+  );
+  const sortColumns = grouping.columns ?? columns;
   const [announcement, setAnnouncement] = useState({ sequence: 0, message: "" });
   const announce = (message: string) =>
     setAnnouncement((previous) => ({ sequence: previous.sequence + 1, message }));
@@ -100,8 +106,12 @@ const SortReview = memo(function SortReview({ runtime, columns }: Props) {
     control?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [orderBy, start, end]);
   const activeIds = new Set(orderBy.map((sort) => sort.columnId));
-  const eligible = columns.filter(
-    (column) => column.enableSorting !== false && !activeIds.has(column.columnId),
+  const eligible = sortColumns.filter(
+    (column) =>
+      (grouping.columns === undefined
+        ? column.enableSorting !== false
+        : runtime.getColumnCommandSnapshot(column.columnId).sortable) &&
+      !activeIds.has(column.columnId),
   );
   const bind = (key: string) => (node: HTMLButtonElement | null) => {
     if (node === null) controls.current.delete(key);
@@ -135,7 +145,7 @@ const SortReview = memo(function SortReview({ runtime, columns }: Props) {
     }
   };
   const names = new Map<string, string>(
-    columns.map((column) => [column.columnId, column.headerName]),
+    sortColumns.map((column) => [column.columnId, column.headerName]),
   );
   return (
     <div

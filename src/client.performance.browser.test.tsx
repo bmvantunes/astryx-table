@@ -73,7 +73,7 @@ const nextFrame = () => new Promise<number>((resolve) => nativeFrame(resolve));
 type Work = { callbackDurationMs: number; reactDurationMs: number };
 afterEach(cleanup);
 
-test.for(["raw", "pinned", "filters"] as const)(
+test.for(["raw", "pinned", "filters", "grouped"] as const)(
   "production Client accounts for complete two-axis frame work over 5,000 × 150 rows (%s)",
   { timeout: 30_000 },
   async (layout, { annotate }) => {
@@ -81,21 +81,40 @@ test.for(["raw", "pinned", "filters"] as const)(
     expect(__ASTRYX_TABLE_DEVELOPMENT__).toBe(false);
     expect(__ASTRYX_TABLE_TEST_DIAGNOSTICS__).toBe(true);
     expect(Object.prototype.hasOwnProperty.call(createElement("div"), "_store")).toBe(false);
-    const customRenderer = vi.fn(({ row }: { row: Row }) => row.symbol);
-    const columns = Array.from({ length: 150 }, (_, index) => ({
-      columnId: `COL_ID_C${index}` as AstryxTableColumnId,
-      headerName: `Column ${index}`,
-      ...(layout === "filters"
-        ? { field: "symbol" as const, valueType: "text" as const }
-        : { field: "sequence" as const, valueType: "number" as const }),
-      width: 120,
-      ...(index === (layout === "pinned" ? 24 : 10) ? { cellRenderer: customRenderer } : {}),
-      ...(layout === "pinned" && index === 0
-        ? { pinned: "start" as const }
-        : layout === "pinned" && index === 149
-          ? { pinned: "end" as const }
-          : {}),
-    })) satisfies AstryxTableColumns<Row>;
+    const customRenderer = vi.fn(
+      ({ row, value }: { row?: Row; value?: unknown }) => row?.symbol ?? String(value),
+    );
+    // One key + Rows + 148 aggregates produces exactly 150 logical columns.
+    const columns = Array.from({ length: layout === "grouped" ? 149 : 150 }, (_, index) => {
+      const base = {
+        columnId: `COL_ID_C${index}` as AstryxTableColumnId,
+        headerName: `Column ${index}`,
+        width: 120,
+      };
+      if (layout === "grouped") {
+        return index === 0
+          ? { ...base, field: "sequence" as const, valueType: "number" as const, groupBy: true }
+          : {
+              ...base,
+              field: "sequence" as const,
+              valueType: "number" as const,
+              aggFunc: "max" as const,
+              ...(index === 10 ? { aggregateCellRenderer: customRenderer } : {}),
+            };
+      }
+      return {
+        ...base,
+        ...(layout === "filters"
+          ? { field: "symbol" as const, valueType: "text" as const }
+          : { field: "sequence" as const, valueType: "number" as const }),
+        ...(index === (layout === "pinned" ? 24 : 10) ? { cellRenderer: customRenderer } : {}),
+        ...(layout === "pinned" && index === 0
+          ? { pinned: "start" as const }
+          : layout === "pinned" && index === 149
+            ? { pinned: "end" as const }
+            : {}),
+      };
+    }) satisfies AstryxTableColumns<Row>;
     const tableId = `production-client-${layout}`;
     // Begin beyond the retained header overscan in the narrower pinned centre region.
     const horizontalStart = layout === "pinned" ? 2400 : 880;
@@ -145,6 +164,22 @@ test.for(["raw", "pinned", "filters"] as const)(
               columns={columns}
               getRowId={(row: Row) => row.id}
               initialOrderBy={[{ columnId: "COL_ID_C0", direction: "asc" }]}
+              initialPersistedState={
+                layout === "grouped"
+                  ? {
+                      version: 1,
+                      tableId,
+                      filters: [],
+                      orderBy: [{ columnId: "COL_ID_C0", direction: "asc" }],
+                      groupBy: ["COL_ID_C0"],
+                      groupOrderBy: [{ columnId: "COL_ID_C0", direction: "asc" }],
+                      columnOrder: columns.map((column) => column.columnId),
+                      columnVisibility: {},
+                      columnWidths: {},
+                      columnPinning: { start: [], end: [] },
+                    }
+                  : undefined
+              }
               clientSource={{ rows, totalRows: rows.length, version: 1, status: "ready" }}
             />
           </div>

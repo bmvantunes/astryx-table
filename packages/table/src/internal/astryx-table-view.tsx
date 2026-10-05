@@ -1,3 +1,4 @@
+import { prepareAstryxTableGroupingRemovalFocus } from "./client-grouping-focus";
 import { memo, useCallback, useState, useSyncExternalStore } from "react";
 import * as stylex from "@stylexjs/stylex";
 import {
@@ -181,7 +182,7 @@ export function AstryxTableView({
         runtime={snapshot.runtime}
         columns={snapshot.columns}
         rowSpace={snapshot.rowSpace}
-        projectionKind="raw"
+        projectionKind={snapshot.runtime.getInstalledClientProjectionSnapshot()?.kind ?? "raw"}
         navigation={navigation}
         queryGeneration={snapshot.queryGeneration}
         queryNavigationMode={snapshot.queryNavigationMode}
@@ -717,14 +718,36 @@ const HeaderCell = memo(function HeaderCell({
   readonly column: CompiledColumn;
   readonly columnIndex: number;
 }) {
+  const groupBy = useSyncExternalStore(
+    runtime.subscribeGroupBy,
+    runtime.getGroupBySnapshot,
+    runtime.getGroupBySnapshot,
+  );
+  const grouped = groupBy.length > 0;
+  const activeGroup = groupBy.includes(column.columnId);
+  const groupable = column.kind === "field" && column.groupBy;
+  const isRows = column.columnId === "COL_ID_ASTRYX_TABLE_ROWS";
   const [menuOpen, setMenuOpen] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const getFilterColumn = useCallback(
+    () =>
+      runtime
+        .getQuerySnapshot()
+        .columns.find((candidate) => candidate.columnId === column.columnId),
+    [runtime, column.columnId],
+  );
+  const filterColumn = useSyncExternalStore(
+    runtime.subscribeQuery,
+    getFilterColumn,
+    getFilterColumn,
+  );
   const filterable =
-    column.enableFilter &&
-    (column.enableSetFilter ||
-      column.semantics.filterFamily === "text" ||
-      column.valueType === "boolean" ||
-      column.selectOptions !== undefined);
+    filterColumn !== undefined &&
+    filterColumn.enableFilter &&
+    (filterColumn.enableSetFilter ||
+      filterColumn.semantics.filterFamily === "text" ||
+      filterColumn.valueType === "boolean" ||
+      filterColumn.selectOptions !== undefined);
   const menuRef = useAstryxTableHotkeyWorkflowAction(() => setMenuOpen(true));
   const subscribe = useCallback(
     (listener: () => void) => runtime.subscribeColumnCommands(column.columnId, listener),
@@ -814,18 +837,20 @@ const HeaderCell = memo(function HeaderCell({
         gap: 4,
       }}
     >
-      <Button
-        label={`Reorder ${column.headerName}`}
-        data-astryx-reorder-column={column.columnId}
-        isIconOnly
-        size="sm"
-        variant="ghost"
-        icon={<span aria-hidden="true">⠿</span>}
-        tabIndex={-1}
-        style={{ cursor: "grab", touchAction: "none" }}
-        onFocus={() => navigation.activateHeader(column.columnId)}
-        onPointerDown={(event) => onColumnReorder(event, column.columnId)}
-      />
+      {grouped ? null : (
+        <Button
+          label={`Reorder ${column.headerName}`}
+          data-astryx-reorder-column={column.columnId}
+          isIconOnly
+          size="sm"
+          variant="ghost"
+          icon={<span aria-hidden="true">⠿</span>}
+          tabIndex={-1}
+          style={{ cursor: "grab", touchAction: "none" }}
+          onFocus={() => navigation.activateHeader(column.columnId)}
+          onPointerDown={(event) => onColumnReorder(event, column.columnId)}
+        />
+      )}
       <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", flex: 1 }}>
         {column.headerName}
       </span>
@@ -845,6 +870,29 @@ const HeaderCell = memo(function HeaderCell({
           size: "sm",
         }}
         items={[
+          ...(groupable
+            ? [
+                {
+                  id: "grouping",
+                  label: activeGroup ? "Remove from Group By" : "Add to Group By",
+                  onClick: () => {
+                    const cancelFocus = activeGroup
+                      ? prepareAstryxTableGroupingRemovalFocus(runtime, column.columnId)
+                      : () => undefined;
+                    if (
+                      runtime.dispatchGridCommand({
+                        type: activeGroup ? "grouping.remove" : "grouping.add",
+                        columnId: column.columnId,
+                      })
+                    )
+                      announce(
+                        `${column.headerName} ${activeGroup ? "removed from" : "added to"} Group By`,
+                      );
+                    else cancelFocus();
+                  },
+                },
+              ]
+            : []),
           ...(command.sortable
             ? [
                 {
@@ -891,7 +939,7 @@ const HeaderCell = memo(function HeaderCell({
                 },
               ]
             : []),
-          ...(command.pinned !== "start"
+          ...(!isRows && command.pinned !== "start"
             ? [
                 {
                   id: "pin-start",
@@ -900,7 +948,7 @@ const HeaderCell = memo(function HeaderCell({
                 },
               ]
             : []),
-          ...(command.pinned !== "end"
+          ...(!isRows && command.pinned !== "end"
             ? [
                 {
                   id: "pin-end",
@@ -909,7 +957,7 @@ const HeaderCell = memo(function HeaderCell({
                 },
               ]
             : []),
-          ...(command.pinned !== undefined
+          ...(!isRows && command.pinned !== undefined
             ? [
                 {
                   id: "unpin",
@@ -918,23 +966,27 @@ const HeaderCell = memo(function HeaderCell({
                 },
               ]
             : []),
-          {
-            id: "move-start",
-            label: "Move toward logical start",
-            isDisabled: (moveAvailability & 1) === 0,
-            onClick: () => move(-1),
-          },
-          {
-            id: "move-end",
-            label: "Move toward logical end",
-            isDisabled: (moveAvailability & 2) === 0,
-            onClick: () => move(1),
-          },
+          ...(grouped
+            ? []
+            : [
+                {
+                  id: "move-start",
+                  label: "Move toward logical start",
+                  isDisabled: (moveAvailability & 1) === 0,
+                  onClick: () => move(-1),
+                },
+                {
+                  id: "move-end",
+                  label: "Move toward logical end",
+                  isDisabled: (moveAvailability & 2) === 0,
+                  onClick: () => move(1),
+                },
+              ]),
         ]}
       />
-      {filterable ? (
+      {filterable && filterColumn !== undefined ? (
         <ColumnFilter
-          column={column}
+          column={filterColumn}
           runtime={runtime}
           active={command.filterActive}
           open={filterOpen}

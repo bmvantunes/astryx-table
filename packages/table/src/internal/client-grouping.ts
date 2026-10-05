@@ -1,5 +1,9 @@
 import type { AstryxTableRowId } from "../public-types";
-import type { CompiledColumn, CompiledFieldColumn } from "./compile-columns";
+import {
+  hasNativeColumnSemantics,
+  type CompiledColumn,
+  type CompiledFieldColumn,
+} from "./compile-columns";
 import { isAstryxTableInvalidCellValue } from "./grid-runtime";
 import { ASTRYX_TABLE_ROWS_COLUMN_ID } from "./grouped-row";
 import { compileColumnValueSemantics, type CompiledColumnValueSemantics } from "./value-semantics";
@@ -11,6 +15,8 @@ export type AstryxTableGroupedPresence =
   | Readonly<{ readonly _tag: "Present"; readonly value: unknown }>;
 
 export type AstryxTableClientGroupingInputRow = Readonly<{
+  /** Adapter-owned immutable admission identity; absent for standalone derivations. */
+  readonly preparationIdentity?: object;
   readonly raw: unknown;
   readonly rowId: AstryxTableRowId;
   readonly rowIndex: number;
@@ -58,7 +64,8 @@ type AggregateState =
   | Readonly<{
       readonly kind: "countDistinct";
       readonly column: CompiledFieldColumn;
-      readonly values: Map<string, true>;
+      readonly values: Set<unknown>;
+      readonly nativeIdentity: boolean;
     }>
   | {
       readonly kind: "sum";
@@ -89,20 +96,122 @@ type MutableGroup = {
   readonly groupKeys: readonly AstryxTableGroupedPresence[];
   readonly aggregates: Map<string, AggregateState>;
   rowCount: bigint;
+  readonly reused?: AstryxTableClientGroupedRow;
 };
+
+type PreparedGroupRow = Readonly<{
+  readonly rowId: AstryxTableRowId;
+  readonly groupKeys: readonly AstryxTableGroupedPresence[];
+  readonly aggregates: readonly (AstryxTableGroupedPresence | undefined)[];
+}>;
+type CachedGroupResult = Readonly<{
+  members: readonly object[];
+  row: AstryxTableClientGroupedRow;
+}>;
+const PREPARED_GROUP_VALUE_SLOT_LIMIT = 16_384;
+// Membership identities plus retained key, aggregate and Rows result slots.
+const GROUP_RESULT_SLOT_LIMIT = 16_384;
+
+/** Bounded latest-successful-projection evidence; custom codecs and aggregate operations always execute. */
+export class AstryxTableClientGroupingInputCache {
+  private columns: readonly CompiledFieldColumn[] = [];
+  private keyCount = 0;
+  private rows = new Map<object, PreparedGroupRow>();
+  private results = new Map<string, CachedGroupResult>();
+
+  public clear(): void {
+    this.columns = [];
+    this.keyCount = 0;
+    this.rows.clear();
+    this.results.clear();
+  }
+
+  public begin(keys: readonly CompiledFieldColumn[], aggregates: readonly CompiledFieldColumn[]) {
+    const columns = [...keys, ...aggregates];
+    if (columns.length === 0 || columns.length > PREPARED_GROUP_VALUE_SLOT_LIMIT) {
+      this.clear();
+      return undefined;
+    }
+    if (!keys.every(hasNativeColumnSemantics)) {
+      this.clear();
+      return undefined;
+    }
+    const previous =
+      keys.length === this.keyCount &&
+      columns.length === this.columns.length &&
+      columns.every((column, index) => column === this.columns[index])
+        ? this.rows
+        : undefined;
+    const next = new Map<object, PreparedGroupRow>();
+    const capacity = Math.floor(PREPARED_GROUP_VALUE_SLOT_LIMIT / columns.length);
+    return {
+      results: previous === undefined ? undefined : this.results,
+      get: (identity: object | undefined) =>
+        identity === undefined ? undefined : previous?.get(identity),
+      retain: (
+        identity: object | undefined,
+        rowId: AstryxTableRowId,
+        groupKeys: readonly AstryxTableGroupedPresence[],
+        aggregates: readonly (AstryxTableGroupedPresence | undefined)[],
+      ) => {
+        if (identity === undefined || next.size >= capacity) return;
+        next.set(
+          identity,
+          previous?.get(identity) ??
+            Object.freeze({
+              rowId,
+              groupKeys: Object.freeze(groupKeys.map((presence) => Object.freeze(presence))),
+              aggregates: Object.freeze(
+                aggregates.map((presence) =>
+                  presence === undefined ? undefined : Object.freeze(presence),
+                ),
+              ),
+            }),
+        );
+      },
+      commit: (results = new Map<string, CachedGroupResult>()) => {
+        this.columns = columns;
+        this.keyCount = keys.length;
+        this.rows = next;
+        this.results = results;
+      },
+    };
+  }
+}
 
 const MISSING: AstryxTableGroupedPresence = Object.freeze({ _tag: "Missing" });
 const COUNT_DISTINCT_RESULT_SEMANTICS = compileColumnValueSemantics("bigint", {});
 
+type GroupingRow = Pick<AstryxTableClientGroupingInputRow, "raw" | "rowId" | "rowIndex">;
+type GroupingOptions = Readonly<{
+  readonly columns: readonly CompiledColumn[];
+  readonly participatingAggregateColumnIds?: ReadonlySet<string>;
+  readonly groupBy: readonly string[];
+  readonly groupOrderBy: GroupOrderBy;
+  readonly previous?: AstryxTableClientGroupedProjection;
+  readonly inputCache?: AstryxTableClientGroupingInputCache;
+  /** Private Client Adapter opt-in: reader and tokens describe immutable canonical admissions. */
+  readonly reuseNativeResults?: true;
+}>;
+
 export function deriveAstryxTableClientGroupedProjection(
-  input: Readonly<{
-    readonly rows: readonly AstryxTableClientGroupingInputRow[];
-    readonly columns: readonly CompiledColumn[];
-    readonly participatingAggregateColumnIds?: ReadonlySet<string>;
-    readonly groupBy: readonly string[];
-    readonly groupOrderBy: GroupOrderBy;
-    readonly previous?: AstryxTableClientGroupedProjection;
-  }>,
+  input: GroupingOptions & Readonly<{ rows: readonly AstryxTableClientGroupingInputRow[] }>,
+): AstryxTableClientGroupedProjection {
+  return deriveAstryxTableClientGroupedProjectionFromRows({
+    ...input,
+    readValue: (row, column) => row.readValue(column),
+    preparationIdentity: (row) => row.preparationIdentity,
+  });
+}
+
+/** A shared reader avoids allocating a row wrapper and closure per resident input. */
+export function deriveAstryxTableClientGroupedProjectionFromRows<TRow extends GroupingRow>(
+  input: GroupingOptions &
+    Readonly<{
+      readonly rows: readonly TRow[];
+      readonly readValue: (row: TRow, column: CompiledColumn) => unknown;
+      readonly preparationIdentity: (row: TRow) => object | undefined;
+    }>,
 ): AstryxTableClientGroupedProjection {
   const groupBy = Object.freeze(Array.from(input.groupBy));
   try {
@@ -133,30 +242,96 @@ export function deriveAstryxTableClientGroupedProjection(
         (input.participatingAggregateColumnIds === undefined ||
           input.participatingAggregateColumnIds.has(column.columnId)),
     );
+    const identityColumns = groupColumns.map((column) => ({
+      column,
+      prefix: frame(column.columnId) + frame(column.semantics.codecId),
+      // Repeated built-in text/boolean keys have canonical primitive identity.
+      // Custom Value Types keep their own exact encoding on every read.
+      keys:
+        hasNativeColumnSemantics(column) &&
+        (column.valueType === "text" || column.valueType === "boolean")
+          ? new Map<unknown, string>()
+          : undefined,
+    }));
+    const preparation = input.inputCache?.begin(groupColumns, aggregateColumns);
+    // Speculative keys are safe only at the canonical Client Adapter seam.
+    // On failure use the original source-ordered executor so its first error wins.
+    const membership =
+      input.reuseNativeResults &&
+      preparation !== undefined &&
+      input.rows.length * (groupColumns.length + aggregateColumns.length) <=
+        PREPARED_GROUP_VALUE_SLOT_LIMIT &&
+      [...groupColumns, ...aggregateColumns].every(hasNativeColumnSemantics)
+        ? prepareGroupMembership(
+            input.rows,
+            input.preparationIdentity,
+            (row, identity) => {
+              const prepared = preparation.get(identity);
+              if (prepared !== undefined) return prepared;
+              const groupKeys = groupColumns.map((column) =>
+                readPresence(row, column, input.readValue),
+              );
+              return { groupKeys, rowId: groupIdentity(identityColumns, groupKeys) };
+            },
+            groupColumns.length + aggregateColumns.length + 1,
+            preparation.results,
+          )
+        : undefined;
     const groups = new Map<string, MutableGroup>();
     for (const row of input.rows) {
-      const groupKeys = groupColumns.map((column) => readPresence(row, column));
-      const rowId = groupIdentity(groupColumns, groupKeys);
+      const preparationIdentity = input.preparationIdentity(row);
+      const prepared = preparation?.get(preparationIdentity);
+      const proof =
+        preparationIdentity === undefined ? undefined : membership?.keys.get(preparationIdentity);
+      const groupKeys =
+        prepared?.groupKeys ??
+        proof?.groupKeys ??
+        groupColumns.map((column) => readPresence(row, column, input.readValue));
+      const rowId = prepared?.rowId ?? proof?.rowId ?? groupIdentity(identityColumns, groupKeys);
       let group = groups.get(rowId);
       if (group === undefined) {
+        const reused = membership?.reusable.get(rowId);
         group = {
           rowId,
           insertionIndex: groups.size,
-          groupKeys: Object.freeze(groupKeys),
+          groupKeys: Object.freeze(groupKeys.map((presence) => Object.freeze(presence))),
           aggregates: new Map(
-            aggregateColumns.map((column) => [column.columnId, createAggregateState(column)]),
+            reused === undefined
+              ? aggregateColumns.map((column) => [column.columnId, createAggregateState(column)])
+              : [],
           ),
+          ...(reused === undefined ? {} : { reused }),
           rowCount: 0n,
         };
         groups.set(rowId, group);
       }
       group.rowCount += 1n;
+      const aggregateValues: (AstryxTableGroupedPresence | undefined)[] | undefined =
+        preparation !== undefined && prepared === undefined ? [] : undefined;
+      let aggregateIndex = 0;
       for (const state of group.aggregates.values()) {
-        const failure = updateAggregate(state, readPresence(row, state.column));
+        const presence =
+          prepared?.aggregates[aggregateIndex] ?? readPresence(row, state.column, input.readValue);
+        aggregateIndex += 1;
+        if (aggregateValues !== undefined) {
+          const kind = state.column.valueType;
+          aggregateValues.push(
+            kind === "text" || kind === "boolean" || kind === "number" || kind === "bigint"
+              ? presence
+              : undefined,
+          );
+        }
+        const failure = updateAggregate(state, presence);
         if (failure !== undefined) {
           return invalidSourceRow(groupBy, row.rowIndex, state.column.columnId, failure);
         }
       }
+      preparation?.retain(
+        preparationIdentity,
+        rowId,
+        groupKeys,
+        prepared?.aggregates ?? aggregateValues ?? [],
+      );
     }
     const materialized = Array.from(groups.values(), (group) =>
       materializeGroup(group, groupColumns),
@@ -182,6 +357,16 @@ export function deriveAstryxTableClientGroupedProjection(
       candidateRows.every((row, index) => row === previousProjection.rows[index])
         ? previousProjection.rows
         : Object.freeze(candidateRows);
+    const nextResults = new Map<string, CachedGroupResult>();
+    if (membership !== undefined) {
+      for (const row of rows) {
+        nextResults.set(row.rowId, {
+          members: Object.freeze(membership.members.get(row.rowId)!),
+          row,
+        });
+      }
+    }
+    preparation?.commit(nextResults);
     return Object.freeze({
       kind: "ready",
       groupBy,
@@ -202,33 +387,88 @@ export function deriveAstryxTableClientGroupedProjection(
   }
 }
 
-function readPresence(
-  row: AstryxTableClientGroupingInputRow,
+function prepareGroupMembership<TRow>(
+  rows: readonly TRow[],
+  identityOf: (row: TRow) => object | undefined,
+  keyOf: (row: TRow, identity: object) => Pick<PreparedGroupRow, "rowId" | "groupKeys">,
+  resultSlots: number,
+  previous: ReadonlyMap<string, CachedGroupResult> | undefined,
+) {
+  if (rows.length > GROUP_RESULT_SLOT_LIMIT) return undefined;
+  const members = new Map<string, object[]>();
+  const keys = new Map<object, Pick<PreparedGroupRow, "rowId" | "groupKeys">>();
+  try {
+    for (const row of rows) {
+      const identity = identityOf(row);
+      if (identity === undefined) return undefined;
+      const key = keyOf(row, identity);
+      keys.set(identity, key);
+      let group = members.get(key.rowId);
+      if (group === undefined) {
+        group = [];
+        members.set(key.rowId, group);
+        if (rows.length + members.size * resultSlots > GROUP_RESULT_SLOT_LIMIT) return undefined;
+      }
+      group.push(identity);
+    }
+  } catch {
+    return undefined;
+  }
+  const reusable = new Map<string, AstryxTableClientGroupedRow>();
+  for (const [rowId, group] of members) {
+    const cached = previous?.get(rowId);
+    if (
+      cached !== undefined &&
+      cached.members.length === group.length &&
+      group.every((identity, index) => identity === cached.members[index])
+    ) {
+      reusable.set(rowId, cached.row);
+    }
+  }
+  return { members, keys, reusable };
+}
+
+function readPresence<TRow extends GroupingRow>(
+  row: TRow,
   column: CompiledFieldColumn,
+  readValue: (row: TRow, column: CompiledColumn) => unknown,
 ): AstryxTableGroupedPresence {
-  const descriptor =
-    typeof row.raw === "object" && row.raw !== null
-      ? Object.getOwnPropertyDescriptor(row.raw, column.field)
-      : undefined;
-  if (descriptor === undefined || !descriptor.enumerable) return MISSING;
-  const value = row.readValue(column);
+  if (
+    typeof row.raw !== "object" ||
+    row.raw === null ||
+    !Object.prototype.propertyIsEnumerable.call(row.raw, column.field)
+  )
+    return MISSING;
+  const value = readValue(row, column);
   if (isAstryxTableInvalidCellValue(value)) {
     throw new GroupingAggregateError(column.columnId, value.invalid.message, row.rowIndex);
   }
   const normalizedValue = column.valueType === "number" && Object.is(value, -0) ? 0 : value;
-  return Object.freeze({ _tag: "Present", value: normalizedValue });
+  return { _tag: "Present", value: normalizedValue };
 }
 
 function groupIdentity(
-  columns: readonly CompiledFieldColumn[],
+  columns: readonly {
+    readonly column: CompiledFieldColumn;
+    readonly prefix: string;
+    readonly keys: Map<unknown, string> | undefined;
+  }[],
   values: readonly AstryxTableGroupedPresence[],
 ): AstryxTableRowId {
-  const parts = columns.map((column, index) => {
+  let identity = "ASTRYX_TABLE_GROUP:";
+  for (let index = 0; index < columns.length; index += 1) {
+    const { column, prefix, keys } = columns[index]!;
     const presence = values[index]!;
-    const valueKey = canonicalPresenceKey(presence, column);
-    return frame(column.columnId) + frame(column.semantics.codecId) + frame(valueKey);
-  });
-  return `ASTRYX_TABLE_GROUP:${parts.join("")}`;
+    let valueKey: string;
+    if (presence._tag === "Missing") valueKey = "0";
+    else {
+      const cached = keys?.get(presence.value);
+      valueKey = cached ?? canonicalPresenceKey(presence, column);
+      if (cached === undefined) keys?.set(presence.value, valueKey);
+    }
+    identity += prefix + frame(valueKey);
+  }
+  return identity;
 }
 
 function frame(value: string): string {
@@ -248,7 +488,14 @@ function canonicalPresenceKey(
 function createAggregateState(column: CompiledFieldColumn): AggregateState {
   switch (column.aggFunc) {
     case "countDistinct":
-      return { kind: "countDistinct", column, values: new Map() };
+      return {
+        kind: "countDistinct",
+        column,
+        values: new Set(),
+        // Built-in canonical scalar encoding is injective; Set preserves exact
+        // primitive identity without allocating a framed string per input.
+        nativeIdentity: hasNativeColumnSemantics(column),
+      };
     case "sum":
     case "avg":
       return { kind: column.aggFunc, column, count: 0n, total: MISSING };
@@ -266,7 +513,13 @@ function updateAggregate(
   presence: AstryxTableGroupedPresence,
 ): string | undefined {
   if (state.kind === "countDistinct") {
-    state.values.set(canonicalPresenceKey(presence, state.column), true);
+    state.values.add(
+      state.nativeIdentity
+        ? presence._tag === "Missing"
+          ? MISSING
+          : presence.value
+        : canonicalPresenceKey(presence, state.column),
+    );
     return undefined;
   }
   if (state.kind === "min" || state.kind === "max") {
@@ -287,7 +540,7 @@ function updateAggregate(
   const result = state.column.semantics.aggregateAlgebra?.add(state.total.value, presence.value);
   if (result === undefined) return "Aggregate Algebra add operation is unavailable.";
   if (result._tag === "Failure") return result.message;
-  state.total = Object.freeze({ _tag: "Present", value: result.value });
+  state.total = { _tag: "Present", value: result.value };
   state.count += 1n;
   return undefined;
 }
@@ -320,6 +573,13 @@ function materializeGroup(
   group: MutableGroup,
   groupColumns: readonly CompiledFieldColumn[],
 ): MaterializedGroup {
+  if (group.reused !== undefined) {
+    return {
+      insertionIndex: group.insertionIndex,
+      presences: group.reused.presences,
+      row: group.reused,
+    };
+  }
   const values = new Map<string, unknown>();
   const presences = new Map<string, AstryxTableGroupedPresence>();
   groupColumns.forEach((column, index) => {
@@ -334,7 +594,7 @@ function materializeGroup(
   presences.set(ASTRYX_TABLE_ROWS_COLUMN_ID, rowsPresence);
   values.set(ASTRYX_TABLE_ROWS_COLUMN_ID, group.rowCount);
   for (const [columnId, state] of group.aggregates) {
-    const presence = aggregateResult(state);
+    const presence = Object.freeze(aggregateResult(state));
     presences.set(columnId, presence);
     values.set(columnId, presence._tag === "Present" ? presence.value : undefined);
   }

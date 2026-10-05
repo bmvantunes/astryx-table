@@ -673,3 +673,32 @@ Source/emitted type checks, public/installed Browser regressions and production
 isolation of commands plus all four counters are required. All 34 performance
 scenarios and clean exact-commit evidence must pass before publication. Numeric
 editors, Server filtering and full parity remain pending.
+
+## Client grouping activation (local, issue #7 remains open)
+
+The read-only Client accepts restored grouping and typed `groupRowsColumn`
+presentation. Native Selector/Button controls add, remove and reorder keys through
+retained TanStack Hotkeys commands; header menus expose the same operations.
+Flat exact summaries use the retained executor and presentation compiler, with
+separate grouped sorting, forced key visibility, dormant base preferences, Rows
+width persistence and identity-first live focus reconciliation. See
+[the native reuse and performance research](research/astryx-client-grouping.md).
+
+The new public Browser/SSR/type/installed fixtures and grouped production scenarios
+are being validated. The prepared-input performance optimization is a reviewed
+semantic adaptation, not an exempt mechanical import. Custom aggregate operations
+still execute in source order; cached native inputs have a 16,384-slot limit.
+
+This activates grouping presentation, not the whole parity epic. Grouped selection
+and atomic Copy await #13, source lifecycle chrome awaits #9, and optional-Effect
+package presentation is not exposed by the current root-only package. No issue is
+closed, dependency patch added or package published by this slice.
+
+## Public Client Source update contract
+
+CodeRabbit review of grouping-cache integration requested that the existing immutable
+row contract be visible directly in consumer IntelliSense. `AstryxTableClientSource.rows`
+now documents fresh references for changed rows and stable references for unchanged
+rows. The public type structure and runtime behavior are unchanged. The documentation
+adaptation of `public-types.ts` leaves the mechanical exemption and records source
+and target hashes with independent review in `core-provenance.json`.

@@ -49,6 +49,9 @@ export function useColumnInteractions(bindings: Bindings) {
   const session = useRef<Session | undefined>(undefined);
   const [actor] = useState(createAstryxTableColumnGestureActor);
   const focusFrame = useRef<{ owner: Window; id: number } | undefined>(undefined);
+  function isRenderedColumn(columnId: string) {
+    return latest.current.adapter.columns.some((column) => column.columnId === columnId);
+  }
   function cancelFocusRestore() {
     if (focusFrame.current !== undefined)
       focusFrame.current.owner.cancelAnimationFrame(focusFrame.current.id);
@@ -57,11 +60,7 @@ export function useColumnInteractions(bindings: Bindings) {
   function restoreFocus(gesture: Session) {
     cancelFocusRestore();
     const element = grid.current;
-    if (
-      element === null ||
-      !latest.current.runtime.getColumnCommandSnapshot(gesture.columnId).visible
-    )
-      return;
+    if (element === null || !isRenderedColumn(gesture.columnId)) return;
     const document = element.ownerDocument;
     const canRestore = () =>
       document.hasFocus() &&
@@ -220,7 +219,7 @@ export function useColumnInteractions(bindings: Bindings) {
       if (columnId === undefined) return;
       const runtime = latest.current.runtime;
       const command = runtime.getColumnCommandSnapshot(columnId);
-      if (!command.visible) return;
+      if (!isRenderedColumn(columnId)) return;
       event.preventDefault();
       const multiplier =
         element.ownerDocument.defaultView!.getComputedStyle(element).direction === "rtl" ? -1 : 1;
@@ -260,7 +259,8 @@ export function useColumnInteractions(bindings: Bindings) {
     if (owner === null) return;
     const runtime = latest.current.runtime;
     const command = runtime.getColumnCommandSnapshot(columnId);
-    if (!command.visible || grid.current === null) return;
+    if (!isRenderedColumn(columnId) || grid.current === null) return;
+    if (kind === "reorder" && runtime.getGroupBySnapshot().length > 0) return;
     event.preventDefault();
     cancelFocusRestore();
     latest.current.navigation.activateHeader(columnId);
