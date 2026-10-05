@@ -148,7 +148,8 @@ const QuickFilterInput = memo(function QuickFilterInput({
       }}
       onCompositionEnd={(event) => {
         const input = event.currentTarget;
-        if (!(input instanceof HTMLInputElement)) return;
+        const InputElement = input.ownerDocument.defaultView?.HTMLInputElement;
+        if (InputElement === undefined || !(input instanceof InputElement)) return;
         const session = composition.current;
         const token = session.activeToken;
         session.activeToken = undefined;
