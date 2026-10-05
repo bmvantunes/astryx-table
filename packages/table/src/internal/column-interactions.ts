@@ -175,7 +175,10 @@ export function useColumnInteractions(bindings: Bindings) {
   const { runtime, adapter } = bindings;
   useLayoutEffect(() => {
     actor.start();
-    const removeEnvironment = adapter.subscribeViewportEnvironment(() => finishRef.current(false));
+    const removeEnvironment = adapter.subscribeViewportEnvironment(() => {
+      finishRef.current(false);
+      latest.current.cellRange?.cancelPointerGesture();
+    });
     const removeLayout = runtime.subscribeColumnLayout(() => finishRef.current(false));
     const removeChrome = runtime.subscribeChrome(() => {
       const status = runtime.getChromeSnapshot().status;
@@ -195,9 +198,11 @@ export function useColumnInteractions(bindings: Bindings) {
     finishRef.current(false);
   }, [bindings.queryGeneration, bindings.totalRows]);
 
+  const isGestureActive = () =>
+    session.current !== undefined || latest.current.cellRange?.isPointerGestureActive() === true;
   const navigationCommands = useGridNavigation(grid, {
     ...bindings,
-    isGestureActive: () => session.current !== undefined,
+    isGestureActive,
   });
   useAstryxTableGridHotkeys(grid, {
     ...navigationCommands,
@@ -207,8 +212,7 @@ export function useColumnInteractions(bindings: Bindings) {
           selectAll: (event: import("./hotkey-adapter").AstryxTableHotkeyGesture) => {
             const element = grid.current;
             const selection = latest.current.rowSelection;
-            if (!element || !selection || event.defaultPrevented || session.current !== undefined)
-              return;
+            if (!element || !selection || event.defaultPrevented || isGestureActive()) return;
             const OwnerElement = element.ownerDocument.defaultView!.Element;
             const checkbox =
               event.target instanceof OwnerElement
@@ -232,7 +236,7 @@ export function useColumnInteractions(bindings: Bindings) {
         !alt &&
         event.target === grid.current &&
         !event.defaultPrevented &&
-        session.current === undefined
+        !isGestureActive()
       ) {
         latest.current.navigation.activateForFocus();
         const active = latest.current.navigation.getSnapshot();
@@ -254,15 +258,17 @@ export function useColumnInteractions(bindings: Bindings) {
       }
       navigationCommands.activate(event, intent, alt, shift);
     },
-    documentEscapeActive: () => session.current !== undefined,
+    documentEscapeActive: isGestureActive,
     escape: (event) => {
       if (session.current !== undefined) {
         event.preventDefault();
         finish(false);
+      } else if (latest.current.cellRange?.cancelPointerGesture()) {
+        event.preventDefault();
       } else navigationCommands.escape(event);
     },
     resize: (event, adjustment, step, allowActiveHeader) => {
-      if (event.defaultPrevented || session.current !== undefined) return;
+      if (event.defaultPrevented || isGestureActive()) return;
       const element = grid.current;
       const OwnerElement = element?.ownerDocument.defaultView?.Element;
       if (!element || !OwnerElement || !(event.target instanceof OwnerElement)) return;
@@ -306,7 +312,7 @@ export function useColumnInteractions(bindings: Bindings) {
   ) {
     if (
       event.button !== 0 ||
-      session.current !== undefined ||
+      isGestureActive() ||
       actor.getSnapshot().value !== "idle" ||
       actor.getSnapshot().status !== "active"
     )

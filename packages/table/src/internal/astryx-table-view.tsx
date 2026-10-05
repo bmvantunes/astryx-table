@@ -587,6 +587,7 @@ const Row = memo(function Row({
             key={column.columnId}
             runtime={runtime}
             rowId={rowId}
+            rowIndex={rowIndex}
             column={column}
             id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
             columnIndex={
@@ -713,6 +714,7 @@ const PinnedRows = memo(function PinnedRows({
                               id={cellDomId(adapter.instanceId, tableId, rowId, column.columnId)}
                               runtime={snapshot.runtime}
                               rowId={rowId}
+                              rowIndex={rowIndex}
                               column={column}
                               columnIndex={
                                 side === "start"
@@ -742,6 +744,7 @@ const PinnedRows = memo(function PinnedRows({
 const Cell = memo(function Cell({
   runtime,
   rowId,
+  rowIndex,
   column,
   columnIndex,
   preparedStage,
@@ -752,6 +755,7 @@ const Cell = memo(function Cell({
   readonly presentation?: NativePinnedPresentation | undefined;
   readonly runtime: AstryxTableRuntimeView;
   readonly rowId: string;
+  readonly rowIndex: number;
   readonly column: CompiledColumn;
   readonly columnIndex: number;
   readonly preparedStage?: "entering" | "retiring" | undefined;
@@ -793,6 +797,7 @@ const Cell = memo(function Cell({
       className={customClass}
       role="gridcell"
       data-astryx-row-id={rowId}
+      data-astryx-row-index={rowIndex}
       data-astryx-column-id={column.columnId}
       aria-colindex={columnIndex + 1}
       style={{

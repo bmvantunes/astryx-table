@@ -1,6 +1,12 @@
 import { copyCanonicalCells, navigateCellRange } from "./cell-range-integration";
-import type { AstryxTableCellRangeRuntime } from "./cell-range-clipboard";
-import { requestAstryxTableHotkeyWorkflowAction } from "./hotkey-adapter";
+import {
+  astryxTableCellRangePointerHit,
+  type AstryxTableCellRangeRuntime,
+} from "./cell-range-clipboard";
+import {
+  isAstryxTableShiftPointerGesture,
+  requestAstryxTableHotkeyWorkflowAction,
+} from "./hotkey-adapter";
 import { useLayoutEffect, useRef } from "react";
 import type { AstryxTableRuntimeView } from "./grid-runtime";
 import type { RefObject } from "react";
@@ -224,11 +230,40 @@ export function useGridNavigation(grid: RefObject<HTMLDivElement | null>, bindin
       const target = event.target;
       if (
         event.defaultPrevented ||
+        latest.current.isGestureActive() ||
         event.button !== 0 ||
         !(target instanceof OwnerNode) ||
         !owns(target)
       )
         return;
+      const pointerRange = latest.current.cellRange;
+      const hit =
+        pointerRange === undefined ? undefined : astryxTableCellRangePointerHit(target, element);
+      if (pointerRange !== undefined && hit !== undefined) {
+        const before = navigation.getSnapshot();
+        const direction =
+          document.defaultView!.getComputedStyle(element).direction === "rtl" ? -1 : 1;
+        if (
+          pointerRange.startPointerGesture(
+            event,
+            hit,
+            element,
+            (destination) =>
+              navigation.activateBody(
+                destination.rowIndex,
+                destination.rowId,
+                destination.columnId,
+              ),
+            () => navigation.restoreActiveCell(before),
+            (delta) => latest.current.adapter.scrollByLogical(delta * direction),
+            before?.region === "body" && before.rowId !== undefined
+              ? { rowId: before.rowId, columnId: before.columnId }
+              : undefined,
+            isAstryxTableShiftPointerGesture(event, document),
+          )
+        )
+          return;
+      }
       const cell = target.closest<HTMLElement>('[role="gridcell"], [role="columnheader"]');
       const columnId = cell?.dataset["astryxColumnId"];
       if (cell === null || cell === undefined || columnId === undefined) return;

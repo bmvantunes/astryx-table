@@ -751,6 +751,22 @@ selection isolation with the existing workloads, accounting and thresholds. See
 `research/astryx-row-selection.md`. Linear Cell Ranges, atomic Copy and edit-owned
 clipboard precedence remain separate unfinished parts of issue #13.
 
+## Native Client pointer ranges
+
+Issue #13 now connects the retained pointer selection workflow to both native cell
+regions. Logical row positions are hit-test metadata; stable row and column IDs
+remain selection authority. The existing XState actor owns capture, slop, axis
+locking and autoscroll. Shift pointer intent uses TanStack's modifier parser, while
+column gestures and grid shortcuts share the existing workflow arbitration seam.
+Viewport environment changes cancel captured geometry and restore the prior range.
+
+Public and installed-consumer regressions cover both directions, pinned and virtual
+windows, custom-control exclusion, cancellation and structural invalidation. Two
+production pointer-autoscroll workloads add four work/cadence scenarios without
+changing frame budgets. Only the overall runner deadline grows for the added work.
+The root API remains unchanged; editable clipboard precedence and the rest of #13
+remain unfinished. See `research/astryx-pointer-cell-range.md`.
+
 ## Public Client Source update contract
 
 CodeRabbit review of grouping-cache integration requested that the existing immutable

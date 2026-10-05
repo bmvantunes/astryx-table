@@ -471,6 +471,16 @@ export function AstryxTableHeldShiftHotkeyAdapter(): null {
 export function isAstryxTableShiftPointerActivation(event: Event, document: Document): boolean {
   const realm = document.defaultView;
   if (realm === null || !(event instanceof realm.MouseEvent) || event.detail <= 0) return false;
+  return isAstryxTableShiftPointerGesture(event, document);
+}
+
+/** Pointerdown has no click count; normalize its modifiers in the owning realm. */
+export function isAstryxTableShiftPointerGesture(
+  event: PointerEvent | MouseEvent,
+  document: Document,
+): boolean {
+  const realm = document.defaultView;
+  if (realm === null || !(event instanceof realm.MouseEvent)) return false;
   // This event is never dispatched: TanStack owns modifier normalization, while
   // the original pointer event remains authoritative in any document/iframe.
   return parseKeyboardEvent(
