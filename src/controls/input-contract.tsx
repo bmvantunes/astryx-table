@@ -2,6 +2,7 @@ import { TextInput } from "@astryxdesign/core/TextInput";
 export const search = <TextInput value="" label="Search" type="search" />;
 export const length = <TextInput value="" label="Bounded text" maxLength={32} />;
 export const decimal = <TextInput value="" label="Exact decimal" inputMode="decimal" />;
+export const numeric = <TextInput value="" label="Native number" type="number" step="any" />;
 export const eventTarget = (
   <TextInput
     value=""

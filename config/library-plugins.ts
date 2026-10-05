@@ -1,6 +1,7 @@
 import stylex from "@stylexjs/unplugin/rolldown";
 import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite-plus";
+import { reactCompiler } from "./react-compiler";
 
 export function libraryPlugins() {
   const definitions: Plugin = {
@@ -21,9 +22,9 @@ export function libraryPlugins() {
   };
   return [
     definitions,
+    reactCompiler(),
     stylex({ useCSSLayers: true, runtimeInjection: false }),
     ...react({
-      compiler: { compilationMode: "infer", panicThreshold: "all_errors", target: "19" },
       exclude: [/\/node_modules\//, /\.d\.[cm]?tsx?$/],
     }),
   ];

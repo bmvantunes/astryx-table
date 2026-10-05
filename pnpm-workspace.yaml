@@ -20,6 +20,8 @@ overrides:
 patchedDependencies:
   "@astryxdesign/core@0.6.5": patches/@astryxdesign__core@0.6.5.patch
   "@stylexjs/unplugin@0.19.0": patches/@stylexjs__unplugin@0.19.0.patch
+  babel-plugin-react-compiler@1.0.0: patches/babel-plugin-react-compiler@1.0.0.patch
+  react-dom@19.2.8: patches/react-dom@19.2.8.patch
 
 peerDependencyRules:
   allowedVersions:

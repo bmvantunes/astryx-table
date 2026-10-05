@@ -1,0 +1,30 @@
+diff --git a/cjs/react-dom-client.development.js b/cjs/react-dom-client.development.js
+index b9bb0b5bd00886f4ba53a0f3608d04dcc7567320..af146f1406a9b2a40a822a282db6aca5ed659e2f 100644
+--- a/cjs/react-dom-client.development.js
++++ b/cjs/react-dom-client.development.js
+@@ -3859,7 +3859,9 @@
+                 ((propKey = getArrayKind(value)),
+                 propKey === PRIMITIVE_ARRAY || propKey === EMPTY_ARRAY)
+               ) {
+-                value = JSON.stringify(value);
++                value = JSON.stringify(value, function (key, item) {
++                  return "bigint" === typeof item ? item.toString() + "n" : item;
++                });
+                 break;
+               } else if (propKey === ENTRIES_ARRAY) {
+                 properties.push([
+diff --git a/cjs/react-dom-profiling.development.js b/cjs/react-dom-profiling.development.js
+index dfabf7b22ffe706608e5a34331a020ce0ffc3e5a..96f5865330a69555b2ab99419cee7da458f68044 100644
+--- a/cjs/react-dom-profiling.development.js
++++ b/cjs/react-dom-profiling.development.js
+@@ -3867,7 +3867,9 @@
+                 ((propKey = getArrayKind(value)),
+                 propKey === PRIMITIVE_ARRAY || propKey === EMPTY_ARRAY)
+               ) {
+-                value = JSON.stringify(value);
++                value = JSON.stringify(value, function (key, item) {
++                  return "bigint" === typeof item ? item.toString() + "n" : item;
++                });
+                 break;
+               } else if (propKey === ENTRIES_ARRAY) {
+                 properties.push([

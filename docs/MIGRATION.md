@@ -119,7 +119,8 @@ for adoption, not a claim that full pinning/sorting parity is implemented.
 
 ## Activated Client core and newer source corrections
 
-`packages/table/core-provenance.json` records 50 activated modules. Forty-four
+At the initial Client activation, `packages/table/core-provenance.json` recorded
+50 activated modules. Forty-four
 are byte-identical to the retained baseline, one has the reviewed diagnostic correction
 described below, and five use the current merged source
 `00efa81616b2a999714db595fd1fec48caa55c58`, with only the recorded branding
@@ -693,6 +694,30 @@ This activates grouping presentation, not the whole parity epic. Grouped selecti
 and atomic Copy await #13, source lifecycle chrome awaits #9, and optional-Effect
 package presentation is not exposed by the current root-only package. No issue is
 closed, dependency patch added or package published by this slice.
+
+## Exact numeric compiler prerequisites
+
+The integration branch reproduces three independent boundaries: Astryx TextInput
+rejects native number inputs in its declarations, React DOM development diagnostics
+throw on bigint-array props, and the configured Oxc compiler substitutes undefined
+for bigint literals. The native numeric input already forwards fractional step
+and its original event; its patch extends declarations only.
+
+Application and library builds now share the official Babel React Compiler
+integration, before StyleX, with the existing infer/all_errors/React 19 settings.
+A pinned compatibility patch preserves native bigint through lowering, code
+generation, property keys, diagnostic printing and HIR declarations. Equivalence
+tests compare native and compiled operations, including mixed-domain errors;
+actual app/pack fixtures verify memoization, CSS extraction and source maps.
+React's separate patch changes only its two development diagnostic serializers.
+No compiler opt-out or lossy numeric conversion is introduced.
+
+The provenance ledger now contains 48 mechanical modules, two contract files and
+eight semantic adaptations. The hotkey adapter's equivalent document-target
+expression is explicitly outside the mechanical exemption. Existing focus fixes,
+Server metadata, CI consumer setup and native controls remain intact.
+These prerequisites do not claim numeric filter parity or a View Server release.
+See [numeric-control research](research/astryx-numeric-controls.md).
 
 ## Public Client Source update contract
 

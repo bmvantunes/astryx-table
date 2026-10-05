@@ -123,8 +123,11 @@ export function useColumnInteractions(bindings: Bindings) {
     }
     gesture.detach();
     try {
-      if (gesture.target.hasPointerCapture?.(gesture.pointerId))
-        gesture.target.releasePointerCapture(gesture.pointerId);
+      const hasCapture = gesture.target.hasPointerCapture;
+      if (typeof hasCapture === "function") {
+        if (hasCapture.call(gesture.target, gesture.pointerId))
+          gesture.target.releasePointerCapture(gesture.pointerId);
+      }
     } catch {
       /* Synthetic pointer events have no browser capture. */
     }
@@ -351,7 +354,8 @@ export function useColumnInteractions(bindings: Bindings) {
       for (const event of ["pointermove", "pointerup", "pointercancel"] as const)
         recordAstryxTableClientColumnGestureListener(tableId, { phase: "attach", event });
     try {
-      target.setPointerCapture?.(event.pointerId);
+      const capture = target.setPointerCapture;
+      if (typeof capture === "function") capture.call(target, event.pointerId);
     } catch {
       /* Synthetic pointer events have no browser capture. */
     }

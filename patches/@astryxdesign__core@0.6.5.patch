@@ -83,15 +83,16 @@ diff --git a/src/TextInput/TextInput.tsx b/src/TextInput/TextInput.tsx
  
  import {useMergedRefs} from '../hooks/useMergedRefs';
 -export type TextInputType = 'text' | 'password' | 'email';
-+export type TextInputType = 'text' | 'password' | 'email' | 'search';
++export type TextInputType = 'text' | 'password' | 'email' | 'search' | 'number';
  
  export interface TextInputProps extends Omit<
    BaseProps,
-@@ -127,6 +127,8 @@
+@@ -127,6 +127,9 @@
     * @default 'text'
     */
    type?: TextInputType;
 +  maxLength?: number;
++  step?: number | string;
 +  inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
    /**
     * Label text for the input (always rendered for accessibility).
@@ -374,15 +375,16 @@ diff --git a/dist/TextInput/TextInput.d.ts b/dist/TextInput/TextInput.d.ts
  import type { BaseProps } from '../BaseProps';
  import type { SizeValue } from '../utils/types';
 -export type TextInputType = 'text' | 'password' | 'email';
-+export type TextInputType = 'text' | 'password' | 'email' | 'search';
++export type TextInputType = 'text' | 'password' | 'email' | 'search' | 'number';
  export interface TextInputProps extends Omit<BaseProps, 'onChange' | 'defaultValue'> {
      /** Ref forwarded to the root element */
      ref?: React.Ref<HTMLInputElement>;
-@@ -39,6 +39,8 @@
+@@ -39,6 +39,9 @@
       * @default 'text'
       */
      type?: TextInputType;
 +    maxLength?: number;
++    step?: number | string;
 +    inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode'];
      /**
       * Label text for the input (always rendered for accessibility).
