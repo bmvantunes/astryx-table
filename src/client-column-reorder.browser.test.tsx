@@ -206,7 +206,11 @@ test.each([
     );
     window.dispatchEvent(new PointerEvent("pointermove", { pointerId: 8, clientX: targetX }));
     await expect.poll(() => Math.abs(grid.scrollLeft)).toBeGreaterThan(600);
-    await expect.poll(() => element.isConnected).toBe(false);
+    // Autoscroll advances only after the prior virtual window commits. Crossing
+    // the retained header overscan can legitimately exceed the default 1s poll
+    // on a shared CI runner. Match the other full-window autoscroll cases below;
+    // production interaction budgets are enforced independently without changes.
+    await expect.poll(() => element.isConnected, { timeout: 5_000 }).toBe(false);
     expect(changes).toHaveLength(0);
     expect(grid.querySelectorAll('[role="columnheader"]').length).toBeLessThanOrEqual(37);
     const bounds = grid.getBoundingClientRect();
